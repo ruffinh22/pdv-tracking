@@ -1,0 +1,16 @@
+{
+  "name": "tracking-pdv-shared",
+  "version": "1.0.0",
+  "description": "Types et interfaces communs pour le projet Tracking PDV",
+  "main": "types.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "types",
+    "interfaces",
+    "shared"
+  ],
+  "author": "",
+  "license": "ISC"
+}
