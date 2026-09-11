@@ -1,15 +1,34 @@
-import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
 import { CONFIG } from '@/config';
 
-let dbInstance: SQLite.SQLiteDatabase | null = null;
+// Conditional import for expo-sqlite (native only)
+let SQLite: any;
+if (Platform.OS !== 'web') {
+  SQLite = require('expo-sqlite');
+}
 
-export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+let dbInstance: any = null;
+
+// Mock database for web
+const createMockDatabase = () => ({
+  execAsync: async () => {},
+  runAsync: async () => ({ insertId: 1 }),
+  getFirstAsync: async () => null,
+  getAllAsync: async () => [],
+  closeAsync: async () => {},
+});
+
+export async function getDatabase(): Promise<any> {
+  if (Platform.OS === 'web') {
+    return createMockDatabase();
+  }
+  
   if (dbInstance) return dbInstance;
   dbInstance = await SQLite.openDatabaseAsync(CONFIG.DB.NAME);
   return dbInstance;
 }
 
-export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
+export async function initDatabase(): Promise<any> {
   const db = await getDatabase();
 
   await db.execAsync(`

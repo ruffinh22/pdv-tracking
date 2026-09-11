@@ -1,16 +1,41 @@
-import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
+import { Platform } from 'react-native';
 import { syncService } from '@/services/syncService';
+
+// Mock modules for web
+const mockLocation = {
+  hasStartedLocationUpdatesAsync: async () => false,
+  startLocationUpdatesAsync: async () => {},
+  stopLocationUpdatesAsync: async () => {},
+  Accuracy: { Balanced: 'balanced' },
+};
+
+const mockTaskManager = {
+  isTaskDefined: () => false,
+  defineTask: () => {},
+};
+
+// Conditional imports for native-only modules
+let Location: any = mockLocation;
+let TaskManager: any = mockTaskManager;
+
+if (Platform.OS !== 'web') {
+  try {
+    Location = require('expo-location');
+    TaskManager = require('expo-task-manager');
+  } catch (e) {
+    console.warn('[locationTask] Native modules not available:', e);
+  }
+}
 
 export const LOCATION_TASK_NAME = 'tracking-pdv-background-location';
 
-if (!TaskManager.isTaskDefined(LOCATION_TASK_NAME)) {
-  TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
+if (Platform.OS !== 'web' && !TaskManager.isTaskDefined(LOCATION_TASK_NAME)) {
+  TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
     if (error) {
       console.error('[locationTask] Erreur:', error);
       return;
     }
-    const { locations } = (data as { locations: Location.LocationObject[] }) || {
+    const { locations } = (data as { locations: any[] }) || {
       locations: [],
     };
     if (!locations || locations.length === 0) return;
@@ -32,6 +57,11 @@ if (!TaskManager.isTaskDefined(LOCATION_TASK_NAME)) {
 }
 
 export async function startBackgroundLocationTracking(intervalMs: number, distanceM: number) {
+  if (Platform.OS === 'web') {
+    console.log('[locationTask] Background tracking not supported on web');
+    return;
+  }
+  
   const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME).catch(
     () => false
   );
@@ -50,6 +80,11 @@ export async function startBackgroundLocationTracking(intervalMs: number, distan
 }
 
 export async function stopBackgroundLocationTracking() {
+  if (Platform.OS === 'web') {
+    console.log('[locationTask] Background tracking not supported on web');
+    return;
+  }
+  
   const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME).catch(
     () => false
   );

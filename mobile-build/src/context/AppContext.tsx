@@ -1,12 +1,50 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import * as SecureStore from '@/lib/secureStore';
-import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 import { initDatabase } from '@/lib/database';
 import { api } from '@/lib/api';
 import { CONFIG } from '@/config';
 import { syncService } from '@/services/syncService';
 import { startBackgroundLocationTracking, stopBackgroundLocationTracking } from '@/tasks/locationTask';
 import { GPSPoint, Produit, SyncStatus, VenteLocale } from '@/types';
+
+// Mock storage for web
+const webStorage: Record<string, string> = {};
+
+// Conditional imports for native-only modules
+let SecureStore: any = {
+  getItemAsync: async (key: string) => webStorage[key] || null,
+  setItemAsync: async (key: string, value: string) => { webStorage[key] = value; },
+  deleteItemAsync: async (key: string) => { delete webStorage[key]; },
+};
+
+let Location: any = {
+  requestForegroundPermissionsAsync: async () => ({ status: 'granted' }),
+  requestBackgroundPermissionsAsync: async () => ({ status: 'granted' }),
+  getCurrentPositionAsync: async () => ({
+    coords: { latitude: 0, longitude: 0, accuracy: 0 },
+    timestamp: Date.now(),
+  }),
+  Accuracy: { High: 'high', Balanced: 'balanced' },
+};
+
+if (Platform.OS !== 'web') {
+  try {
+    SecureStore = require('expo-secure-store');
+    Location = require('expo-location');
+  } catch (e) {
+    console.warn('[AppContext] Native modules not available:', e);
+  }
+}
+
+const getSecureItem = async (key: string): Promise<string | null> => {
+  return await SecureStore.getItemAsync(key);
+};
+const setSecureItem = async (key: string, value: string): Promise<void> => {
+  await SecureStore.setItemAsync(key, value);
+};
+const deleteSecureItem = async (key: string): Promise<void> => {
+  await SecureStore.deleteItemAsync(key);
+};
 
 interface AppContextValue {
   bootstrapping: boolean;
@@ -65,6 +103,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const beginTracking = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      setIsTracking(true);
+      return;
+    }
+    
     const { status: fg } = await Location.requestForegroundPermissionsAsync();
     if (fg !== 'granted') return;
     const { status: bg } = await Location.requestBackgroundPermissionsAsync();
@@ -81,12 +124,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         await initDatabase();
-        const onboarded = await SecureStore.getItemAsync('isOnboarded');
+        const onboarded = await getSecureItem('isOnboarded');
         if (onboarded === 'true') {
-          const savedMsisdn = await SecureStore.getItemAsync('msisdn');
-          const savedPdvId = await SecureStore.getItemAsync('pdvId');
-          const savedLat = await SecureStore.getItemAsync('initialLat');
-          const savedLng = await SecureStore.getItemAsync('initialLng');
+          const savedMsisdn = await getSecureItem('msisdn');
+          const savedPdvId = await getSecureItem('pdvId');
+          const savedLat = await getSecureItem('initialLat');
+          const savedLng = await getSecureItem('initialLng');
           setMsisdn(savedMsisdn || '');
           setPdvId(savedPdvId);
           if (savedLat && savedLng) {
@@ -107,6 +150,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshLocation = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      const point: GPSPoint = {
+        latitude: 0,
+        longitude: 0,
+        accuracy: 0,
+        timestamp: Date.now(),
+      };
+      setCurrentLocation(point);
+      return point;
+    }
+    
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return null;
@@ -127,35 +181,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(
     async (msisdnInput: string): Promise<{ ok: boolean; message?: string }> => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        return { ok: false, message: "La permission de localisation est requise pour continuer." };
-      }
+      let point: GPSPoint;
+      
+      if (Platform.OS === 'web') {
+        point = {
+          latitude: 0,
+          longitude: 0,
+          accuracy: 0,
+        };
+        setCurrentLocation(point);
+      } else {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          return { ok: false, message: "La permission de localisation est requise pour continuer." };
+        }
 
-      let loc;
-      try {
-        loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      } catch {
-        return { ok: false, message: "Impossible d'obtenir votre position GPS. Vérifiez que le GPS est activé." };
-      }
+        let loc;
+        try {
+          loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        } catch {
+          return { ok: false, message: "Impossible d'obtenir votre position GPS. Vérifiez que le GPS est activé." };
+        }
 
-      const point: GPSPoint = {
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-        accuracy: loc.coords.accuracy,
-      };
-      setCurrentLocation(point);
+        point = {
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          accuracy: loc.coords.accuracy,
+        };
+        setCurrentLocation(point);
+      }
 
       try {
         // Compte déjà existant → connexion
         try {
           const { data: existing } = await api.post('/pdv/mobile/login', { msisdn: msisdnInput });
           if (existing?.id) {
-            await SecureStore.setItemAsync('pdvId', String(existing.id));
-            await SecureStore.setItemAsync('msisdn', msisdnInput);
-            await SecureStore.setItemAsync('isOnboarded', 'true');
-            await SecureStore.setItemAsync('initialLat', String(existing.latitude_creation ?? point.latitude));
-            await SecureStore.setItemAsync('initialLng', String(existing.longitude_creation ?? point.longitude));
+            await setSecureItem('pdvId', String(existing.id));
+            await setSecureItem('msisdn', msisdnInput);
+            await setSecureItem('isOnboarded', 'true');
+            await setSecureItem('initialLat', String(existing.latitude_creation ?? point.latitude));
+            await setSecureItem('initialLng', String(existing.longitude_creation ?? point.longitude));
             setPdvId(String(existing.id));
             setMsisdn(msisdnInput);
             setInitialLocation({
@@ -185,11 +250,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return { ok: false, message: 'Réponse invalide du serveur.' };
         }
 
-        await SecureStore.setItemAsync('pdvId', String(created.id));
-        await SecureStore.setItemAsync('msisdn', msisdnInput);
-        await SecureStore.setItemAsync('isOnboarded', 'true');
-        await SecureStore.setItemAsync('initialLat', String(point.latitude));
-        await SecureStore.setItemAsync('initialLng', String(point.longitude));
+        await setSecureItem('pdvId', String(created.id));
+        await setSecureItem('msisdn', msisdnInput);
+        await setSecureItem('isOnboarded', 'true');
+        await setSecureItem('initialLat', String(point.latitude));
+        await setSecureItem('initialLng', String(point.longitude));
 
         setPdvId(String(created.id));
         setMsisdn(msisdnInput);
@@ -221,11 +286,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await stopBackgroundLocationTracking();
     setIsTracking(false);
-    await SecureStore.deleteItemAsync('pdvId');
-    await SecureStore.deleteItemAsync('msisdn');
-    await SecureStore.deleteItemAsync('isOnboarded');
-    await SecureStore.deleteItemAsync('initialLat');
-    await SecureStore.deleteItemAsync('initialLng');
+    await deleteSecureItem('pdvId');
+    await deleteSecureItem('msisdn');
+    await deleteSecureItem('isOnboarded');
+    await deleteSecureItem('initialLat');
+    await deleteSecureItem('initialLng');
     setIsOnboarded(false);
     setMsisdn('');
     setPdvId(null);

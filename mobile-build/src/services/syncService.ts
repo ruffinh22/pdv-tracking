@@ -1,7 +1,29 @@
-import * as SecureStore from '@/lib/secureStore';
+import { Platform } from 'react-native';
 import { getDatabase, initDatabase } from '@/lib/database';
 import { api } from '@/lib/api';
 import { VenteInput, VenteLocale } from '@/types';
+
+// Mock storage for web
+const webStorage: Record<string, string> = {};
+
+// Conditional import for expo-secure-store (native only)
+let SecureStore: any = {
+  getItemAsync: async (key: string) => webStorage[key] || null,
+  setItemAsync: async (key: string, value: string) => { webStorage[key] = value; },
+  deleteItemAsync: async (key: string) => { delete webStorage[key]; },
+};
+
+if (Platform.OS !== 'web') {
+  try {
+    SecureStore = require('expo-secure-store');
+  } catch (e) {
+    console.warn('[syncService] Native modules not available:', e);
+  }
+}
+
+const getSecureItem = async (key: string): Promise<string | null> => {
+  return await SecureStore.getItemAsync(key);
+};
 
 class SyncService {
   private ready = false;
@@ -17,7 +39,7 @@ class SyncService {
   async saveVenteLocally(vente: VenteInput): Promise<boolean> {
     try {
       const db = await this.ensureDb();
-      const pdvId = await SecureStore.getItemAsync('pdvId');
+      const pdvId = await getSecureItem('pdvId');
 
       await db.runAsync(
         `INSERT INTO ventes (produit, nom_concessionnaire, nom_vendeur, contact_vendeur, montant, latitude, longitude, horodatage, statut, pdv_id)
@@ -64,12 +86,12 @@ class SyncService {
   async syncVentes(): Promise<{ success: boolean; synced: number }> {
     try {
       const db = await this.ensureDb();
-      const ventes = await db.getAllAsync<VenteLocale>(
+      const ventes = await db.getAllAsync(
         'SELECT * FROM ventes WHERE synchronise = 0'
       );
       if (ventes.length === 0) return { success: true, synced: 0 };
 
-      const pdvId = await SecureStore.getItemAsync('pdvId');
+      const pdvId = await getSecureItem('pdvId');
       let synced = 0;
 
       for (const vente of ventes) {
@@ -101,12 +123,12 @@ class SyncService {
   async syncPositions(): Promise<{ success: boolean; synced: number }> {
     try {
       const db = await this.ensureDb();
-      const positions = await db.getAllAsync<any>(
+      const positions = await db.getAllAsync(
         'SELECT * FROM positions WHERE synchronise = 0'
       );
       if (positions.length === 0) return { success: true, synced: 0 };
 
-      const pdvId = await SecureStore.getItemAsync('pdvId');
+      const pdvId = await getSecureItem('pdvId');
       let synced = 0;
 
       for (const position of positions) {
@@ -132,14 +154,14 @@ class SyncService {
 
   async getPendingVentes(): Promise<VenteLocale[]> {
     const db = await this.ensureDb();
-    return db.getAllAsync<VenteLocale>(
+    return db.getAllAsync(
       'SELECT * FROM ventes WHERE synchronise = 0 ORDER BY horodatage DESC'
     );
   }
 
   async getVentesHistory(limit = 100): Promise<VenteLocale[]> {
     const db = await this.ensureDb();
-    return db.getAllAsync<VenteLocale>(
+    return db.getAllAsync(
       'SELECT * FROM ventes ORDER BY horodatage DESC LIMIT ?',
       [limit]
     );

@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/context/AppContext';
 import { colors, radius } from '@/theme/colors';
@@ -21,6 +20,27 @@ import GPSStatusCard from '@/components/GPSStatusCard';
 import ProductPickerModal from '@/components/ProductPickerModal';
 import { syncService } from '@/services/syncService';
 import { Produit } from '@/types';
+
+// Mock location for web
+const mockLocation = {
+  requestForegroundPermissionsAsync: async () => ({ status: 'granted' }),
+  getCurrentPositionAsync: async () => ({
+    coords: { latitude: 0, longitude: 0, accuracy: 0 },
+    timestamp: Date.now(),
+  }),
+  Accuracy: { High: 'high' },
+};
+
+// Conditional import for expo-location (native only)
+let Location: any = mockLocation;
+
+if (Platform.OS !== 'web') {
+  try {
+    Location = require('expo-location');
+  } catch (e) {
+    console.warn('[ventes] Native modules not available:', e);
+  }
+}
 
 export default function VentesScreen() {
   const { msisdn, produits, loadProducts, initialLocation, refreshHistory } = useApp();
@@ -42,6 +62,11 @@ export default function VentesScreen() {
   }, []);
 
   const getLocation = async () => {
+    if (Platform.OS === 'web') {
+      setLocation({ latitude: 0, longitude: 0, accuracy: 0 });
+      return;
+    }
+    
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
@@ -83,12 +108,14 @@ export default function VentesScreen() {
 
     setSubmitting(true);
     let gps = location;
-    try {
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      gps = { latitude: loc.coords.latitude, longitude: loc.coords.longitude, accuracy: loc.coords.accuracy };
-      setLocation(gps);
-    } catch {
-      // on garde la dernière position connue si l'acquisition échoue
+    if (Platform.OS !== 'web') {
+      try {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        gps = { latitude: loc.coords.latitude, longitude: loc.coords.longitude, accuracy: loc.coords.accuracy };
+        setLocation(gps);
+      } catch {
+        // on garde la dernière position connue si l'acquisition échoue
+      }
     }
 
     if (!gps) {

@@ -142,7 +142,6 @@ const PDV = sequelize.define('PDV', {
 }, {
   tableName: 'pdv',
   indexes: [
-    { fields: ['msisdn_responsable'] },
     { fields: ['statut'] },
     { fields: ['zone_geofence_id'] },
     { fields: ['agence_id'] },
