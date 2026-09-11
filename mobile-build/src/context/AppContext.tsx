@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/lib/secureStore';
 import * as Location from 'expo-location';
 import { initDatabase } from '@/lib/database';
 import { api } from '@/lib/api';

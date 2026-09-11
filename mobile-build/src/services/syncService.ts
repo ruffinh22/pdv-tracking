@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/lib/secureStore';
 import { getDatabase, initDatabase } from '@/lib/database';
 import { api } from '@/lib/api';
 import { VenteInput, VenteLocale } from '@/types';
