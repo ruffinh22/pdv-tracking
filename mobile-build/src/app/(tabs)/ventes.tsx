@@ -21,19 +21,8 @@ import ProductPickerModal from '@/components/ProductPickerModal';
 import { syncService } from '@/services/syncService';
 import { Produit } from '@/types';
 
-// Mock location for web
-const mockLocation = {
-  requestForegroundPermissionsAsync: async () => ({ status: 'granted' }),
-  getCurrentPositionAsync: async () => ({
-    coords: { latitude: 0, longitude: 0, accuracy: 0 },
-    timestamp: Date.now(),
-  }),
-  Accuracy: { High: 'high' },
-};
-
 // Conditional import for expo-location (native only)
-let Location: any = mockLocation;
-
+let Location: any = null;
 if (Platform.OS !== 'web') {
   try {
     Location = require('expo-location');
@@ -43,7 +32,7 @@ if (Platform.OS !== 'web') {
 }
 
 export default function VentesScreen() {
-  const { msisdn, produits, loadProducts, initialLocation, refreshHistory } = useApp();
+  const { msisdn, pdvId, produits, loadProducts, initialLocation, refreshHistory, refreshLocation } = useApp();
 
   const [location, setLocation] = useState<{ latitude: number; longitude: number; accuracy?: number | null } | null>(
     null
@@ -62,22 +51,17 @@ export default function VentesScreen() {
   }, []);
 
   const getLocation = async () => {
-    if (Platform.OS === 'web') {
-      setLocation({ latitude: 0, longitude: 0, accuracy: 0 });
-      return;
-    }
-    
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setLocation({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-        accuracy: loc.coords.accuracy,
-      });
+      // Prefer app-level refreshLocation which handles web & native uniformly
+      const point = await refreshLocation();
+      if (point) {
+        setLocation({ latitude: point.latitude, longitude: point.longitude, accuracy: point.accuracy });
+      } else {
+        setLocation(null);
+      }
     } catch (error) {
       console.error('[ventes] Erreur GPS:', error);
+      setLocation(null);
     }
   };
 
@@ -107,6 +91,12 @@ export default function VentesScreen() {
     }
 
     setSubmitting(true);
+    if (!pdvId) {
+      Alert.alert('Compte requis', "Vous devez d'abord vous enregistrer / connecter avant d'enregistrer des ventes.");
+      setSubmitting(false);
+      return;
+    }
+
     let gps = location;
     if (Platform.OS !== 'web') {
       try {
@@ -140,7 +130,15 @@ export default function VentesScreen() {
       if (saved) successCount++;
     }
 
-    await syncService.autoSync();
+    if (typeof (syncService as any).autoSync === 'function') {
+      try {
+        await (syncService as any).autoSync();
+      } catch (e) {
+        console.warn('[ventes] autoSync failed:', e);
+      }
+    } else {
+      console.info('[ventes] autoSync not available on syncService');
+    }
     await refreshHistory();
     setSubmitting(false);
 
@@ -172,7 +170,7 @@ export default function VentesScreen() {
             {selected.length > 0 && (
               <View style={styles.chipsWrap}>
                 {selected.map((p) => (
-                  <View key={p.id} style={styles.chip}>
+                  <View key={`${p.id}-${p.nom_produit}`} style={styles.chip}>
                     <Text style={styles.chipText}>{p.nom_produit}</Text>
                     <TouchableOpacity onPress={() => toggleProduct(p)}>
                       <Ionicons name="close" size={14} color={colors.primary[700]} />

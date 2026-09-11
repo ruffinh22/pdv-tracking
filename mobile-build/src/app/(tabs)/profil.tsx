@@ -3,6 +3,7 @@ import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/context/AppContext';
+import { clearAllData } from '@/lib/database';
 import { colors, radius } from '@/theme/colors';
 import AppHeader from '@/components/AppHeader';
 import Card from '@/components/ui/Card';
@@ -23,8 +24,15 @@ export default function ProfilScreen() {
           text: 'Déconnecter',
           style: 'destructive',
           onPress: async () => {
-            await logout();
-            router.replace('/onboarding');
+            try {
+              await logout();
+              Alert.alert('Déconnecté', 'Vos identifiants locaux ont été supprimés.');
+            } catch (error) {
+              console.warn('[profil] logout failed:', error);
+              Alert.alert('Erreur', 'La déconnexion a rencontré une erreur.');
+            } finally {
+              router.replace('/');
+            }
           },
         },
       ]
@@ -76,6 +84,31 @@ export default function ProfilScreen() {
 
         <View style={{ height: 20 }} />
         <Button title="Se déconnecter" variant="danger" onPress={handleLogout} />
+        <View style={{ height: 8 }} />
+        <Button
+          title="Purger données locales"
+          variant="ghost"
+          onPress={async () => {
+            Alert.alert('Purger données', 'Voulez-vous supprimer les ventes et positions locales ?', [
+              { text: 'Annuler', style: 'cancel' },
+              {
+                text: 'Supprimer',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await clearAllData();
+                    Alert.alert('Terminé', 'Données locales supprimées.');
+                    // refresh UI
+                    router.replace('/profil');
+                  } catch (e) {
+                    console.warn('[profil] purge failed', e);
+                    Alert.alert('Erreur', 'Impossible de purger les données locales.');
+                  }
+                },
+              },
+            ]);
+          }}
+        />
       </ScrollView>
     </View>
   );

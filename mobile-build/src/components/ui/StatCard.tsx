@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Card from './Card';
 import { colors } from '@/theme/colors';
 
@@ -9,6 +9,7 @@ interface StatCardProps {
   icon?: React.ReactNode;
   tone?: 'primary' | 'success' | 'warning' | 'danger';
   hint?: string;
+  style?: ViewStyle;
 }
 
 const toneColor: Record<string, string> = {
@@ -18,9 +19,9 @@ const toneColor: Record<string, string> = {
   danger: colors.danger[600],
 };
 
-export default function StatCard({ label, value, icon, tone = 'primary', hint }: StatCardProps) {
+export default function StatCard({ label, value, icon, tone = 'primary', hint, style }: StatCardProps) {
   return (
-    <Card style={styles.card}>
+    <Card style={[styles.card, style]}>
       <View style={styles.row}>
         <Text style={styles.label}>{label}</Text>
         {icon ? <View style={[styles.iconWrap, { backgroundColor: `${toneColor[tone]}1A` }]}>{icon}</View> : null}
@@ -32,10 +33,46 @@ export default function StatCard({ label, value, icon, tone = 'primary', hint }:
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, minWidth: '46%' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  label: { fontSize: 13, fontWeight: '600', color: colors.ink[500], flexShrink: 1 },
-  iconWrap: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  value: { fontSize: 26, fontWeight: '800', marginTop: 10 },
-  hint: { fontSize: 12, color: colors.ink[400], marginTop: 4 },
+  card: {
+    flex: 1,
+    minWidth: 0,
+    padding: 10,
+    minHeight: 84,
+    justifyContent: 'center',
+    borderRadius: 10,
+    borderColor: colors.ink[300],
+    borderWidth: 1,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  label: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: colors.ink[500],
+    flexShrink: 1,
+    lineHeight: 13,
+    maxWidth: '80%',
+  },
+  iconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  value: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginTop: 8,
+    letterSpacing: -0.5,
+  },
+  hint: {
+    fontSize: 9.5,
+    color: colors.ink[400],
+    marginTop: 3,
+    lineHeight: 11,
+  },
 });

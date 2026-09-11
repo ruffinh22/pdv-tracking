@@ -1,5 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import Button from './ui/Button';
+import { useApp } from '@/context/AppContext';
 import Card from './ui/Card';
 import Badge from './ui/Badge';
 import { colors } from '@/theme/colors';
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export default function GPSStatusCard({ current, initial }: Props) {
+  const { refreshLocation } = useApp();
   const distance =
     current && initial
       ? distanceMeters(initial.latitude, initial.longitude, current.latitude, current.longitude)
@@ -65,7 +68,11 @@ export default function GPSStatusCard({ current, initial }: Props) {
       ) : (
         <View style={styles.loadingRow}>
           <ActivityIndicator size="small" color={colors.primary[600]} />
-          <Text style={styles.loadingText}>Acquisition GPS en cours…</Text>
+          <View style={{ marginLeft: 8 }}>
+            <Text style={styles.loadingText}>Position introuvable — activez la géolocalisation.</Text>
+            <View style={{ height: 8 }} />
+            <Button title="Réessayer" onPress={refreshLocation} variant="secondary" />
+          </View>
         </View>
       )}
     </Card>
@@ -73,17 +80,18 @@ export default function GPSStatusCard({ current, initial }: Props) {
 }
 
 const styles = StyleSheet.create({
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 15, fontWeight: '700', color: colors.ink[800] },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  title: { fontSize: 13, fontWeight: '700', color: colors.ink[800] },
   coordRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 7,
+    alignItems: 'center',
+    paddingVertical: 4,
     borderBottomWidth: 1,
     borderBottomColor: colors.ink[50],
   },
-  coordLabel: { fontSize: 13, color: colors.ink[500] },
-  coordValue: { fontSize: 13, fontWeight: '700', color: colors.ink[800] },
-  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  loadingText: { fontSize: 13, color: colors.ink[500] },
+  coordLabel: { fontSize: 11.5, color: colors.ink[500] },
+  coordValue: { fontSize: 11.5, fontWeight: '700', color: colors.ink[800] },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
+  loadingText: { fontSize: 12, color: colors.ink[500] },
 });

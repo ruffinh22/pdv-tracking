@@ -47,7 +47,10 @@ export default function HistoriqueScreen() {
       </View>
       <FlatList
         data={history}
-        keyExtractor={(item) => String(item.id)}
+        keyExtractor={(item, index) => {
+          const base = item && item.id != null ? String(item.id) : String(item.horodatage ?? 'no-id');
+          return `${base}-${index}`;
+        }}
         contentContainerStyle={{ padding: 16, paddingTop: 4, paddingBottom: 32 }}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refreshHistory} tintColor={colors.primary[600]} />}

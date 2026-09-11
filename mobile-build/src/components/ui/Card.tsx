@@ -12,11 +12,14 @@ export default function Card({ style, children, ...rest }: ViewProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
-    borderRadius: radius.xl,
+    backgroundColor: '#FBFBFF',
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.ink[100],
-    padding: 16,
+    borderColor: colors.ink[300],
+    padding: 12,
     ...shadow.card,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
   },
 });

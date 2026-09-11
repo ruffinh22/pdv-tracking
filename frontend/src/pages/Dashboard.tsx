@@ -206,7 +206,7 @@ const Dashboard = () => {
         {KPI_CARDS.map(({ key, label, caption, icon: Icon, accentBar, iconBg, iconColor }) => (
           <div
             key={key}
-            className="group relative flex items-center gap-3 bg-white rounded-xl border border-ink-200 shadow-card hover:shadow-lg hover:border-ink-300 transition-all duration-200 p-3.5"
+            className="group relative flex items-center gap-3 rounded-xl transition-all duration-200 p-3.5 kpi-card hover:shadow-lg hover:border-ink-300"
           >
             <div className={`absolute top-0 left-0 bottom-0 w-[3px] rounded-l-xl ${accentBar}`} />
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>

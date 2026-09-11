@@ -239,6 +239,13 @@
     @apply flex flex-col items-center justify-center gap-2 py-14 text-center;
   }
 
+  /* KPI card variant: slightly elevated and warmer surface to stand out from page background */
+  .kpi-card {
+    background: linear-gradient(180deg, #FFFFFF 0%, #FBFBFF 100%);
+    border: 1px solid rgba(18,18,24,0.06);
+    box-shadow: 0 6px 18px -6px rgba(18,18,24,0.06), 0 2px 6px -2px rgba(18,18,24,0.04);
+  }
+
   .empty-state-icon {
     @apply w-12 h-12 rounded-2xl bg-ink-100 text-ink-400 flex items-center justify-center mb-1;
   }

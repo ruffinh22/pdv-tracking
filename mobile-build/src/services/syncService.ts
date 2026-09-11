@@ -19,6 +19,13 @@ if (Platform.OS !== 'web') {
   } catch (e) {
     console.warn('[syncService] Native modules not available:', e);
   }
+} else {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    SecureStore = require('../lib/secureStoreMock');
+  } catch (e) {
+    // ignore
+  }
 }
 
 const getSecureItem = async (key: string): Promise<string | null> => {
@@ -41,7 +48,8 @@ class SyncService {
       const db = await this.ensureDb();
       const pdvId = await getSecureItem('pdvId');
 
-      await db.runAsync(
+      // Always insert locally first to keep a record for history/UX.
+      const res = await db.runAsync(
         `INSERT INTO ventes (produit, nom_concessionnaire, nom_vendeur, contact_vendeur, montant, latitude, longitude, horodatage, statut, pdv_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -57,6 +65,37 @@ class SyncService {
           pdvId ? Number(pdvId) : null,
         ]
       );
+
+      const insertId = res && (res.insertId || res.lastID || 0);
+
+      // Try immediate server persistence when online and when we have a pdvId.
+      const online = await this.checkConnection();
+      if (online && pdvId) {
+        try {
+          await api.post('/ventes/mobile/create', {
+            pdv_id: pdvId ? Number(pdvId) : undefined,
+            produit: vente.produit,
+            nom_concessionnaire: vente.nom_concessionnaire || '',
+            nom_vendeur: vente.nom_vendeur || '',
+            contact_vendeur: vente.contact_vendeur || '',
+            latitude_saisie: vente.latitude,
+            longitude_saisie: vente.longitude,
+            horodatage: vente.horodatage,
+            montant: vente.montant || 0,
+          });
+
+          // Mark local row as synchronized so it won't be re-sent.
+          if (insertId) {
+            await db.runAsync('UPDATE ventes SET synchronise = 1 WHERE id = ?', [insertId]);
+          }
+        } catch (error) {
+          // If server call fails, keep the local row as unsynchronized for retry later.
+          console.warn('[sync] Envoi immédiat vente échoué, conservation locale pour resynchronisation', error);
+        }
+      } else if (!pdvId) {
+        console.info('[sync] Pas d\'identifiant PDV (pdvId) trouvé — enregistrement local uniquement.');
+      }
+
       return true;
     } catch (error) {
       console.error('[sync] Erreur enregistrement vente locale:', error);
@@ -96,8 +135,15 @@ class SyncService {
 
       for (const vente of ventes) {
         try {
+          // determine pdv id to send: prefer the row's pdv_id, fallback to stored pdvId
+          const sendPdvId = vente.pdv_id || (pdvId ? Number(pdvId) : undefined);
+          if (!sendPdvId) {
+            console.warn(`[sync] Ignorer vente ${vente.id} sans pdv_id (attente d'onboarding)`);
+            continue;
+          }
+
           await api.post('/ventes/mobile/create', {
-            pdv_id: pdvId ? Number(pdvId) : undefined,
+            pdv_id: sendPdvId,
             produit: vente.produit,
             nom_concessionnaire: vente.nom_concessionnaire,
             nom_vendeur: vente.nom_vendeur,

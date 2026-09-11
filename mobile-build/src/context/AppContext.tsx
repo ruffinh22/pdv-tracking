@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { router } from 'expo-router';
 import { Platform } from 'react-native';
-import { initDatabase } from '@/lib/database';
+import { initDatabase, clearAllData } from '@/lib/database';
 import { api } from '@/lib/api';
 import { CONFIG } from '@/config';
 import { syncService } from '@/services/syncService';
@@ -33,6 +34,17 @@ if (Platform.OS !== 'web') {
     Location = require('expo-location');
   } catch (e) {
     console.warn('[AppContext] Native modules not available:', e);
+  }
+}
+
+// Use shared secureStoreMock on web for consistent secure storage across modules
+if (Platform.OS === 'web') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // Note: path relative to this file -> ../lib/secureStoreMock
+    SecureStore = require('../lib/secureStoreMock');
+  } catch (e) {
+    // fallback to local in-file mock
   }
 }
 
@@ -151,16 +163,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshLocation = useCallback(async () => {
     if (Platform.OS === 'web') {
-      const point: GPSPoint = {
-        latitude: 0,
-        longitude: 0,
-        accuracy: 0,
-        timestamp: Date.now(),
-      };
+      const point: GPSPoint | null = await new Promise<GPSPoint | null>((resolve) => {
+        if (!navigator || !navigator.geolocation) {
+          resolve(null);
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          ({ coords }) => {
+            resolve({
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              accuracy: coords.accuracy ?? 0,
+              timestamp: Date.now(),
+            });
+          },
+          () => {
+            resolve(null);
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 1000 }
+        );
+      });
+
       setCurrentLocation(point);
       return point;
     }
-    
+
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return null;
@@ -181,15 +209,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(
     async (msisdnInput: string): Promise<{ ok: boolean; message?: string }> => {
-      let point: GPSPoint;
-      
+      let point: GPSPoint | null = null;
+
       if (Platform.OS === 'web') {
-        point = {
-          latitude: 0,
-          longitude: 0,
-          accuracy: 0,
-        };
-        setCurrentLocation(point);
+        point = await new Promise<GPSPoint | null>((resolve) => {
+            if (!navigator || !navigator.geolocation) {
+              resolve(null);
+              return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+              ({ coords }) => {
+                resolve({
+                  latitude: coords.latitude,
+                  longitude: coords.longitude,
+                  accuracy: coords.accuracy ?? 0,
+                  timestamp: Date.now(),
+                });
+              },
+              () => {
+                resolve(null);
+              },
+              { enableHighAccuracy: true, timeout: 15000, maximumAge: 1000 }
+            );
+          });
+
+          if (!point) {
+            return { ok: false, message: 'Impossible d\'obtenir la position GPS. Autorisez la géolocalisation dans votre navigateur.' };
+          }
+          setCurrentLocation(point);
       } else {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -284,13 +332,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [refreshHistory]);
 
   const logout = useCallback(async () => {
-    await stopBackgroundLocationTracking();
+    // Clear UI state and local session immediately so the app appears logged out.
     setIsTracking(false);
-    await deleteSecureItem('pdvId');
-    await deleteSecureItem('msisdn');
-    await deleteSecureItem('isOnboarded');
-    await deleteSecureItem('initialLat');
-    await deleteSecureItem('initialLng');
+    setSyncStatus('idle');
+    setLastSyncedCount(null);
+
     setIsOnboarded(false);
     setMsisdn('');
     setPdvId(null);
@@ -298,7 +344,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentLocation(null);
     setHistory([]);
     setPendingVentes([]);
+    setProduits([]);
+
+    // Remove secure items (best-effort). Do not let failures prevent UI logout.
+    try {
+      await Promise.all([
+        deleteSecureItem('pdvId'),
+        deleteSecureItem('msisdn'),
+        deleteSecureItem('isOnboarded'),
+        deleteSecureItem('initialLat'),
+        deleteSecureItem('initialLng'),
+      ]);
+    } catch (error) {
+      console.warn('[app] Erreur lors de la suppression des identifiants locaux:', error);
+    }
+
+    // Clear local DB/persistence (best-effort). This removes local ventes/positions so
+    // history doesn't persist after logout.
+    try {
+      await clearAllData();
+    } catch (error) {
+      console.warn('[app] Erreur lors du nettoyage de la base locale:', error);
+    }
+
+    // Attempt to stop background tracking but don't block logout flow on failures or delays.
+    stopBackgroundLocationTracking().catch((error) => {
+      console.warn('[app] Erreur pendant l\'arrêt du tracking en arrière-plan (non-bloquant):', error);
+    });
   }, []);
+
+  // If the app is not onboarded, redirect to onboarding/root.
+  useEffect(() => {
+    if (!bootstrapping && !isOnboarded) {
+      try {
+        router.replace('/');
+      } catch (e) {
+        // ignore routing errors
+      }
+    }
+  }, [bootstrapping, isOnboarded]);
 
   const value = useMemo<AppContextValue>(
     () => ({

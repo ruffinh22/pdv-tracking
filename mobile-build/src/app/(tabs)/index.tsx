@@ -47,31 +47,40 @@ export default function HomeScreen() {
           />
         </View>
 
-        <View style={styles.statsGrid}>
+        <View style={styles.featuredRow}>
           <StatCard
             label="Ventes du jour"
             value={ventesAujourdhui}
             tone="primary"
             icon={<Ionicons name="cart" size={16} color={colors.primary[600]} />}
+            style={{ flex: 1, marginRight: 8 }}
           />
           <StatCard
             label="En attente de sync"
             value={pendingVentes.length}
             tone="warning"
             icon={<Ionicons name="cloud-upload" size={16} color={colors.warning[600]} />}
+            style={{ flex: 1, marginLeft: 8 }}
           />
+        </View>
+
+        <View style={{ height: 8 }} />
+
+        <View style={styles.smallRow}>
           <StatCard
             label="Total enregistré"
             value={history.length}
             tone="success"
-            icon={<Ionicons name="checkmark-done" size={16} color={colors.success[600]} />}
+            icon={<Ionicons name="checkmark-done" size={14} color={colors.success[600]} />}
+            style={{ flex: 1, marginRight: 8 }}
           />
           <StatCard
             label="Rayon autorisé"
             value="500 m"
             tone="danger"
-            icon={<Ionicons name="locate" size={16} color={colors.danger[600]} />}
+            icon={<Ionicons name="locate" size={14} color={colors.danger[600]} />}
             hint="Alerte si dépassement"
+            style={{ flex: 1 }}
           />
         </View>
 
@@ -86,5 +95,23 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.ink[50] },
   container: { flex: 1 },
   statusRow: { marginBottom: 14 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  statsGrid: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  featuredRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 4,
+  },
+  smallRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
 });
