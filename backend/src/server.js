@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
@@ -42,6 +44,19 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
+
+// Servir le build frontend si présent (chemin vers le dossier frontend au niveau racine)
+const frontendDist = path.resolve(__dirname, '..', '..', 'frontend', 'dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  // Ne pas interférer avec les routes API : laisser passer les requêtes commençant par /api
+  app.get('/*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+} else {
+  logger.info(`Frontend dist introuvable (${frontendDist}) — le serveur n'exposera pas l'UI statique.`);
+}
 
 // Limitation de taux
 const limiter = rateLimit({

@@ -5,7 +5,7 @@ export const CONFIG = {
   // URL du backend API
   // Pour le développement local, utilisez l'IP de votre ordinateur
   // Pour trouver votre IP: ipconfig (Windows) ou ifconfig (Mac/Linux)
-  API_BASE_URL: 'http://192.168.20.211:3001/api',
+  API_BASE_URL: 'http://10.0.2.15:3001/api',
   
   // Configuration du tracking GPS
   LOCATION_CONFIG: {

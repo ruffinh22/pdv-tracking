@@ -2,7 +2,11 @@
 // Modifiez API_BASE_URL selon votre environnement (IP locale en dev, domaine en prod).
 
 export const CONFIG = {
-  API_BASE_URL: 'http://192.168.20.211:3001/api',
+  API_BASE_URL: 'http://10.0.2.15:3001/api',
+
+  // NOTE: mis à jour automatiquement par l'agent pour le développement local
+  // Remplace par l'IP de ta machine si besoin
+  // API_BASE_URL: 'http://<TON_IP>:<PORT>/api',
 
   LOCATION: {
     // Intervalle entre deux remontées de position en arrière-plan (ms)

@@ -42,6 +42,19 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS",
+        "INTERNET",
+        "WAKE_LOCK",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
@@ -69,7 +82,9 @@
           "sounds": []
         }
       ],
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "expo-font",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true
@@ -80,6 +95,12 @@
         "projectId": "80fbfbb2-cdc5-4f72-8ca3-ca302c17648e"
       }
     },
-    "owner": "ruffinh22s-team"
+    "owner": "ruffinh22s-team",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/80fbfbb2-cdc5-4f72-8ca3-ca302c17648e"
+    }
   }
 }

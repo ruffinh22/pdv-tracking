@@ -5,7 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node src/server.js",
+    "dev": "nodemon --watch src --ext js --exec \"node src/server.js\"",
+    "debug": "nodemon --watch src --ext js --exec \"node --inspect=9229 src/server.js\"",
     "test": "jest",
     "seed": "node src/database/seed.js",
     "seed-tracking": "node src/database/seed-tracking.js"
