@@ -25,8 +25,8 @@ const positionController = {
         { where: { id: position.pdv_id } }
       );
 
-      // Vérifier le geofencing
-      await geofencingService.checkGeofencing(position.pdv_id, position.latitude, position.longitude);
+      // Vérifier le geofencing et l'activité suspecte (>500m de la position initiale)
+      await geofencingService.checkAll(position.pdv_id, position.latitude, position.longitude);
 
       logger.info(`Nouvelle position mobile créée: ${position.id}`);
       res.status(201).json(position);
@@ -50,8 +50,8 @@ const positionController = {
         { where: { id: position.pdv_id } }
       );
 
-      // Vérifier le geofencing
-      await geofencingService.checkGeofencing(position.pdv_id, position.latitude, position.longitude);
+      // Vérifier le geofencing et l'activité suspecte (>500m de la position initiale)
+      await geofencingService.checkAll(position.pdv_id, position.latitude, position.longitude);
 
       logger.info(`Nouvelle position créée: ${position.id}`);
       res.status(201).json(position);
@@ -101,6 +101,20 @@ const positionController = {
     try {
       const { positions } = req.body;
       const createdPositions = await Position.bulkCreate(positions);
+
+      // Mettre à jour la dernière position connue de chaque PDV + vérifications
+      for (const position of createdPositions) {
+        await PDV.update(
+          {
+            derniere_position_latitude: position.latitude,
+            derniere_position_longitude: position.longitude,
+            derniere_position_date: position.horodatage
+          },
+          { where: { id: position.pdv_id } }
+        );
+        await geofencingService.checkAll(position.pdv_id, position.latitude, position.longitude);
+      }
+
       logger.info(`${createdPositions.length} positions créées en batch`);
       res.status(201).json(createdPositions);
     } catch (error) {

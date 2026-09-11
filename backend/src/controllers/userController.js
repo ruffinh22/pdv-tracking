@@ -42,11 +42,28 @@ const userController = {
 
   async getAllUsers(req, res) {
     try {
+      const { role } = req.query;
+      const where = {};
+      if (role) {
+        where.role = role;
+      }
+
+      // Mode complet pour alimenter les listes déroulantes (formulaire de tagging PDV)
+      if (req.query.all === 'true') {
+        const users = await User.findAll({
+          where: { ...where, statut: 'actif' },
+          attributes: { exclude: ['mot_de_passe'] },
+          order: [['prenom', 'ASC'], ['nom', 'ASC']]
+        });
+        return res.json(users);
+      }
+
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;
 
       const { count, rows: users } = await User.findAndCountAll({
+        where,
         attributes: { exclude: ['mot_de_passe'] },
         limit,
         offset

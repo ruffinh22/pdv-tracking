@@ -153,40 +153,47 @@ const Reporting = () => {
     return chartData;
   };
 
+  const reportOptions = [
+    { id: 'ventes', icon: ShoppingCart, label: 'Ventes', iconBg: 'bg-primary-600' },
+    { id: 'produits', icon: DollarSign, label: 'Produits', iconBg: 'bg-success-600' },
+    { id: 'zones', icon: MapPin, label: 'Zones', iconBg: 'bg-purple-500' },
+    { id: 'pdv', icon: Users, label: 'PDV', iconBg: 'bg-warning-500' },
+  ] as const;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Reporting</h1>
-          <p className="text-gray-600 mt-1">Analyse et exportation des données</p>
+          <h1 className="text-2xl font-bold text-ink-900">Reporting</h1>
+          <p className="text-sm text-ink-500 mt-0.5">Analyse et exportation des données</p>
         </div>
         <button
           onClick={handleExportExcel}
-          className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          className="btn btn-primary"
         >
-          <Download className="w-4 h-4 mr-2" />
+          <Download className="w-4 h-4" />
           Export Excel
         </button>
       </div>
 
       {/* Filtres de période */}
-      <div className="card">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Calendar className="w-5 h-5 text-gray-500" />
-            <span className="font-medium">Période:</span>
+      <div className="card !p-4">
+        <div className="flex items-center flex-wrap gap-4">
+          <div className="flex items-center gap-2 text-ink-700">
+            <Calendar className="w-4 h-4 text-ink-400" />
+            <span className="text-sm font-medium">Période</span>
           </div>
           
-          <div className="flex space-x-2">
+          <div className="flex gap-1.5 bg-ink-50 p-1 rounded-lg">
             {(['today', 'week', 'month', 'custom'] as const).map((period) => (
               <button
                 key={period}
                 onClick={() => setSelectedPeriod(period)}
-                className={`px-4 py-2 rounded-lg transition-colors ${
+                className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   selectedPeriod === period
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-white text-primary-700 shadow-sm'
+                    : 'text-ink-500 hover:text-ink-800'
                 }`}
               >
                 {period === 'today' ? 'Aujourd\'hui' : 
@@ -197,19 +204,19 @@ const Reporting = () => {
           </div>
 
           {selectedPeriod === 'custom' && (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <input
                 type="date"
                 value={customDateRange.debut}
                 onChange={(e) => setCustomDateRange({ ...customDateRange, debut: e.target.value })}
-                className="px-3 py-2 border rounded-lg"
+                className="input py-1.5"
               />
-              <span className="text-gray-500">à</span>
+              <span className="text-ink-400 text-sm">à</span>
               <input
                 type="date"
                 value={customDateRange.fin}
                 onChange={(e) => setCustomDateRange({ ...customDateRange, fin: e.target.value })}
-                className="px-3 py-2 border rounded-lg"
+                className="input py-1.5"
               />
             </div>
           )}
@@ -217,47 +224,44 @@ const Reporting = () => {
       </div>
 
       {/* Sélecteur de rapport */}
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          { id: 'ventes', icon: ShoppingCart, label: 'Ventes', color: 'bg-blue-500' },
-          { id: 'produits', icon: DollarSign, label: 'Produits', color: 'bg-green-500' },
-          { id: 'zones', icon: MapPin, label: 'Zones', color: 'bg-purple-500' },
-          { id: 'pdv', icon: Users, label: 'PDV', color: 'bg-orange-500' }
-        ].map((report) => (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {reportOptions.map((report) => (
           <button
             key={report.id}
-            onClick={() => setSelectedReport(report.id as any)}
-            className={`card p-4 flex flex-col items-center justify-center transition-all hover:shadow-lg ${
+            onClick={() => setSelectedReport(report.id)}
+            className={`card !p-4 flex flex-col items-center justify-center gap-3 transition-all hover:shadow-popover ${
               selectedReport === report.id ? 'ring-2 ring-primary-500' : ''
             }`}
           >
-            <div className={`${report.color} p-3 rounded-full mb-3`}>
-              <report.icon className="w-6 h-6 text-white" />
+            <div className={`${report.iconBg} p-3 rounded-full`}>
+              <report.icon className="w-5 h-5 text-white" />
             </div>
-            <span className="font-medium">{report.label}</span>
+            <span className="font-medium text-sm text-ink-800">{report.label}</span>
           </button>
         ))}
       </div>
 
       {/* Graphique principal */}
-      <div className="card">
-        <h2 className="text-xl font-semibold mb-6">
-          {selectedReport === 'ventes' ? 'Ventes par ville' :
-           selectedReport === 'produits' ? 'Ventes par produit' :
-           selectedReport === 'zones' ? 'Ventes par zone' :
-           'Statistiques PDV'}
-        </h2>
+      <div className="panel !p-0">
+        <div className="px-6 py-4 border-b border-ink-100">
+          <h2 className="text-base font-semibold text-ink-900">
+            {selectedReport === 'ventes' ? 'Ventes par ville' :
+             selectedReport === 'produits' ? 'Ventes par produit' :
+             selectedReport === 'zones' ? 'Ventes par zone' :
+             'Statistiques PDV'}
+          </h2>
+        </div>
         
-        <div className="h-96">
+        <div className="h-96 p-6">
           {selectedReport === 'ventes' && (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="ville" />
-                <YAxis />
+                <CartesianGrid strokeDasharray="3 3" stroke="#eeeef2" />
+                <XAxis dataKey="ville" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="montant" fill="#3b82f6" name="Montant total" />
+                <Bar dataKey="montant" fill="#5641d6" name="Montant total" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -265,13 +269,13 @@ const Reporting = () => {
           {selectedReport === 'produits' && (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="produit" />
-                <YAxis />
+                <CartesianGrid strokeDasharray="3 3" stroke="#eeeef2" />
+                <XAxis dataKey="produit" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="quantite" fill="#22c55e" name="Quantité" />
-                <Bar dataKey="montant" fill="#3b82f6" name="Montant" />
+                <Bar dataKey="quantite" fill="#16a35a" name="Quantité" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="montant" fill="#5641d6" name="Montant" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -279,12 +283,12 @@ const Reporting = () => {
           {selectedReport === 'zones' && (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="zone" />
-                <YAxis />
+                <CartesianGrid strokeDasharray="3 3" stroke="#eeeef2" />
+                <XAxis dataKey="zone" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="count" fill="#8b5cf6" />
+                <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -306,8 +310,8 @@ const Reporting = () => {
                   fill="#8884d8"
                   label
                 >
-                  <Pie fill="#22c55e" dataKey="value" name="Actif" />
-                  <Pie fill="#6b7280" dataKey="value" name="Inactif" />
+                  <Pie fill="#16a35a" dataKey="value" name="Actif" />
+                  <Pie fill="#9393a8" dataKey="value" name="Inactif" />
                   <Pie fill="#ef4444" dataKey="value" name="Suspendu" />
                 </Pie>
                 <Tooltip />
@@ -319,87 +323,87 @@ const Reporting = () => {
       </div>
 
       {/* Tableau de données détaillées */}
-      <div className="card">
-        <h2 className="text-xl font-semibold mb-4 flex items-center">
-          <FileText className="w-5 h-5 mr-2" />
-          Données détaillées
-        </h2>
+      <div className="panel">
+        <div className="flex items-center gap-2 px-6 py-4 border-b border-ink-100">
+          <FileText className="w-4 h-4 text-ink-400" />
+          <h2 className="text-base font-semibold text-ink-900">Données détaillées</h2>
+        </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="table">
             <thead>
-              <tr className="border-b">
+              <tr>
                 {selectedReport === 'ventes' && (
                   <>
-                    <th className="text-left p-4">MSISDN</th>
-                    <th className="text-left p-4">Date</th>
-                    <th className="text-left p-4">Pays</th>
-                    <th className="text-left p-4">Ville</th>
-                    <th className="text-left p-4">Commune</th>
-                    <th className="text-left p-4">Quartier</th>
-                    <th className="text-left p-4">Montant</th>
+                    <th>MSISDN</th>
+                    <th>Date</th>
+                    <th>Pays</th>
+                    <th>Ville</th>
+                    <th>Commune</th>
+                    <th>Quartier</th>
+                    <th>Montant</th>
                   </>
                 )}
                 {selectedReport === 'produits' && (
                   <>
-                    <th className="text-left p-4">Produit</th>
-                    <th className="text-left p-4">Quantité</th>
-                    <th className="text-left p-4">Montant total</th>
+                    <th>Produit</th>
+                    <th>Quantité</th>
+                    <th>Montant total</th>
                   </>
                 )}
                 {selectedReport === 'zones' && (
                   <>
-                    <th className="text-left p-4">Zone</th>
-                    <th className="text-left p-4">Nombre de ventes</th>
+                    <th>Zone</th>
+                    <th>Nombre de ventes</th>
                   </>
                 )}
                 {selectedReport === 'pdv' && (
                   <>
-                    <th className="text-left p-4">Nom PDV</th>
-                    <th className="text-left p-4">Statut</th>
-                    <th className="text-left p-4">Zone</th>
+                    <th>Nom PDV</th>
+                    <th>Statut</th>
+                    <th>Zone</th>
                   </>
                 )}
               </tr>
             </thead>
             <tbody>
               {selectedReport === 'ventes' && tableData().map((item: any, index: number) => (
-                <tr key={index} className="border-b hover:bg-gray-50">
-                  <td className="p-4">{item.msisdn}</td>
-                  <td className="p-4">{item.date}</td>
-                  <td className="p-4">{item.pays}</td>
-                  <td className="p-4">{item.ville}</td>
-                  <td className="p-4">{item.commune}</td>
-                  <td className="p-4">{item.quartier}</td>
-                  <td className="p-4 font-medium">{Number(item.montant || 0).toLocaleString('fr-FR')} FCFA</td>
+                <tr key={index}>
+                  <td>{item.msisdn}</td>
+                  <td>{item.date}</td>
+                  <td>{item.pays}</td>
+                  <td>{item.ville}</td>
+                  <td>{item.commune}</td>
+                  <td>{item.quartier}</td>
+                  <td className="font-medium text-ink-900">{Number(item.montant || 0).toLocaleString('fr-FR')} FCFA</td>
                 </tr>
               ))}
               {selectedReport === 'produits' && chartData.map((item: any, index: number) => (
-                <tr key={index} className="border-b hover:bg-gray-50">
-                  <td className="p-4">{item.produit}</td>
-                  <td className="p-4">{item.quantite}</td>
-                  <td className="p-4 font-medium">{Number(item.montant || 0).toLocaleString('fr-FR')} FCFA</td>
+                <tr key={index}>
+                  <td>{item.produit}</td>
+                  <td>{item.quantite}</td>
+                  <td className="font-medium text-ink-900">{Number(item.montant || 0).toLocaleString('fr-FR')} FCFA</td>
                 </tr>
               ))}
               {selectedReport === 'zones' && chartData.map((item: any, index: number) => (
-                <tr key={index} className="border-b hover:bg-gray-50">
-                  <td className="p-4">{item.zone}</td>
-                  <td className="p-4 font-medium">{item.count}</td>
+                <tr key={index}>
+                  <td>{item.zone}</td>
+                  <td className="font-medium text-ink-900">{item.count}</td>
                 </tr>
               ))}
               {selectedReport === 'pdv' && chartData.map((item: any, index: number) => (
-                <tr key={index} className="border-b hover:bg-gray-50">
-                  <td className="p-4">{item.nom}</td>
-                  <td className="p-4">
-                    <span className={`px-2 py-1 text-xs rounded ${
-                      item.statut === 'actif' ? 'bg-success-100 text-success-700' :
-                      item.statut === 'inactif' ? 'bg-gray-100 text-gray-700' :
-                      'bg-danger-100 text-danger-700'
+                <tr key={index}>
+                  <td>{item.nom}</td>
+                  <td>
+                    <span className={`badge ${
+                      item.statut === 'actif' ? 'badge-success' :
+                      item.statut === 'inactif' ? 'badge-neutral' :
+                      'badge-danger'
                     }`}>
                       {item.statut}
                     </span>
                   </td>
-                  <td className="p-4">{item.zone}</td>
+                  <td>{item.zone}</td>
                 </tr>
               ))}
             </tbody>

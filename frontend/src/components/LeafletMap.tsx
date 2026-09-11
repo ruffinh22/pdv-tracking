@@ -40,7 +40,7 @@ const LeafletMap = ({ pdvs }: LeafletMapProps) => {
 
     // Créer des icônes de tablette personnalisées selon le statut
     const createIcon = (statut: string) => {
-      const color = statut === 'actif' ? '#22c55e' : statut === 'inactif' ? '#6b7280' : '#ef4444';
+      const color = statut === 'actif' ? '#22c56f' : statut === 'inactif' ? '#9393a8' : '#ef4444';
       return L.divIcon({
         className: 'custom-marker',
         html: `<div style="
@@ -67,8 +67,8 @@ const LeafletMap = ({ pdvs }: LeafletMapProps) => {
     // Ajouter des marqueurs pour chaque PDV
     pdvs.forEach((pdv) => {
       if (pdv.latitude_creation && pdv.longitude_creation) {
-        const lat = parseFloat(pdv.latitude_creation);
-        const lng = parseFloat(pdv.longitude_creation);
+        const lat = Number(pdv.latitude_creation);
+        const lng = Number(pdv.longitude_creation);
         
         if (!isNaN(lat) && !isNaN(lng)) {
           const marker = L.marker([lat, lng], { icon: createIcon(pdv.statut) })

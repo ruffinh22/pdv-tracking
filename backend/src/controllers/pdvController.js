@@ -1,19 +1,74 @@
-const { PDV, Position, Vente, Alerte } = require('../models');
+const { PDV, Position, Vente, Alerte, Produit, Agence, User, sequelize } = require('../models');
+const { Op } = require('sequelize');
 const logger = require('../utils/logger');
+const geocodingService = require('../services/geocodingService');
+
+// Inclusions standard pour renvoyer un PDV complet (hiérarchie + produits tagués)
+const INCLUDE_PDV_COMPLET = [
+  'zone',
+  { model: Agence, as: 'agence' },
+  { model: User, as: 'commercial', attributes: ['id', 'nom', 'prenom'] },
+  { model: User, as: 'superviseur', attributes: ['id', 'nom', 'prenom'] },
+  { model: User, as: 'chefZone', attributes: ['id', 'nom', 'prenom'] },
+  { model: Produit, as: 'produits', attributes: ['id', 'nom_produit'], through: { attributes: [] } }
+];
+
+/**
+ * Associe la liste de produits vendus (choix multiples) à un PDV.
+ * `produitsIds` peut être un tableau d'IDs ou de noms de produits.
+ */
+async function synchroniserProduits(pdv, produitsIds) {
+  if (!Array.isArray(produitsIds)) return;
+
+  let ids = produitsIds;
+  // Tolère l'envoi de noms de produits plutôt que d'IDs
+  if (ids.length > 0 && typeof ids[0] === 'string' && isNaN(Number(ids[0]))) {
+    const produits = await Produit.findAll({ where: { nom_produit: ids } });
+    ids = produits.map(p => p.id);
+  }
+
+  await pdv.setProduits(ids);
+}
+
+/**
+ * Complète automatiquement pays/ville/commune/quartier par géocodage inverse
+ * lorsque ces champs ne sont pas fournis explicitement.
+ */
+async function completerLocalisation(payload) {
+  if (payload.pays || payload.ville) {
+    return payload; // Renseigné manuellement, on ne l'écrase pas
+  }
+  if (!payload.latitude_creation || !payload.longitude_creation) {
+    return payload;
+  }
+  try {
+    const info = await geocodingService.reverseGeocode(payload.latitude_creation, payload.longitude_creation);
+    return {
+      ...payload,
+      pays: info.pays || payload.pays,
+      ville: info.ville || payload.ville,
+      commune: info.commune || payload.commune,
+      quartier: info.quartier || payload.quartier
+    };
+  } catch (error) {
+    logger.error('Géocodage automatique du PDV impossible:', error);
+    return payload;
+  }
+}
 
 const pdvController = {
   // Routes mobiles sans auth
   async mobileRegister(req, res) {
     try {
       const { nom_pdv, msisdn_responsable, latitude_creation, longitude_creation, device_info } = req.body;
-      
+
       // Vérifier si le MSISDN existe déjà
       const existingPDV = await PDV.findOne({ where: { msisdn_responsable } });
       if (existingPDV) {
         return res.status(400).json({ error: 'Ce MSISDN est déjà enregistré' });
       }
 
-      const pdv = await PDV.create({
+      const payload = await completerLocalisation({
         nom_pdv: nom_pdv || `PDV ${msisdn_responsable}`,
         msisdn_responsable,
         latitude_creation,
@@ -24,6 +79,8 @@ const pdvController = {
         derniere_position_longitude: longitude_creation,
         derniere_position_date: new Date()
       });
+
+      const pdv = await PDV.create(payload);
 
       logger.info(`Nouveau PDV mobile enregistré: ${pdv.nom_pdv} (${msisdn_responsable})`);
       res.status(201).json(pdv);
@@ -36,7 +93,7 @@ const pdvController = {
   async mobileLogin(req, res) {
     try {
       const { msisdn } = req.body;
-      
+
       const pdv = await PDV.findOne({ where: { msisdn_responsable: msisdn } });
       if (!pdv) {
         return res.status(404).json({ error: 'PDV non trouvé' });
@@ -50,11 +107,26 @@ const pdvController = {
   },
 
   async createPDV(req, res) {
+    const t = await sequelize.transaction();
     try {
-      const pdv = await PDV.create(req.body);
+      const { produits_ids, ...pdvData } = req.body;
+      const payload = await completerLocalisation(pdvData);
+
+      const pdv = await PDV.create(payload, { transaction: t });
+
+      if (produits_ids) {
+        await t.commit();
+        await synchroniserProduits(pdv, produits_ids);
+      } else {
+        await t.commit();
+      }
+
+      const pdvComplet = await PDV.findByPk(pdv.id, { include: INCLUDE_PDV_COMPLET });
+
       logger.info(`Nouveau PDV créé: ${pdv.nom_pdv}`);
-      res.status(201).json(pdv);
+      res.status(201).json(pdvComplet);
     } catch (error) {
+      if (!t.finished) await t.rollback();
       logger.error('Erreur lors de la création du PDV:', error);
       res.status(500).json({ error: 'Erreur serveur' });
     }
@@ -66,10 +138,48 @@ const pdvController = {
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;
 
+      // Filtres utilisés notamment par les analyses du dashboard
+      const {
+        statut, ville, commune, quartier, pays,
+        agence_id, commercial_id, superviseur_id, chef_zone_id, produit_id,
+        search
+      } = req.query;
+
+      const where = {};
+      if (statut) where.statut = statut;
+      if (ville) where.ville = ville;
+      if (commune) where.commune = commune;
+      if (quartier) where.quartier = quartier;
+      if (pays) where.pays = pays;
+      if (agence_id) where.agence_id = agence_id;
+      if (commercial_id) where.commercial_id = commercial_id;
+      if (superviseur_id) where.superviseur_id = superviseur_id;
+      if (chef_zone_id) where.chef_zone_id = chef_zone_id;
+      if (search) {
+        where[Op.or] = [
+          { nom_pdv: { [Op.like]: `%${search}%` } },
+          { msisdn_responsable: { [Op.like]: `%${search}%` } },
+          { id_terminal: { [Op.like]: `%${search}%` } }
+        ];
+      }
+
+      const include = [...INCLUDE_PDV_COMPLET, 'positions'];
+      if (produit_id) {
+        include[include.length - 2] = {
+          model: Produit,
+          as: 'produits',
+          attributes: ['id', 'nom_produit'],
+          through: { attributes: [] },
+          where: { id: produit_id }
+        };
+      }
+
       const { count, rows: pdvs } = await PDV.findAndCountAll({
-        include: ['zone', 'positions'],
+        where,
+        include,
         limit,
-        offset
+        offset,
+        distinct: true
       });
 
       res.json({
@@ -90,7 +200,7 @@ const pdvController = {
   async getPDVById(req, res) {
     try {
       const pdv = await PDV.findByPk(req.params.id, {
-        include: ['zone', 'positions', 'ventes', 'alertes']
+        include: [...INCLUDE_PDV_COMPLET, 'positions', 'ventes', 'alertes']
       });
       if (!pdv) {
         return res.status(404).json({ error: 'PDV non trouvé' });
@@ -108,10 +218,41 @@ const pdvController = {
       if (!pdv) {
         return res.status(404).json({ error: 'PDV non trouvé' });
       }
-      await pdv.update(req.body);
-      res.json(pdv);
+
+      const { produits_ids, ...pdvData } = req.body;
+      await pdv.update(pdvData);
+
+      if (produits_ids) {
+        await synchroniserProduits(pdv, produits_ids);
+      }
+
+      const pdvComplet = await PDV.findByPk(pdv.id, { include: INCLUDE_PDV_COMPLET });
+      res.json(pdvComplet);
     } catch (error) {
       logger.error('Erreur lors de la mise à jour du PDV:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
+  // Met à jour uniquement les produits vendus par un PDV (choix multiples)
+  async updatePDVProduits(req, res) {
+    try {
+      const pdv = await PDV.findByPk(req.params.id);
+      if (!pdv) {
+        return res.status(404).json({ error: 'PDV non trouvé' });
+      }
+
+      const { produits_ids } = req.body;
+      if (!Array.isArray(produits_ids)) {
+        return res.status(400).json({ error: 'produits_ids doit être un tableau' });
+      }
+
+      await synchroniserProduits(pdv, produits_ids);
+
+      const pdvComplet = await PDV.findByPk(pdv.id, { include: INCLUDE_PDV_COMPLET });
+      res.json(pdvComplet);
+    } catch (error) {
+      logger.error('Erreur lors de la mise à jour des produits du PDV:', error);
       res.status(500).json({ error: 'Erreur serveur' });
     }
   },

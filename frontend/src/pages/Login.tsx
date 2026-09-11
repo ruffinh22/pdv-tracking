@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../contexts/authContext';
+import { Radar, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
@@ -26,17 +28,57 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary-600">Tracking PDV</h1>
-          <p className="text-gray-600 mt-2">Connexion au Dashboard</p>
-        </div>
+    <div className="min-h-screen flex bg-ink-50">
+      {/* Left branding panel */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-primary-700">
+        <div
+          className="absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 2px 2px, white 1.5px, transparent 0)',
+            backgroundSize: '28px 28px',
+          }}
+        />
+        <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center">
+              <Radar className="w-5 h-5" />
+            </div>
+            <span className="text-lg font-bold">Tracking PDV</span>
+          </div>
 
-        <div className="card">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="max-w-md">
+            <h2 className="text-3xl font-bold leading-snug mb-4">
+              Pilotez votre réseau de points de vente en temps réel.
+            </h2>
+            <p className="text-primary-100 text-sm leading-relaxed">
+              Suivi terrain, alertes géographiques, reporting des ventes et gestion
+              d'équipe réunis dans un seul tableau de bord.
+            </p>
+          </div>
+
+          <p className="text-xs text-primary-200">© {new Date().getFullYear()} Tracking PDV. Tous droits réservés.</p>
+        </div>
+      </div>
+
+      {/* Right form panel */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-sm">
+          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
+            <div className="w-10 h-10 rounded-lg bg-primary-600 flex items-center justify-center">
+              <Radar className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-lg font-bold text-ink-900">Tracking PDV</span>
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-ink-900">Connexion</h1>
+            <p className="text-sm text-ink-500 mt-1.5">Accédez à votre tableau de bord d'administration</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="label">
                 Email
               </label>
               <input
@@ -51,33 +93,45 @@ const Login = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="label">
                 Mot de passe
               </label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="••••••••"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input pr-10"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="btn btn-primary w-full"
+              className="btn btn-primary w-full py-2.5"
             >
               {isLoading ? 'Connexion...' : 'Se connecter'}
             </button>
           </form>
 
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Comptes de test par défaut :</p>
-            <p className="text-xs text-gray-500">Admin: admin@trackingpdv.com / admin123</p>
-            <p className="text-xs text-gray-500">Superviseur: superviseur@trackingpdv.com / superviseur123</p>
+          <div className="mt-8 p-4 bg-white rounded-xl border border-ink-100">
+            <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Comptes de test</p>
+            <div className="space-y-1 text-sm text-ink-600">
+              <p><span className="text-ink-400">Admin —</span> admin@trackingpdv.com / admin123</p>
+              <p><span className="text-ink-400">Superviseur —</span> superviseur@trackingpdv.com / superviseur123</p>
+            </div>
           </div>
         </div>
       </div>

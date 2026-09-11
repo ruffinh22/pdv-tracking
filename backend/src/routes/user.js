@@ -10,7 +10,7 @@ const createUserValidation = [
   body('prenom').notEmpty().withMessage('Le prénom est requis'),
   body('email').isEmail().withMessage('Email invalide'),
   body('mot_de_passe').isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
-  body('role').isIn(['admin', 'superviseur', 'commercial']).withMessage('Rôle invalide')
+  body('role').isIn(['admin', 'superviseur', 'commercial', 'chef_zone']).withMessage('Rôle invalide')
 ];
 
 // Routes

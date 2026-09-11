@@ -21,6 +21,7 @@ router.post('/', authMiddleware, createPDVValidation, pdvController.createPDV);
 router.get('/', authMiddleware, pdvController.getAllPDVs);
 router.get('/:id', authMiddleware, pdvController.getPDVById);
 router.put('/:id', authMiddleware, pdvController.updatePDV);
+router.put('/:id/produits', authMiddleware, pdvController.updatePDVProduits);
 router.delete('/:id', authMiddleware, pdvController.deletePDV);
 router.get('/:id/positions', authMiddleware, pdvController.getPDVPositions);
 router.get('/:id/ventes', authMiddleware, pdvController.getPDVVentes);

@@ -37,11 +37,11 @@ const Tracking = () => {
   const [livePositions, setLivePositions] = useState<Map<number, Position>>(new Map());
 
   const { data: pdvsResponse } = useQuery({
-    queryKey: ['pdvs'],
-    queryFn: pdvService.getAllPDVs,
+    queryKey: ['pdvsForTracking'],
+    queryFn: () => pdvService.getAllPDVsNoPagination(),
   });
 
-  const pdvs = pdvsResponse?.data || [];
+  const pdvs: PDV[] = pdvsResponse?.data || [];
 
   // Initialiser la carte
   useEffect(() => {
@@ -101,8 +101,8 @@ const Tracking = () => {
           
           const newPosition: Position = {
             pdv_id: pdv.id,
-            latitude: parseFloat(baseLat) + latOffset,
-            longitude: parseFloat(baseLng) + lngOffset,
+            latitude: Number(baseLat) + latOffset,
+            longitude: Number(baseLng) + lngOffset,
             horodatage: new Date().toISOString()
           };
           
@@ -133,7 +133,7 @@ const Tracking = () => {
     polylinesRef.current.clear();
 
     const createIcon = (statut: string, isSelected: boolean) => {
-      const color = statut === 'actif' ? '#22c55e' : statut === 'inactif' ? '#6b7280' : '#ef4444';
+      const color = statut === 'actif' ? '#22c56f' : statut === 'inactif' ? '#9393a8' : '#ef4444';
       const size = isSelected ? 40 : 32;
       const borderSize = isSelected ? 4 : 3;
       return L.divIcon({
@@ -166,14 +166,14 @@ const Tracking = () => {
       const lng = livePos?.longitude || pdv.derniere_position_longitude || pdv.longitude_creation;
 
       if (lat && lng) {
-        const latNum = parseFloat(lat);
-        const lngNum = parseFloat(lng);
+        const latNum = Number(lat);
+        const lngNum = Number(lng);
 
         if (!isNaN(latNum) && !isNaN(lngNum)) {
           // Créer le marqueur
           const marker = L.marker([latNum, lngNum], {
             icon: createIcon(pdv.statut, selectedPDV === pdv.id)
-          }).addTo(mapRef.current);
+          }).addTo(mapRef.current!);
 
           marker.bindPopup(`
             <div style="min-width: 250px;">
@@ -181,7 +181,7 @@ const Tracking = () => {
               <p style="margin: 5px 0;"><strong>Statut:</strong> ${pdv.statut}</p>
               <p style="margin: 5px 0;"><strong>Position actuelle:</strong> ${latNum.toFixed(6)}, ${lngNum.toFixed(6)}</p>
               <p style="margin: 5px 0;"><strong>Dernière mise à jour:</strong> ${livePos?.horodatage || pdv.derniere_position_date || 'Inconnue'}</p>
-              <button onclick="window.selectPDV(${pdv.id})" style="margin-top: 10px; padding: 5px 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              <button onclick="window.selectPDV(${pdv.id})" style="margin-top: 10px; padding: 5px 10px; background: #5641d6; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: Inter, sans-serif;">
                 Suivre ce PDV
               </button>
             </div>
@@ -196,18 +196,18 @@ const Tracking = () => {
           // Créer une trajectoire simulée pour le PDV sélectionné
           if (selectedPDV === pdv.id) {
             // Utiliser les positions historiques ou créer une trajectoire simulée
-            const trajectoryPoints = [
+            const trajectoryPoints: [number, number][] = [
               [latNum, lngNum],
               [latNum + (Math.random() - 0.5) * 0.01, lngNum + (Math.random() - 0.5) * 0.01],
               [latNum + (Math.random() - 0.5) * 0.015, lngNum + (Math.random() - 0.5) * 0.015]
             ];
             
             const polyline = L.polyline(trajectoryPoints, {
-              color: '#3b82f6',
+              color: '#5641d6',
               weight: 3,
               opacity: 0.7,
               dashArray: '10, 10'
-            }).addTo(mapRef.current);
+            }).addTo(mapRef.current!);
 
             polylinesRef.current.set(pdv.id, polyline);
           }
@@ -250,20 +250,20 @@ const Tracking = () => {
   };
 
   return (
-    <div className="h-screen w-screen bg-gray-900 flex flex-col">
+    <div className="h-[calc(100vh-4rem)] w-full bg-ink-950 flex flex-col">
       {/* Barre de contrôle principale */}
-      <div className="bg-black text-white px-6 py-4 flex items-center justify-between shadow-lg border-b border-gray-800" style={{ position: 'relative', zIndex: 100 }}>
+      <div className="bg-ink-900 text-white px-6 py-4 flex items-center justify-between shadow-lg border-b border-ink-800" style={{ position: 'relative', zIndex: 100 }}>
         <div className="flex items-center space-x-6">
-          <h1 className="text-xl font-bold tracking-tight">Suivi en temps réel</h1>
-          <div className="h-6 w-px bg-gray-600"></div>
+          <h1 className="text-lg font-bold tracking-tight">Suivi en temps réel</h1>
+          <div className="h-6 w-px bg-ink-700"></div>
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-2">
-              <span className="text-gray-400">PDV actifs:</span>
-              <span className="text-green-400 font-bold">{pdvs.filter(p => p.statut === 'actif').length || 0}</span>
+              <span className="text-ink-400">PDV actifs:</span>
+              <span className="text-success-400 font-bold">{pdvs.filter(p => p.statut === 'actif').length || 0}</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-gray-400">En mouvement:</span>
-              <span className="text-blue-400 font-bold">{livePositions.size}</span>
+              <span className="text-ink-400">En mouvement:</span>
+              <span className="text-primary-300 font-bold">{livePositions.size}</span>
             </div>
           </div>
         </div>
@@ -271,7 +271,7 @@ const Tracking = () => {
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setIsTracking(!isTracking)}
-            className={`p-2 rounded-lg transition-all ${isTracking ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+            className={`p-2 rounded-lg transition-all ${isTracking ? 'bg-success-600 hover:bg-success-700' : 'bg-ink-700 hover:bg-ink-600'}`}
             title={isTracking ? 'Pause' : 'Reprendre'}
           >
             {isTracking ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
@@ -279,7 +279,7 @@ const Tracking = () => {
           
           <button
             onClick={refreshMap}
-            className="p-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-all"
+            className="p-2 bg-ink-700 rounded-lg hover:bg-ink-600 transition-all"
             title="Rafraîchir"
           >
             <RefreshCw className="w-5 h-5" />
@@ -287,7 +287,7 @@ const Tracking = () => {
           
           <button
             onClick={toggleFullscreen}
-            className="p-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-all"
+            className="p-2 bg-ink-700 rounded-lg hover:bg-ink-600 transition-all"
             title="Plein écran"
           >
             {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
@@ -296,7 +296,7 @@ const Tracking = () => {
           {selectedPDV && (
             <button
               onClick={() => setSelectedPDV(null)}
-              className="px-4 py-2 bg-red-600 rounded-lg hover:bg-red-700 transition-all font-medium"
+              className="px-4 py-2 bg-danger-600 rounded-lg hover:bg-danger-700 transition-all font-medium text-sm"
             >
               Arrêter le suivi
             </button>
@@ -305,7 +305,7 @@ const Tracking = () => {
       </div>
 
       {/* Barre de filtres incorporée */}
-      <div className="bg-gray-800 px-6 py-3 flex items-center space-x-6 border-b border-gray-700" style={{ position: 'relative', zIndex: 90 }}>
+      <div className="bg-ink-900/60 px-6 py-3 flex items-center space-x-6 border-b border-ink-800" style={{ position: 'relative', zIndex: 90 }}>
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-gray-400" />
           <span className="text-sm font-medium text-gray-300">Filtres:</span>
@@ -315,7 +315,7 @@ const Tracking = () => {
           <div className="flex items-center space-x-2">
             <label className="text-xs text-gray-400">Statut:</label>
             <select 
-              className="bg-gray-700 text-white text-sm px-3 py-1.5 rounded border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="bg-ink-800 text-white text-sm px-3 py-1.5 rounded border border-ink-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               onChange={(e) => {
                 console.log('Filtre statut:', e.target.value);
               }}
@@ -330,7 +330,7 @@ const Tracking = () => {
           <div className="flex items-center space-x-2">
             <label className="text-xs text-gray-400">Zone:</label>
             <select 
-              className="bg-gray-700 text-white text-sm px-3 py-1.5 rounded border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="bg-ink-800 text-white text-sm px-3 py-1.5 rounded border border-ink-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               onChange={(e) => {
                 console.log('Filtre zone:', e.target.value);
               }}
@@ -355,7 +355,7 @@ const Tracking = () => {
             <span>Suspendu</span>
           </div>
           <div className="flex items-center">
-            <div className="w-4 h-0.5 bg-blue-500 rounded mr-1"></div>
+            <div className="w-4 h-0.5 bg-primary-500 rounded mr-1"></div>
             <span>Trajectoire</span>
           </div>
         </div>
@@ -364,13 +364,13 @@ const Tracking = () => {
       {/* Carte en plein écran */}
       <div 
         ref={mapContainerRef} 
-        className="flex-1 bg-gray-100 relative z-0"
+        className="flex-1 bg-ink-100 relative z-0"
       />
       
       {/* Indicateur de connexion */}
-      <div className="absolute bottom-6 right-6 z-40 bg-white rounded-xl shadow-lg px-4 py-3 flex items-center border border-gray-200">
-        <div className={`w-2.5 h-2.5 rounded-full mr-3 ${socketRef.current?.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-        <span className="text-sm font-medium text-gray-700">
+      <div className="absolute bottom-6 right-6 z-40 bg-white rounded-xl shadow-popover px-4 py-3 flex items-center border border-ink-100">
+        <div className={`w-2.5 h-2.5 rounded-full mr-3 ${socketRef.current?.connected ? 'bg-success-500' : 'bg-danger-500'}`}></div>
+        <span className="text-sm font-medium text-ink-700">
           {socketRef.current?.connected ? 'Connecté' : 'Déconnecté'}
         </span>
       </div>

@@ -29,5 +29,11 @@ export const produitService = {
   getProduitsList: async () => {
     const response = await api.get('/produits/list');
     return response.data;
+  },
+
+  // Liste complète (sans pagination), utilisée pour le multi-select "Type de produit vendu"
+  getAllProduitsFull: async () => {
+    const response = await api.get('/produits', { params: { all: true } });
+    return response.data;
   }
 };

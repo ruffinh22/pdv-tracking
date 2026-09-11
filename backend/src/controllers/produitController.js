@@ -15,6 +15,15 @@ const produitController = {
 
   async getAllProduits(req, res) {
     try {
+      // Mode complet pour alimenter le multi-select "Type de produit vendu"
+      if (req.query.all === 'true') {
+        const produits = await Produit.findAll({
+          where: { statut: 'actif' },
+          order: [['nom_produit', 'ASC']]
+        });
+        return res.json(produits);
+      }
+
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;

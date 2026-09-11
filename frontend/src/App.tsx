@@ -11,6 +11,7 @@ import Users from './pages/Users';
 import Tracking from './pages/Tracking';
 import Reporting from './pages/Reporting';
 import Produits from './pages/Produits';
+import Agences from './pages/Agences';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -51,6 +52,7 @@ function App() {
             <Route path="tracking" element={<Tracking />} />
             <Route path="reporting" element={<Reporting />} />
             <Route path="produits" element={<Produits />} />
+            <Route path="agences" element={<Agences />} />
           </Route>
         </Routes>
       </BrowserRouter>

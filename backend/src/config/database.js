@@ -1,7 +1,19 @@
 const { Sequelize } = require('sequelize');
 const logger = require('../utils/logger');
 
-const sequelize = new Sequelize(
+const sequelize = process.env.DB_DIALECT === 'sqlite'
+  ? new Sequelize({
+      dialect: 'sqlite',
+      storage: process.env.DB_STORAGE || ':memory:',
+      logging: false,
+      define: {
+        timestamps: true,
+        underscored: true,
+        createdAt: 'date_creation',
+        updatedAt: 'date_modification'
+      }
+    })
+  : new Sequelize(
   process.env.DB_NAME || 'tracking_pdv',
   process.env.DB_USER || 'root',
   process.env.DB_PASSWORD || '',

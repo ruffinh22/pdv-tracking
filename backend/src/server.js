@@ -22,6 +22,7 @@ const alerteRoutes = require('./routes/alerte');
 const userRoutes = require('./routes/user');
 const dashboardRoutes = require('./routes/dashboard');
 const produitRoutes = require('./routes/produit');
+const agenceRoutes = require('./routes/agence');
 
 const app = express();
 const server = http.createServer(app);
@@ -67,6 +68,7 @@ app.use('/api/alertes', alerteRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/produits', produitRoutes);
+app.use('/api/agences', agenceRoutes);
 
 // Route de santé
 app.get('/health', (req, res) => {

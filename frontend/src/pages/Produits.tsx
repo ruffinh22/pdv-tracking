@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { produitService } from '../services/produitService';
-import { Plus, Edit, Trash2, Package, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Pagination from '../components/Pagination';
 
@@ -119,12 +119,12 @@ const Produits = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Gestion des Produits</h1>
-          <p className="text-gray-600 mt-1">Catalogue de produits pour les ventes</p>
+          <h1 className="text-2xl font-bold text-ink-900">Gestion des Produits</h1>
+          <p className="text-sm text-ink-500 mt-0.5">Catalogue de produits pour les ventes</p>
         </div>
         <button
           onClick={() => {
@@ -132,85 +132,89 @@ const Produits = () => {
             setEditingProduit(null);
             setShowModal(true);
           }}
-          className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          className="btn btn-primary"
         >
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-4 h-4" />
           Nouveau Produit
         </button>
       </div>
 
-      {/* Search */}
-      <div className="card">
-        <div className="flex items-center space-x-2">
-          <Search className="w-5 h-5 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Rechercher un produit..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-        </div>
-      </div>
-
       {/* Table */}
-      <div className="card">
+      <div className="panel">
+        <div className="toolbar">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="w-4 h-4 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Rechercher un produit, une catégorie..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input pl-9"
+            />
+          </div>
+          <span className="ml-auto text-xs text-ink-400">
+            {filteredProduits.length} résultat{filteredProduits.length > 1 ? 's' : ''}
+          </span>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="table">
             <thead>
-              <tr className="border-b">
-                <th className="text-left p-4">Nom</th>
-                <th className="text-left p-4">Catégorie</th>
-                <th className="text-left p-4">Prix Unitaire</th>
-                <th className="text-left p-4">Statut</th>
-                <th className="text-left p-4">Actions</th>
+              <tr>
+                <th>Nom</th>
+                <th>Catégorie</th>
+                <th>Prix Unitaire</th>
+                <th>Statut</th>
+                <th className="text-right pr-6">Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="text-center p-8">Chargement...</td>
+                  <td colSpan={5} className="text-center py-10 text-ink-400">Chargement...</td>
                 </tr>
               ) : filteredProduits.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center p-8 text-gray-500">
+                  <td colSpan={5} className="text-center py-10 text-ink-400">
                     Aucun produit trouvé
                   </td>
                 </tr>
               ) : (
                 filteredProduits.map((produit: any) => (
-                  <tr key={produit.id} className="border-b hover:bg-gray-50">
-                    <td className="p-4">
-                      <div className="flex items-center space-x-2">
-                        <Package className="w-5 h-5 text-gray-500" />
-                        <span className="font-medium">{produit.nom_produit}</span>
+                  <tr key={produit.id}>
+                    <td>
+                      <div className="flex items-center space-x-2.5">
+                        <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center shrink-0">
+                          <Package className="w-4 h-4 text-primary-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-ink-900">{produit.nom_produit}</p>
+                          {produit.description && (
+                            <p className="text-xs text-ink-400 mt-0.5">{produit.description}</p>
+                          )}
+                        </div>
                       </div>
-                      {produit.description && (
-                        <p className="text-sm text-gray-500 mt-1">{produit.description}</p>
-                      )}
                     </td>
-                    <td className="p-4">{produit.categorie || '-'}</td>
-                    <td className="p-4 font-medium">
+                    <td className="text-ink-600">{produit.categorie || '-'}</td>
+                    <td className="font-medium text-ink-900">
                       {produit.prix_unitaire ? `${Number(produit.prix_unitaire).toLocaleString('fr-FR')} FCFA` : '-'}
                     </td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 text-xs rounded ${
-                        produit.statut === 'actif' ? 'bg-success-100 text-success-700' : 'bg-gray-100 text-gray-700'
-                      }`}>
+                    <td>
+                      <span className={produit.statut === 'actif' ? 'badge badge-success' : 'badge badge-neutral'}>
                         {produit.statut === 'actif' ? 'Actif' : 'Inactif'}
                       </span>
                     </td>
-                    <td className="p-4">
-                      <div className="flex space-x-2">
+                    <td>
+                      <div className="flex justify-end gap-1">
                         <button
                           onClick={() => handleEdit(produit)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                          className="btn-icon hover:text-primary-600 hover:bg-primary-50"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(produit.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded"
+                          className="btn-icon hover:text-danger-600 hover:bg-danger-50"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -236,61 +240,68 @@ const Produits = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-4">
-              {editingProduit ? 'Modifier le Produit' : 'Nouveau Produit'}
-            </h2>
+        <div className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-ink-900">
+                {editingProduit ? 'Modifier le Produit' : 'Nouveau Produit'}
+              </h2>
+              <button
+                onClick={() => { setShowModal(false); resetForm(); setEditingProduit(null); }}
+                className="btn-icon"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Nom du produit *</label>
+                <label className="label">Nom du produit *</label>
                 <input
                   type="text"
                   value={formData.nom_produit}
                   onChange={(e) => setFormData({ ...formData, nom_produit: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="input"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
+                <label className="label">Description</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="input"
                   rows={3}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Catégorie</label>
+                <label className="label">Catégorie</label>
                 <input
                   type="text"
                   value={formData.categorie}
                   onChange={(e) => setFormData({ ...formData, categorie: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Prix Unitaire (FCFA)</label>
+                <label className="label">Prix Unitaire (FCFA)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={formData.prix_unitaire}
                   onChange={(e) => setFormData({ ...formData, prix_unitaire: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="input"
                 />
               </div>
-              <div className="flex items-center space-x-2">
+              <label className="flex items-center gap-2.5 cursor-pointer">
                 <input
                   type="checkbox"
-                  id="actif"
                   checked={formData.statut === 'actif'}
                   onChange={(e) => setFormData({ ...formData, statut: e.target.checked ? 'actif' : 'inactif' })}
-                  className="w-4 h-4"
+                  className="w-4 h-4 rounded border-ink-300 text-primary-600 focus:ring-primary-500"
                 />
-                <label htmlFor="actif" className="text-sm">Produit actif</label>
-              </div>
-              <div className="flex space-x-2 justify-end">
+                <span className="text-sm text-ink-700">Produit actif</span>
+              </label>
+              <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -298,13 +309,13 @@ const Produits = () => {
                     resetForm();
                     setEditingProduit(null);
                   }}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="btn btn-secondary"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                  className="btn btn-primary"
                 >
                   {editingProduit ? 'Modifier' : 'Créer'}
                 </button>

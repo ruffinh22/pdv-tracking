@@ -1,18 +1,27 @@
 import api from './api';
 
+export type UserRole = 'admin' | 'superviseur' | 'commercial' | 'chef_zone';
+
 export interface User {
   id: number;
   nom: string;
   prenom: string;
   email: string;
-  role: 'admin' | 'superviseur' | 'commercial';
+  role: UserRole;
   statut: 'actif' | 'inactif';
   telephone?: string;
 }
 
 export const userService = {
-  getAllUsers: async (page: number = 1, limit: number = 10) => {
-    const response = await api.get('/users', { params: { page, limit } });
+  getAllUsers: async (page: number = 1, limit: number = 10, role?: UserRole) => {
+    const response = await api.get('/users', { params: { page, limit, role } });
+    return response.data;
+  },
+
+  // Liste complète (sans pagination), utilisée pour alimenter les listes
+  // déroulantes Commercial / Superviseur / Chef de zone du formulaire de tagging PDV.
+  getUsersByRole: async (role: UserRole): Promise<User[]> => {
+    const response = await api.get('/users', { params: { role, all: true } });
     return response.data;
   },
 
@@ -21,12 +30,12 @@ export const userService = {
     return response.data;
   },
 
-  createUser: async (user: Partial<User>): Promise<User> => {
+  createUser: async (user: Partial<User> & { mot_de_passe?: string }): Promise<User> => {
     const response = await api.post('/users', user);
     return response.data;
   },
 
-  updateUser: async (id: number, user: Partial<User>): Promise<User> => {
+  updateUser: async (id: number, user: Partial<User> & { mot_de_passe?: string }): Promise<User> => {
     const response = await api.put(`/users/${id}`, user);
     return response.data;
   },

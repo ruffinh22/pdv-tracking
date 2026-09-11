@@ -23,6 +23,11 @@ const Alerte = sequelize.define('Alerte', {
     type: DataTypes.ENUM('sortie_zone', 'entree_zone', 'deplacement_anormal'),
     allowNull: false
   },
+  distance_metres: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    comment: 'Distance en mètres par rapport à la position de référence (position initiale ou zone)'
+  },
   latitude: {
     type: DataTypes.DECIMAL(10, 8),
     allowNull: false
