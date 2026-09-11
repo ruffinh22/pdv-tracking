@@ -132,3 +132,5 @@ mobile/google-services.json
 # Documentation
 # ====================
 docs/_build/
+
+backend/yarn.lock

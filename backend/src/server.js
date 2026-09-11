@@ -32,7 +32,9 @@ const server = http.createServer(app);
 // Configuration Socket.IO
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL 
+      ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+      : ['http://localhost:3000', 'http://localhost:8081', 'http://localhost:8082'],
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -41,7 +43,9 @@ const io = socketIo(server, {
 // Middleware de sécurité
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL 
+    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+    : ['http://localhost:3000', 'http://localhost:8081', 'http://localhost:8082'],
   credentials: true
 }));
 
@@ -114,7 +118,7 @@ socketHandler(io);
 // Synchronisation de la base de données et démarrage du serveur
 const PORT = process.env.PORT || 3000;
 
-sequelize.sync({ alter: process.env.NODE_ENV === 'development' })
+sequelize.sync()
   .then(() => {
     logger.info('Base de données synchronisée avec succès');
     server.listen(PORT, '0.0.0.0', () => {
