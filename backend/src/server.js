@@ -40,8 +40,13 @@ const io = socketIo(server, {
   }
 });
 
-// Middleware de sécurité
-app.use(helmet());
+// Middleware de sécurité - carte Leaflet/OpenStreetMap : CSP désactivée pour éviter les blocages
+// sur les styles externes et les tuiles de carte. L'application reste fonctionnelle et stable.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(cors({
   origin: process.env.FRONTEND_URL 
     ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
@@ -49,8 +54,12 @@ app.use(cors({
   credentials: true
 }));
 
-// Servir le build frontend si présent (chemin vers le dossier frontend au niveau racine)
-const frontendDist = path.resolve(__dirname, '..', '..', 'frontend', 'dist');
+// Servir le build frontend si présent.
+// Supporte un chemin personnalisé via FRONTEND_DIST_PATH pour la production.
+const frontendDist = process.env.FRONTEND_DIST_PATH
+  ? path.resolve(process.env.FRONTEND_DIST_PATH)
+  : path.resolve(__dirname, '..', '..', 'frontend', 'dist');
+
 if (fs.existsSync(frontendDist)) {
   app.use(express.static(frontendDist));
   // Ne pas interférer avec les routes API : laisser passer les requêtes commençant par /api

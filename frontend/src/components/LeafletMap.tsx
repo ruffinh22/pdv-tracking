@@ -40,7 +40,7 @@ const LeafletMap = ({ pdvs }: LeafletMapProps) => {
 
     // Créer des icônes de tablette personnalisées selon le statut
     const createIcon = (statut: string) => {
-      const color = statut === 'actif' ? '#22c56f' : statut === 'inactif' ? '#9393a8' : '#ef4444';
+      const color = statut === 'actif' ? '#009a44' : statut === 'inactif' ? '#8f8f9c' : '#d64545';
       return L.divIcon({
         className: 'custom-marker',
         html: `<div style="

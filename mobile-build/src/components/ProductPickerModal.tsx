@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View, FlatList } from 'react-native';
+import { Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, FlatList } from 'react-native';
+import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { colors, radius, shadow } from '@/theme/colors';
 import { Produit } from '@/types';
 import Button from './ui/Button';
@@ -12,6 +14,8 @@ interface Props {
   onClose: () => void;
 }
 
+const MAX_STAGGER = 10;
+
 export default function ProductPickerModal({ visible, produits, selectedIds, onToggle, onClose }: Props) {
   const [search, setSearch] = useState('');
 
@@ -23,10 +27,15 @@ export default function ProductPickerModal({ visible, produits, selectedIds, onT
     );
   }, [produits, search]);
 
+  const handleToggle = (item: Produit) => {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    onToggle(item);
+  };
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.sheet}>
+      <Animated.View entering={FadeIn.duration(200)} style={styles.overlay}>
+        <Animated.View entering={FadeInDown.duration(260).springify().damping(20)} style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.title}>Produits vendus</Text>
           <Text style={styles.subtitle}>Sélection multiple — un PDV peut vendre plusieurs produits</Text>
@@ -47,34 +56,40 @@ export default function ProductPickerModal({ visible, produits, selectedIds, onT
             ListEmptyComponent={
               <Text style={styles.empty}>Aucun produit trouvé.</Text>
             }
-            renderItem={({ item }) => {
+            renderItem={({ item, index }) => {
               const isSelected = selectedIds.includes(item.id);
               return (
-                <TouchableOpacity
-                  style={[styles.item, isSelected && styles.itemSelected]}
-                  onPress={() => onToggle(item)}
-                  activeOpacity={0.7}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.itemName}>{item.nom_produit}</Text>
-                    {item.categorie ? <Text style={styles.itemCategory}>{item.categorie}</Text> : null}
-                  </View>
-                  {item.prix_unitaire ? (
-                    <Text style={styles.itemPrice}>
-                      {Number(item.prix_unitaire).toLocaleString('fr-FR')} FCFA
-                    </Text>
-                  ) : null}
-                  <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
-                    {isSelected && <Text style={styles.checkmark}>✓</Text>}
-                  </View>
-                </TouchableOpacity>
+                <Animated.View entering={FadeInDown.delay(Math.min(index, MAX_STAGGER) * 30).duration(220)}>
+                  <TouchableOpacity
+                    style={[styles.item, isSelected && styles.itemSelected]}
+                    onPress={() => handleToggle(item)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.itemName}>{item.nom_produit}</Text>
+                      {item.categorie ? <Text style={styles.itemCategory}>{item.categorie}</Text> : null}
+                    </View>
+                    {item.prix_unitaire ? (
+                      <Text style={styles.itemPrice}>
+                        {Number(item.prix_unitaire).toLocaleString('fr-FR')} FCFA
+                      </Text>
+                    ) : null}
+                    <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                      {isSelected && (
+                        <Animated.Text entering={ZoomIn.duration(160)} style={styles.checkmark}>
+                          ✓
+                        </Animated.Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                </Animated.View>
               );
             }}
           />
 
           <Button title={`Valider (${selectedIds.length})`} onPress={onClose} style={{ marginTop: 12 }} />
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -114,17 +129,17 @@ const styles = StyleSheet.create({
   itemSelected: {},
   itemName: { fontSize: 14, fontWeight: '700', color: colors.ink[800] },
   itemCategory: { fontSize: 12, color: colors.ink[400], marginTop: 2 },
-  itemPrice: { fontSize: 12, fontWeight: '700', color: colors.primary[600] },
+  itemPrice: { fontSize: 12, fontWeight: '700', color: colors.primary[700] },
   checkbox: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: radius.sm,
     borderWidth: 2,
     borderColor: colors.ink[200],
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxChecked: { backgroundColor: colors.primary[600], borderColor: colors.primary[600] },
+  checkboxChecked: { backgroundColor: colors.primary[700], borderColor: colors.primary[700] },
   checkmark: { color: '#fff', fontSize: 12, fontWeight: '800' },
   empty: { textAlign: 'center', color: colors.ink[400], paddingVertical: 24 },
 });

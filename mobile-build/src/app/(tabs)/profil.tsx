@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useApp } from '@/context/AppContext';
 import { clearAllData } from '@/lib/database';
 import { colors, radius } from '@/theme/colors';
@@ -43,44 +44,54 @@ export default function ProfilScreen() {
     <View style={styles.screen}>
       <AppHeader subtitle={msisdn} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        <Card style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <Ionicons name="storefront" size={26} color={colors.primary[600]} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.pdvId}>PDV #{pdvId ?? '—'}</Text>
-            <Text style={styles.msisdn}>{msisdn}</Text>
-          </View>
-          <Badge label={isTracking ? 'Suivi actif' : 'Suivi inactif'} tone={isTracking ? 'success' : 'warning'} />
-        </Card>
+        <Animated.View entering={FadeInDown.delay(0).duration(400).springify().damping(18)}>
+          <Card style={styles.profileCard}>
+            <View style={styles.avatar}>
+              <Ionicons name="storefront" size={26} color={colors.primary[600]} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pdvId}>PDV #{pdvId ?? '—'}</Text>
+              <Text style={styles.msisdn}>{msisdn}</Text>
+            </View>
+            <Badge
+              label={isTracking ? 'Suivi actif' : 'Suivi inactif'}
+              tone={isTracking ? 'success' : 'warning'}
+              pulse={isTracking}
+            />
+          </Card>
+        </Animated.View>
 
         <View style={{ height: 14 }} />
 
-        <Card>
-          <Text style={styles.sectionTitle}>Synchronisation</Text>
-          <Row label="Ventes en attente" value={String(pendingVentes.length)} />
-          <Row label="Total local" value={String(history.length)} />
-          <Row label="Serveur" value={CONFIG.API_BASE_URL.replace('/api', '')} />
-          <View style={{ height: 12 }} />
-          <Button
-            title="Synchroniser maintenant"
-            onPress={syncNow}
-            loading={syncStatus === 'syncing'}
-            variant="secondary"
-          />
-        </Card>
+        <Animated.View entering={FadeInDown.delay(80).duration(400).springify().damping(18)}>
+          <Card>
+            <Text style={styles.sectionTitle}>Synchronisation</Text>
+            <Row label="Ventes en attente" value={String(pendingVentes.length)} />
+            <Row label="Total local" value={String(history.length)} />
+            <Row label="Serveur" value={CONFIG.API_BASE_URL.replace('/api', '')} />
+            <View style={{ height: 12 }} />
+            <Button
+              title="Synchroniser maintenant"
+              onPress={syncNow}
+              loading={syncStatus === 'syncing'}
+              variant="secondary"
+            />
+          </Card>
+        </Animated.View>
 
         <View style={{ height: 14 }} />
 
-        <Card>
-          <Text style={styles.sectionTitle}>Confidentialité & géolocalisation</Text>
-          <Text style={styles.privacyText}>
-            Votre position GPS est collectée en continu pour assurer la couverture terrain et
-            détecter automatiquement toute sortie de la zone autorisée (rayon de {CONFIG.GEOFENCE_DEFAULT_RADIUS_METERS} m
-            autour du point de tagging). Ces données sont transmises de façon chiffrée au serveur
-            et consultables par votre superviseur sur le dashboard.
-          </Text>
-        </Card>
+        <Animated.View entering={FadeInDown.delay(160).duration(400).springify().damping(18)}>
+          <Card>
+            <Text style={styles.sectionTitle}>Confidentialité & géolocalisation</Text>
+            <Text style={styles.privacyText}>
+              Votre position GPS est collectée en continu pour assurer la couverture terrain et
+              détecter automatiquement toute sortie de la zone autorisée (rayon de {CONFIG.GEOFENCE_DEFAULT_RADIUS_METERS} m
+              autour du point de tagging). Ces données sont transmises de façon chiffrée au serveur
+              et consultables par votre superviseur sur le dashboard.
+            </Text>
+          </Card>
+        </Animated.View>
 
         <View style={{ height: 20 }} />
         <Button title="Se déconnecter" variant="danger" onPress={handleLogout} />

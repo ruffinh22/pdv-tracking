@@ -95,9 +95,9 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
     if (center) {
       circleRef.current = L.circle(center, {
         radius: rayon || 100,
-        color: '#4f46e5',
+        color: '#e06e00',
         weight: 2,
-        fillColor: '#4f46e5',
+        fillColor: '#e06e00',
         fillOpacity: 0.18
       }).addTo(mapRef.current);
 
@@ -125,7 +125,7 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
     points.forEach((pt, i) => {
       const marker = L.circleMarker(pt, {
         radius: 6,
-        color: '#4f46e5',
+        color: '#e06e00',
         weight: 2,
         fillColor: '#ffffff',
         fillOpacity: 1
@@ -136,9 +136,9 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
 
     if (points.length >= 2) {
       polygonRef.current = L.polygon(points, {
-        color: '#4f46e5',
+        color: '#e06e00',
         weight: 2,
-        fillColor: '#4f46e5',
+        fillColor: '#e06e00',
         fillOpacity: 0.18
       }).addTo(mapRef.current);
     }

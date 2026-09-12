@@ -30,7 +30,8 @@ const Login = () => {
   return (
     <div className="min-h-screen flex bg-ink-50">
       {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-primary-700">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-primary-700 flex-col">
+        <div className="flag-stripe"><span /><span /><span /></div>
         <div
           className="absolute inset-0 opacity-[0.07]"
           style={{
@@ -39,9 +40,9 @@ const Login = () => {
             backgroundSize: '28px 28px',
           }}
         />
-        <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
+        <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full flex-1">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-white/15 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-md bg-white/15 flex items-center justify-center">
               <Radar className="w-5 h-5" />
             </div>
             <span className="text-lg font-bold">Tracking PDV</span>
@@ -65,7 +66,7 @@ const Login = () => {
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-10 h-10 rounded-lg bg-primary-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-md bg-primary-600 flex items-center justify-center">
               <Radar className="w-5 h-5 text-white" />
             </div>
             <span className="text-lg font-bold text-ink-900">Tracking PDV</span>
@@ -126,7 +127,7 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-8 p-4 bg-white rounded-xl border border-ink-100">
+          <div className="mt-8 p-4 bg-white rounded-lg border border-ink-200">
             <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Comptes de test</p>
             <div className="space-y-1 text-sm text-ink-600">
               <p><span className="text-ink-400">Admin —</span> admin@trackingpdv.com / admin123</p>

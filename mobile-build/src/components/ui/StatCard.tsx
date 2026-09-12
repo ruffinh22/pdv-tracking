@@ -1,7 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import Card from './Card';
-import { colors } from '@/theme/colors';
+import AnimatedNumber from './AnimatedNumber';
+import { colors, radius } from '@/theme/colors';
 
 interface StatCardProps {
   label: string;
@@ -10,6 +12,7 @@ interface StatCardProps {
   tone?: 'primary' | 'success' | 'warning' | 'danger';
   hint?: string;
   style?: ViewStyle;
+  delay?: number;
 }
 
 const toneColor: Record<string, string> = {
@@ -19,16 +22,24 @@ const toneColor: Record<string, string> = {
   danger: colors.danger[600],
 };
 
-export default function StatCard({ label, value, icon, tone = 'primary', hint, style }: StatCardProps) {
+export default function StatCard({ label, value, icon, tone = 'primary', hint, style, delay = 0 }: StatCardProps) {
+  const isNumeric = typeof value === 'number';
+
   return (
-    <Card style={[styles.card, style]}>
-      <View style={styles.row}>
-        <Text style={styles.label}>{label}</Text>
-        {icon ? <View style={[styles.iconWrap, { backgroundColor: `${toneColor[tone]}1A` }]}>{icon}</View> : null}
-      </View>
-      <Text style={[styles.value, { color: toneColor[tone] }]}>{value}</Text>
-      {hint ? <Text style={styles.hint}>{hint}</Text> : null}
-    </Card>
+    <Animated.View entering={FadeInDown.delay(delay).duration(420).springify().damping(16)} style={{ flex: 1 }}>
+      <Card style={[styles.card, style]}>
+        <View style={styles.row}>
+          <Text style={styles.label}>{label}</Text>
+          {icon ? <View style={[styles.iconWrap, { backgroundColor: `${toneColor[tone]}1A` }]}>{icon}</View> : null}
+        </View>
+        {isNumeric ? (
+          <AnimatedNumber value={value as number} style={[styles.value, { color: toneColor[tone] }]} />
+        ) : (
+          <Text style={[styles.value, { color: toneColor[tone] }]}>{value}</Text>
+        )}
+        {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      </Card>
+    </Animated.View>
   );
 }
 
@@ -39,8 +50,8 @@ const styles = StyleSheet.create({
     padding: 10,
     minHeight: 84,
     justifyContent: 'center',
-    borderRadius: 10,
-    borderColor: colors.ink[300],
+    borderRadius: radius.md,
+    borderColor: colors.ink[200],
     borderWidth: 1,
   },
   row: {
@@ -49,17 +60,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: 10.5,
+    fontSize: 11.5,
     fontWeight: '700',
     color: colors.ink[500],
     flexShrink: 1,
-    lineHeight: 13,
+    lineHeight: 14,
     maxWidth: '80%',
   },
   iconWrap: {
     width: 24,
     height: 24,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -70,9 +81,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   hint: {
-    fontSize: 9.5,
-    color: colors.ink[400],
+    fontSize: 11,
+    color: colors.ink[500],
     marginTop: 3,
-    lineHeight: 11,
+    lineHeight: 13,
   },
 });

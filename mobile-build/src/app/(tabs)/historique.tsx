@@ -1,12 +1,15 @@
 import React, { useCallback } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useApp } from '@/context/AppContext';
 import { colors, radius, shadow } from '@/theme/colors';
 import AppHeader from '@/components/AppHeader';
 import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import { VenteLocale } from '@/types';
+
+const MAX_STAGGER = 12;
 
 export default function HistoriqueScreen() {
   const { msisdn, history, refreshHistory } = useApp();
@@ -17,8 +20,14 @@ export default function HistoriqueScreen() {
     }, [refreshHistory])
   );
 
-  const renderItem = ({ item }: { item: VenteLocale }) => (
-    <View style={styles.item}>
+  const renderItem = ({ item, index }: { item: VenteLocale; index: number }) => (
+    <Animated.View
+      entering={FadeInDown.delay(Math.min(index, MAX_STAGGER) * 45)
+        .duration(320)
+        .springify()
+        .damping(18)}
+      style={styles.item}
+    >
       <View style={{ flex: 1 }}>
         <Text style={styles.itemProduct}>{item.produit}</Text>
         <Text style={styles.itemMeta}>
@@ -33,18 +42,19 @@ export default function HistoriqueScreen() {
         <Badge
           label={item.synchronise === 1 ? 'Synchronisé' : 'En attente'}
           tone={item.synchronise === 1 ? 'success' : 'warning'}
+          pulse={item.synchronise !== 1}
         />
       </View>
-    </View>
+    </Animated.View>
   );
 
   return (
     <View style={styles.screen}>
       <AppHeader subtitle={msisdn} />
-      <View style={styles.headerRow}>
+      <Animated.View entering={FadeInUp.duration(320)} style={styles.headerRow}>
         <Text style={styles.title}>Historique des ventes</Text>
         <Text style={styles.count}>{history.length} enregistrement(s)</Text>
-      </View>
+      </Animated.View>
       <FlatList
         data={history}
         keyExtractor={(item, index) => {

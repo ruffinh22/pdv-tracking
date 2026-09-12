@@ -9,7 +9,7 @@ interface GeofenceZonesMapProps {
 }
 
 // Palette cyclique pour distinguer les zones sur la carte
-const ZONE_COLORS = ['#4f46e5', '#0ea5e9', '#22c56f', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6', '#ec4899'];
+const ZONE_COLORS = ['#e06e00', '#00833a', '#0ea5e9', '#c98a00', '#d64545', '#795548', '#14b8a6', '#8f4500'];
 
 const colorForZone = (index: number) => ZONE_COLORS[index % ZONE_COLORS.length];
 

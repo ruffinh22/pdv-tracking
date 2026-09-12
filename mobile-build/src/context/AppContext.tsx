@@ -110,7 +110,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const list = Array.isArray(data) ? data : data?.data || [];
       setProduits(list);
     } catch (error) {
-      console.error('[app] Erreur chargement produits:', error);
+      console.warn('[app] Erreur chargement produits (non bloquante):', error);
+      setProduits([]);
     }
   }, []);
 
@@ -209,6 +210,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(
     async (msisdnInput: string): Promise<{ ok: boolean; message?: string }> => {
+      const cleanedMsisdn = (msisdnInput || '').trim();
       let point: GPSPoint | null = null;
 
       if (Platform.OS === 'web') {
@@ -262,15 +264,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         // Compte déjà existant → connexion
         try {
-          const { data: existing } = await api.post('/pdv/mobile/login', { msisdn: msisdnInput });
+          const { data: existing } = await api.post('/pdv/mobile/login', { msisdn: cleanedMsisdn });
           if (existing?.id) {
             await setSecureItem('pdvId', String(existing.id));
-            await setSecureItem('msisdn', msisdnInput);
+            await setSecureItem('msisdn', cleanedMsisdn);
             await setSecureItem('isOnboarded', 'true');
             await setSecureItem('initialLat', String(existing.latitude_creation ?? point.latitude));
             await setSecureItem('initialLng', String(existing.longitude_creation ?? point.longitude));
             setPdvId(String(existing.id));
-            setMsisdn(msisdnInput);
+            setMsisdn(cleanedMsisdn);
             setInitialLocation({
               latitude: Number(existing.latitude_creation ?? point.latitude),
               longitude: Number(existing.longitude_creation ?? point.longitude),
@@ -285,33 +287,69 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // pas de compte existant, on continue vers la création
         }
 
-        const { data: created } = await api.post('/pdv/mobile/register', {
-          nom_pdv: `PDV ${msisdnInput}`,
-          msisdn_responsable: msisdnInput,
-          latitude_creation: point.latitude,
-          longitude_creation: point.longitude,
-          statut: 'actif',
-          device_info: { platform: 'mobile', version: '1.1.0', timestamp: new Date().toISOString() },
-        });
+        try {
+          const { data: created } = await api.post('/pdv/mobile/register', {
+            nom_pdv: `PDV ${cleanedMsisdn}`,
+            msisdn_responsable: cleanedMsisdn,
+            latitude_creation: point.latitude,
+            longitude_creation: point.longitude,
+            statut: 'actif',
+            device_info: { platform: 'mobile', version: '1.1.0', timestamp: new Date().toISOString() },
+          });
 
-        if (!created?.id) {
-          return { ok: false, message: 'Réponse invalide du serveur.' };
+          if (!created?.id) {
+            return { ok: false, message: 'Réponse invalide du serveur.' };
+          }
+
+          await setSecureItem('pdvId', String(created.id));
+          await setSecureItem('msisdn', cleanedMsisdn);
+          await setSecureItem('isOnboarded', 'true');
+          await setSecureItem('initialLat', String(point.latitude));
+          await setSecureItem('initialLng', String(point.longitude));
+
+          setPdvId(String(created.id));
+          setMsisdn(cleanedMsisdn);
+          setInitialLocation(point);
+          setIsOnboarded(true);
+          await refreshHistory();
+          await loadProducts();
+          await beginTracking();
+          return { ok: true };
+        } catch (error: any) {
+          const backendMessage = error?.response?.data?.error || '';
+
+          // Si le backend confirme que le MSISDN existe déjà, on se reconnecte au compte existant.
+          if (typeof backendMessage === 'string' && backendMessage.toLowerCase().includes('déjà enregistré')) {
+            try {
+              const { data: existing } = await api.post('/pdv/mobile/login', { msisdn: cleanedMsisdn });
+              if (existing?.id) {
+                await setSecureItem('pdvId', String(existing.id));
+                await setSecureItem('msisdn', cleanedMsisdn);
+                await setSecureItem('isOnboarded', 'true');
+                await setSecureItem('initialLat', String(existing.latitude_creation ?? point.latitude));
+                await setSecureItem('initialLng', String(existing.longitude_creation ?? point.longitude));
+                setPdvId(String(existing.id));
+                setMsisdn(cleanedMsisdn);
+                setInitialLocation({
+                  latitude: Number(existing.latitude_creation ?? point.latitude),
+                  longitude: Number(existing.longitude_creation ?? point.longitude),
+                });
+                setIsOnboarded(true);
+                await refreshHistory();
+                await loadProducts();
+                await beginTracking();
+                return { ok: true };
+              }
+            } catch {
+              // rien à faire, on continue avec le message d'erreur
+            }
+          }
+
+          const message =
+            backendMessage ||
+            "Impossible de créer votre compte. Vérifiez votre connexion réseau.";
+          return { ok: false, message };
         }
-
-        await setSecureItem('pdvId', String(created.id));
-        await setSecureItem('msisdn', msisdnInput);
-        await setSecureItem('isOnboarded', 'true');
-        await setSecureItem('initialLat', String(point.latitude));
-        await setSecureItem('initialLng', String(point.longitude));
-
-        setPdvId(String(created.id));
-        setMsisdn(msisdnInput);
-        setInitialLocation(point);
-        setIsOnboarded(true);
-        await refreshHistory();
-        await loadProducts();
-        await beginTracking();
-        return { ok: true };
       } catch (error: any) {
         const message =
           error?.response?.data?.error ||

@@ -66,30 +66,27 @@ const Layout = () => {
   const initials = `${user?.prenom?.[0] ?? ''}${user?.nom?.[0] ?? ''}`.toUpperCase() || 'U';
 
   const navLinkClasses = (active: boolean) =>
-    `group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
+    `group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 ${
       active
-        ? 'text-white shadow-sm'
-        : 'text-ink-300 hover:bg-white/5 hover:text-white hover:translate-x-0.5'
+        ? 'bg-white/10 text-white'
+        : 'text-ink-300 hover:bg-white/5 hover:text-white'
     }`;
-
-  const navLinkStyle = (active: boolean) =>
-    active
-      ? { background: 'linear-gradient(135deg, rgba(106,86,232,0.35) 0%, rgba(86,65,214,0.25) 100%)' }
-      : undefined;
 
   return (
     <div className="min-h-screen bg-ink-50">
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden shadow-2xl ${
+        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden shadow-2xl bg-ink-950 ${
           isSidebarOpen ? 'w-64' : 'w-0'
         }`}
-        style={{ background: 'linear-gradient(180deg, #14131F 0%, #0F0E18 100%)' }}
       >
         <div className={`w-64 h-full flex flex-col transition-opacity duration-150 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
+          {/* Liseré tricolore */}
+          <div className="flag-stripe shrink-0"><span /><span /><span /></div>
+
           {/* Brand */}
           <div className="flex items-center gap-3 h-16 px-5 border-b border-white/10 shrink-0">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-primary-900/40" style={{ background: 'linear-gradient(135deg, #7566ec 0%, #5641D6 100%)' }}>
+            <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 bg-primary-600">
               <Radar className="w-5 h-5 text-white" />
             </div>
             <div className="leading-tight">
@@ -104,11 +101,11 @@ const Layout = () => {
             <ul className="space-y-1">
               {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
                 <li key={to}>
-                  <Link to={to} className={navLinkClasses(isActive(to))} style={navLinkStyle(isActive(to))}>
+                  <Link to={to} className={navLinkClasses(isActive(to))}>
                     {isActive(to) && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-primary-400 shadow-[0_0_8px_rgba(120,100,240,0.8)]" />
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] bg-primary-500" />
                     )}
-                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive(to) ? 'text-primary-300' : ''}`} />
+                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive(to) ? 'text-primary-400' : ''}`} />
                     {label}
                   </Link>
                 </li>
@@ -118,7 +115,7 @@ const Layout = () => {
                 <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-500">Configuration</p>
                 <button
                   onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                  className={`flex items-center justify-between w-full pl-4 pr-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  className={`flex items-center justify-between w-full pl-4 pr-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
                     isSettingsActive() ? 'bg-white/10 text-white' : 'text-ink-300 hover:bg-white/5 hover:text-white'
                   }`}
                 >
@@ -134,7 +131,7 @@ const Layout = () => {
                       <li key={to}>
                         <Link
                           to={to}
-                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
                             isActive(to)
                               ? 'bg-white/10 text-white font-medium'
                               : 'text-ink-400 hover:bg-white/5 hover:text-white'
@@ -153,8 +150,8 @@ const Layout = () => {
 
           {/* User footer */}
           <div className="p-3 border-t border-white/10 shrink-0">
-            <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white/5">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+            <div className="flex items-center gap-3 px-2 py-2 rounded-md bg-white/5">
+              <div className="w-9 h-9 rounded-md bg-primary-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
@@ -164,7 +161,7 @@ const Layout = () => {
               <button
                 onClick={logout}
                 title="Déconnexion"
-                className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-ink-400 hover:bg-white/10 hover:text-white transition-colors"
+                className="inline-flex items-center justify-center w-8 h-8 rounded-md text-ink-400 hover:bg-white/10 hover:text-white transition-colors"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -175,74 +172,75 @@ const Layout = () => {
 
       {/* Topbar */}
       <header
-        className={`fixed top-0 right-0 h-16 z-10 flex items-center justify-between px-6 gap-4 transition-all duration-200 shadow-md ${
+        className={`fixed top-0 right-0 z-10 transition-all duration-200 shadow-sm ${
           isSidebarOpen ? 'left-64' : 'left-0'
         }`}
-        style={{ background: 'linear-gradient(90deg, #5641D6 0%, #6a56e8 55%, #5c4ade 100%)' }}
       >
-        <div className="flex items-center gap-4 min-w-0">
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-colors"
-            title="Basculer le menu"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          <div className="min-w-0">
-            <h1 className="text-base font-semibold text-white truncate">{currentPage.title}</h1>
-            {currentPage.subtitle && (
-              <p className="text-xs text-white/60 truncate hidden sm:block">{currentPage.subtitle}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="relative hidden md:block">
-            <Search className="w-4 h-4 text-white/60 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              className="w-56 lg:w-72 pl-9 pr-3 py-2 text-sm bg-white/10 border border-white/10 rounded-lg text-white placeholder:text-white/50
-                         focus:outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/15 transition-colors"
-            />
-          </div>
-
-          <button className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-colors" title="Notifications">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger-400 ring-2 ring-primary-600" />
-          </button>
-
-          <div className="h-6 w-px bg-white/15 hidden sm:block" />
-
-          <div className="relative">
+        <div className="flex items-center justify-between h-16 px-6 gap-4 bg-white border-b border-ink-200">
+          <div className="flex items-center gap-4 min-w-0">
             <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center gap-2.5 pl-1.5 pr-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="inline-flex items-center justify-center w-9 h-9 rounded-md text-ink-500 hover:bg-ink-100 hover:text-ink-800 transition-colors"
+              title="Basculer le menu"
             >
-              <div className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center text-xs font-bold ring-2 ring-white/30">
-                {initials}
-              </div>
-              <div className="text-left hidden sm:block leading-tight">
-                <p className="text-sm font-medium text-white">{user?.prenom} {user?.nom}</p>
-                <p className="text-xs text-white/60 capitalize">{user?.role}</p>
-              </div>
-              <ChevronDown className="w-4 h-4 text-white/60" />
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold text-ink-900 truncate">{currentPage.title}</h1>
+              {currentPage.subtitle && (
+                <p className="text-xs text-ink-500 truncate hidden sm:block">{currentPage.subtitle}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="relative hidden md:block">
+              <Search className="w-4 h-4 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Rechercher..."
+                className="w-56 lg:w-72 pl-9 pr-3 py-2 text-sm bg-ink-50 border border-ink-200 rounded-md text-ink-800 placeholder:text-ink-400
+                           focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-400 focus:bg-white transition-colors"
+              />
+            </div>
+
+            <button className="relative inline-flex items-center justify-center w-9 h-9 rounded-md text-ink-500 hover:bg-ink-100 hover:text-ink-800 transition-colors" title="Notifications">
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger-500 ring-2 ring-white" />
             </button>
 
-            {isUserMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setIsUserMenuOpen(false)} />
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl border border-ink-100 shadow-popover py-1.5 z-20">
-                  <button
-                    onClick={logout}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-ink-700 hover:bg-ink-50 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Déconnexion
-                  </button>
+            <div className="h-6 w-px bg-ink-200 hidden sm:block" />
+
+            <div className="relative">
+              <button
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center gap-2.5 pl-1.5 pr-2 py-1.5 rounded-md hover:bg-ink-100 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-md bg-primary-600 text-white flex items-center justify-center text-xs font-bold">
+                  {initials}
                 </div>
-              </>
-            )}
+                <div className="text-left hidden sm:block leading-tight">
+                  <p className="text-sm font-medium text-ink-800">{user?.prenom} {user?.nom}</p>
+                  <p className="text-xs text-ink-500 capitalize">{user?.role}</p>
+                </div>
+                <ChevronDown className="w-4 h-4 text-ink-400" />
+              </button>
+
+              {isUserMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsUserMenuOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg border border-ink-200 shadow-popover py-1.5 z-20">
+                    <button
+                      onClick={logout}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-ink-700 hover:bg-ink-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Déconnexion
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>

@@ -261,7 +261,7 @@ const Reporting = () => {
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="montant" fill="#5641d6" name="Montant total" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="montant" fill="#e06e00" name="Montant total" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -274,8 +274,8 @@ const Reporting = () => {
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="quantite" fill="#16a35a" name="Quantité" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="montant" fill="#5641d6" name="Montant" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="quantite" fill="#00833a" name="Quantité" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="montant" fill="#e06e00" name="Montant" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -288,7 +288,7 @@ const Reporting = () => {
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="#3b6e91" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -307,12 +307,12 @@ const Reporting = () => {
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  fill="#8884d8"
+                  fill="#e06e00"
                   label
                 >
-                  <Pie fill="#16a35a" dataKey="value" name="Actif" />
-                  <Pie fill="#9393a8" dataKey="value" name="Inactif" />
-                  <Pie fill="#ef4444" dataKey="value" name="Suspendu" />
+                  <Pie fill="#00833a" dataKey="value" name="Actif" />
+                  <Pie fill="#8f8f9c" dataKey="value" name="Inactif" />
+                  <Pie fill="#d64545" dataKey="value" name="Suspendu" />
                 </Pie>
                 <Tooltip />
                 <Legend />

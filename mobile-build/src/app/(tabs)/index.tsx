@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/context/AppContext';
 import { colors } from '@/theme/colors';
@@ -40,12 +41,13 @@ export default function HomeScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} tintColor={colors.primary[600]} />}
       >
-        <View style={styles.statusRow}>
+        <Animated.View entering={FadeInDown.duration(380)} style={styles.statusRow}>
           <Badge
             label={isTracking ? 'Suivi GPS actif' : 'Suivi GPS inactif'}
             tone={isTracking ? 'success' : 'warning'}
+            pulse={isTracking}
           />
-        </View>
+        </Animated.View>
 
         <View style={styles.featuredRow}>
           <StatCard
@@ -53,14 +55,16 @@ export default function HomeScreen() {
             value={ventesAujourdhui}
             tone="primary"
             icon={<Ionicons name="cart" size={16} color={colors.primary[600]} />}
-            style={{ flex: 1, marginRight: 8 }}
+            style={{ marginRight: 8 }}
+            delay={40}
           />
           <StatCard
             label="En attente de sync"
             value={pendingVentes.length}
             tone="warning"
             icon={<Ionicons name="cloud-upload" size={16} color={colors.warning[600]} />}
-            style={{ flex: 1, marginLeft: 8 }}
+            style={{ marginLeft: 8 }}
+            delay={90}
           />
         </View>
 
@@ -72,7 +76,8 @@ export default function HomeScreen() {
             value={history.length}
             tone="success"
             icon={<Ionicons name="checkmark-done" size={14} color={colors.success[600]} />}
-            style={{ flex: 1, marginRight: 8 }}
+            style={{ marginRight: 8 }}
+            delay={140}
           />
           <StatCard
             label="Rayon autorisé"
@@ -80,7 +85,8 @@ export default function HomeScreen() {
             tone="danger"
             icon={<Ionicons name="locate" size={14} color={colors.danger[600]} />}
             hint="Alerte si dépassement"
-            style={{ flex: 1 }}
+            style={{}}
+            delay={190}
           />
         </View>
 
@@ -95,23 +101,15 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.ink[50] },
   container: { flex: 1 },
   statusRow: { marginBottom: 14 },
-  statsGrid: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
   featuredRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
     justifyContent: 'space-between',
-    gap: 8,
     marginBottom: 4,
   },
   smallRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
     justifyContent: 'space-between',
-    gap: 8,
   },
 });

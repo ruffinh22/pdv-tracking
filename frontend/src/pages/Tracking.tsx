@@ -134,7 +134,7 @@ const Tracking = () => {
     polylinesRef.current.clear();
 
     const createIcon = (statut: string, isSelected: boolean) => {
-      const color = statut === 'actif' ? '#22c56f' : statut === 'inactif' ? '#9393a8' : '#ef4444';
+      const color = statut === 'actif' ? '#009a44' : statut === 'inactif' ? '#8f8f9c' : '#d64545';
       const size = isSelected ? 40 : 32;
       const borderSize = isSelected ? 4 : 3;
       return L.divIcon({
@@ -182,7 +182,7 @@ const Tracking = () => {
               <p style="margin: 5px 0;"><strong>Statut:</strong> ${pdv.statut}</p>
               <p style="margin: 5px 0;"><strong>Position actuelle:</strong> ${latNum.toFixed(6)}, ${lngNum.toFixed(6)}</p>
               <p style="margin: 5px 0;"><strong>Dernière mise à jour:</strong> ${livePos?.horodatage || pdv.derniere_position_date || 'Inconnue'}</p>
-              <button onclick="window.selectPDV(${pdv.id})" style="margin-top: 10px; padding: 5px 10px; background: #5641d6; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: Inter, sans-serif;">
+              <button onclick="window.selectPDV(${pdv.id})" style="margin-top: 10px; padding: 5px 10px; background: #e06e00; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: Inter, sans-serif;">
                 Suivre ce PDV
               </button>
             </div>
@@ -204,7 +204,7 @@ const Tracking = () => {
             ];
             
             const polyline = L.polyline(trajectoryPoints, {
-              color: '#5641d6',
+              color: '#e06e00',
               weight: 3,
               opacity: 0.7,
               dashArray: '10, 10'

@@ -1,5 +1,13 @@
-import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import Button from './ui/Button';
 import { useApp } from '@/context/AppContext';
 import Card from './ui/Card';
@@ -23,59 +31,83 @@ export default function GPSStatusCard({ current, initial }: Props) {
 
   const outOfZone = distance !== null && distance > CONFIG.GEOFENCE_DEFAULT_RADIUS_METERS;
 
-  return (
-    <Card>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>Position GPS</Text>
-        {distance !== null ? (
-          <Badge
-            label={outOfZone ? 'Hors zone (> 500 m)' : 'Dans la zone'}
-            tone={outOfZone ? 'danger' : 'success'}
-          />
-        ) : null}
-      </View>
+  const shake = useSharedValue(0);
+  const prevOutOfZone = React.useRef(outOfZone);
 
-      {current ? (
-        <>
-          <View style={styles.coordRow}>
-            <Text style={styles.coordLabel}>Latitude</Text>
-            <Text style={styles.coordValue}>{current.latitude.toFixed(6)}</Text>
-          </View>
-          <View style={styles.coordRow}>
-            <Text style={styles.coordLabel}>Longitude</Text>
-            <Text style={styles.coordValue}>{current.longitude.toFixed(6)}</Text>
-          </View>
-          {typeof current.accuracy === 'number' && (
-            <View style={styles.coordRow}>
-              <Text style={styles.coordLabel}>Précision</Text>
-              <Text style={styles.coordValue}>±{Math.round(current.accuracy)} m</Text>
-            </View>
-          )}
-          {distance !== null && (
-            <View style={styles.coordRow}>
-              <Text style={styles.coordLabel}>Distance / point de tagging</Text>
-              <Text
-                style={[
-                  styles.coordValue,
-                  outOfZone ? { color: colors.danger[600] } : { color: colors.success[700] },
-                ]}
-              >
-                {formatDistance(distance)}
-              </Text>
-            </View>
-          )}
-        </>
-      ) : (
-        <View style={styles.loadingRow}>
-          <ActivityIndicator size="small" color={colors.primary[600]} />
-          <View style={{ marginLeft: 8 }}>
-            <Text style={styles.loadingText}>Position introuvable — activez la géolocalisation.</Text>
-            <View style={{ height: 8 }} />
-            <Button title="Réessayer" onPress={refreshLocation} variant="secondary" />
-          </View>
+  useEffect(() => {
+    if (outOfZone && !prevOutOfZone.current) {
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      shake.value = withSequence(
+        withTiming(-6, { duration: 60 }),
+        withTiming(6, { duration: 90 }),
+        withTiming(-4, { duration: 90 }),
+        withTiming(0, { duration: 90 })
+      );
+    }
+    prevOutOfZone.current = outOfZone;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outOfZone]);
+
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shake.value }],
+  }));
+
+  return (
+    <Animated.View entering={FadeInUp.duration(420).springify().damping(16)} style={shakeStyle}>
+      <Card>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Position GPS</Text>
+          {distance !== null ? (
+            <Badge
+              label={outOfZone ? 'Hors zone (> 500 m)' : 'Dans la zone'}
+              tone={outOfZone ? 'danger' : 'success'}
+              pulse={!outOfZone}
+            />
+          ) : null}
         </View>
-      )}
-    </Card>
+
+        {current ? (
+          <>
+            <View style={styles.coordRow}>
+              <Text style={styles.coordLabel}>Latitude</Text>
+              <Text style={styles.coordValue}>{current.latitude.toFixed(6)}</Text>
+            </View>
+            <View style={styles.coordRow}>
+              <Text style={styles.coordLabel}>Longitude</Text>
+              <Text style={styles.coordValue}>{current.longitude.toFixed(6)}</Text>
+            </View>
+            {typeof current.accuracy === 'number' && (
+              <View style={styles.coordRow}>
+                <Text style={styles.coordLabel}>Précision</Text>
+                <Text style={styles.coordValue}>±{Math.round(current.accuracy)} m</Text>
+              </View>
+            )}
+            {distance !== null && (
+              <View style={styles.coordRow}>
+                <Text style={styles.coordLabel}>Distance / point de tagging</Text>
+                <Text
+                  style={[
+                    styles.coordValue,
+                    outOfZone ? { color: colors.danger[600] } : { color: colors.success[700] },
+                  ]}
+                >
+                  {formatDistance(distance)}
+                </Text>
+              </View>
+            )}
+          </>
+        ) : (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator size="small" color={colors.primary[600]} />
+            <View style={{ marginLeft: 8 }}>
+              <Text style={styles.loadingText}>Position introuvable — activez la géolocalisation.</Text>
+              <View style={{ height: 8 }} />
+              <Button title="Réessayer" onPress={refreshLocation} variant="secondary" />
+            </View>
+          </View>
+        )}
+      </Card>
+    </Animated.View>
   );
 }
 

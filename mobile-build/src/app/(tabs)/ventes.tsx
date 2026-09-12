@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeIn, FadeInDown, Layout, ZoomIn, ZoomOut } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useApp } from '@/context/AppContext';
 import { colors, radius } from '@/theme/colors';
 import AppHeader from '@/components/AppHeader';
@@ -142,6 +144,7 @@ export default function VentesScreen() {
     await refreshHistory();
     setSubmitting(false);
 
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Alert.alert('Vente enregistrée', `${successCount} ligne(s) de vente enregistrée(s) avec succès.`);
     resetForm();
   };
@@ -158,31 +161,40 @@ export default function VentesScreen() {
           <GPSStatusCard current={location} initial={initialLocation} />
           <View style={{ height: 14 }} />
 
-          <Card>
-            <Text style={styles.label}>Produits vendus</Text>
-            <TouchableOpacity style={styles.picker} onPress={() => setPickerVisible(true)} activeOpacity={0.8}>
-              <Text style={selected.length > 0 ? styles.pickerTextActive : styles.pickerText}>
-                {selected.length > 0 ? `${selected.length} produit(s) sélectionné(s)` : 'Choisir des produits…'}
-              </Text>
-              <Ionicons name="chevron-down" size={18} color={colors.ink[400]} />
-            </TouchableOpacity>
+          <Animated.View entering={FadeInDown.delay(80).duration(380)}>
+            <Card>
+              <Text style={styles.label}>Produits vendus</Text>
+              <TouchableOpacity style={styles.picker} onPress={() => setPickerVisible(true)} activeOpacity={0.7}>
+                <Text style={selected.length > 0 ? styles.pickerTextActive : styles.pickerText}>
+                  {selected.length > 0 ? `${selected.length} produit(s) sélectionné(s)` : 'Choisir des produits…'}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={colors.ink[400]} />
+              </TouchableOpacity>
 
-            {selected.length > 0 && (
-              <View style={styles.chipsWrap}>
-                {selected.map((p) => (
-                  <View key={`${p.id}-${p.nom_produit}`} style={styles.chip}>
-                    <Text style={styles.chipText}>{p.nom_produit}</Text>
-                    <TouchableOpacity onPress={() => toggleProduct(p)}>
-                      <Ionicons name="close" size={14} color={colors.primary[700]} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
+              {selected.length > 0 && (
+                <View style={styles.chipsWrap}>
+                  {selected.map((p) => (
+                    <Animated.View
+                      key={`${p.id}-${p.nom_produit}`}
+                      entering={ZoomIn.duration(180)}
+                      exiting={ZoomOut.duration(140)}
+                      layout={Layout.springify().damping(18)}
+                      style={styles.chip}
+                    >
+                      <Text style={styles.chipText}>{p.nom_produit}</Text>
+                      <TouchableOpacity onPress={() => toggleProduct(p)} hitSlop={6}>
+                        <Ionicons name="close" size={14} color={colors.primary[800]} />
+                      </TouchableOpacity>
+                    </Animated.View>
+                  ))}
+                </View>
+              )}
 
-            {total > 0 && (
-              <Text style={styles.total}>Total estimé : {total.toLocaleString('fr-FR')} FCFA</Text>
-            )}
+              {total > 0 && (
+                <Animated.Text entering={FadeIn.duration(220)} style={styles.total}>
+                  Total estimé : {total.toLocaleString('fr-FR')} FCFA
+                </Animated.Text>
+              )}
 
             <View style={{ height: 6 }} />
             <Input
@@ -209,9 +221,10 @@ export default function VentesScreen() {
               📅 {new Date().toLocaleDateString('fr-FR')} · ⏰ {new Date().toLocaleTimeString('fr-FR')}
             </Text>
 
-            <View style={{ height: 4 }} />
-            <Button title="Enregistrer la vente" variant="success" onPress={handleSubmit} loading={submitting} />
-          </Card>
+              <View style={{ height: 4 }} />
+              <Button title="Enregistrer la vente" variant="success" onPress={handleSubmit} loading={submitting} />
+            </Card>
+          </Animated.View>
         </ScrollView>
 
         <ProductPickerModal
@@ -254,7 +267,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: radius.pill,
   },
-  chipText: { fontSize: 12, fontWeight: '700', color: colors.primary[700] },
+  chipText: { fontSize: 12, fontWeight: '700', color: colors.primary[800] },
   total: { fontSize: 14, fontWeight: '800', color: colors.success[700], textAlign: 'right', marginBottom: 12 },
   meta: { fontSize: 12, color: colors.ink[400], marginTop: 4, marginBottom: 16 },
 });

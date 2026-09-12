@@ -1,11 +1,16 @@
+import { Platform } from 'react-native';
+
 // Configuration de l'application mobile
-// Modifiez API_BASE_URL selon votre environnement (IP locale en dev, domaine en prod).
+// En web, l'app doit appeler localhost pour la machine hôte.
+// Sur vrai téléphone connecté au même Wi‑Fi, utiliser l'IP locale du PC.
+const apiBaseUrl = Platform.OS === 'web'
+  ? 'http://localhost:3001/api'
+  : 'http://10.199.199.116:3001/api';
 
 export const CONFIG = {
-  API_BASE_URL: 'http://10.0.2.15:3001/api',
+  API_BASE_URL: apiBaseUrl,
 
-  // NOTE: mis à jour automatiquement par l'agent pour le développement local
-  // Remplace par l'IP de ta machine si besoin
+  // NOTE: si tu changes de machine ou de point d'accès, remplace ici la bonne URL
   // API_BASE_URL: 'http://<TON_IP>:<PORT>/api',
 
   LOCATION: {

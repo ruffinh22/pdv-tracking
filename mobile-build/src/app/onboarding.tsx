@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { useApp } from '@/context/AppContext';
 import { colors, radius } from '@/theme/colors';
 import Input from '@/components/ui/Input';
@@ -58,27 +60,34 @@ export default function OnboardingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1 }}>
-        <LinearGradient
-          colors={[colors.primary[700], colors.primary[500]]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
-        >
-          <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeText}>PDV · Terrain</Text>
-          </View>
-          <Text style={styles.heroTitle}>Tracking PDV</Text>
-          <Text style={styles.heroSubtitle}>
-            Géolocalisez votre point de vente et démarrez le suivi de couverture terrain.
-          </Text>
-        </LinearGradient>
+        <Animated.View entering={FadeInDown.duration(480).springify().damping(18)}>
+          <LinearGradient
+            colors={[colors.primary[700], colors.primary[500]]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.hero}
+          >
+            <View style={styles.flagChip}>
+              <View style={[styles.flagDot, { backgroundColor: colors.flag.orange }]} />
+              <View style={[styles.flagDot, { backgroundColor: colors.flag.white }]} />
+              <View style={[styles.flagDot, { backgroundColor: colors.flag.green }]} />
+            </View>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>PDV · Terrain</Text>
+            </View>
+            <Text style={styles.heroTitle}>Tracking PDV</Text>
+            <Text style={styles.heroSubtitle}>
+              Géolocalisez votre point de vente et démarrez le suivi de couverture terrain.
+            </Text>
+          </LinearGradient>
+        </Animated.View>
 
         <View style={styles.content}>
           <GPSStatusCard current={currentLocation} initial={null} />
 
           <View style={{ height: 16 }} />
 
-          <View style={styles.formCard}>
+          <Animated.View entering={FadeInUp.delay(140).duration(420).springify().damping(18)} style={styles.formCard}>
             <Text style={styles.formTitle}>Créer / retrouver votre compte</Text>
             <Input
               label="Numéro MSISDN"
@@ -93,7 +102,10 @@ export default function OnboardingScreen() {
             <Button
               title={consent ? '✓ Consentement accordé' : "J'accepte la géolocalisation (RGPD)"}
               variant={consent ? 'success' : 'secondary'}
-              onPress={() => setConsent((v) => !v)}
+              onPress={() => {
+                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setConsent((v) => !v);
+              }}
             />
             <Text style={styles.consentHelper}>
               Votre position est utilisée pour créer le PDV, détecter les sorties de zone (rayon
@@ -104,7 +116,7 @@ export default function OnboardingScreen() {
             <View style={{ height: 8 }} />
 
             <Button title="Créer mon compte" onPress={handleSubmit} loading={submitting} />
-          </View>
+          </Animated.View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -117,9 +129,15 @@ const styles = StyleSheet.create({
     paddingTop: 36,
     paddingBottom: 18,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 22,
-    borderBottomRightRadius: 22,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
   },
+  flagChip: {
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 10,
+  },
+  flagDot: { width: 16, height: 4, borderRadius: 2 },
   heroBadge: {
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(255,255,255,0.18)',
@@ -128,7 +146,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginBottom: 8,
   },
-  heroBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: 0.4 },
+  heroBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
   heroTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 4 },
   heroSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 12.5, lineHeight: 18 },
   content: { paddingHorizontal: 16, paddingTop: 10, marginTop: -8, paddingBottom: 24 },

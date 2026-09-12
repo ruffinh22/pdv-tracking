@@ -69,7 +69,7 @@ const DIMENSION_OPTIONS: { value: Dimension; label: string }[] = [
   { value: 'chef_zone', label: 'Chef de zone' },
 ];
 
-const PIE_COLORS = ['#5641D6', '#22C55E', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6', '#8B5CF6', '#F97316', '#06B6D4'];
+const PIE_COLORS = ['#e06e00', '#009a44', '#c98a00', '#d64545', '#3B82F6', '#795548', '#14B8A6', '#8f4500', '#00683a', '#6b6b78'];
 
 const Dashboard = () => {
   const [periode, setPeriode] = useState<Periode>('jour');
@@ -302,11 +302,11 @@ const Dashboard = () => {
             {produitsChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={produitsChartData} layout="vertical" margin={{ left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#DAD8ED" />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} axisLine={{ stroke: '#C7C4E3' }} tickLine={{ stroke: '#C7C4E3' }} />
-                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12 }} axisLine={{ stroke: '#C7C4E3' }} tickLine={{ stroke: '#C7C4E3' }} />
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#dadadf" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} axisLine={{ stroke: '#b9b9c2' }} tickLine={{ stroke: '#b9b9c2' }} />
+                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12 }} axisLine={{ stroke: '#b9b9c2' }} tickLine={{ stroke: '#b9b9c2' }} />
                   <Tooltip />
-                  <Bar dataKey="total" fill="#5641D6" radius={[0, 6, 6, 0]} name="PDV" />
+                  <Bar dataKey="total" fill="#e06e00" radius={[0, 6, 6, 0]} name="PDV" />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -381,13 +381,13 @@ const Dashboard = () => {
           ) : analysesChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analysesChartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#DAD8ED" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} axisLine={{ stroke: '#C7C4E3' }} tickLine={{ stroke: '#C7C4E3' }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} axisLine={{ stroke: '#C7C4E3' }} tickLine={{ stroke: '#C7C4E3' }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dadadf" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} axisLine={{ stroke: '#b9b9c2' }} tickLine={{ stroke: '#b9b9c2' }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} axisLine={{ stroke: '#b9b9c2' }} tickLine={{ stroke: '#b9b9c2' }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="Actifs" stackId="a" fill="#22C55E" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="Inactifs" stackId="a" fill="#CBD0E0" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="Actifs" stackId="a" fill="#009a44" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="Inactifs" stackId="a" fill="#dadadf" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
