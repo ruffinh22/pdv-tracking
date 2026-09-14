@@ -58,6 +58,46 @@ async function completerLocalisation(payload) {
 
 const pdvController = {
   // Routes mobiles sans auth
+  /**
+   * Upsert en un seul aller-retour réseau : évite le pattern "login qui échoue
+   * puis register" qui coûtait 2 requêtes séquentielles à chaque création de
+   * compte (le principal facteur de lenteur perçue à l'onboarding). Renvoie le
+   * PDV existant s'il y en a un pour ce msisdn, sinon en crée un nouveau.
+   */
+  async mobileUpsert(req, res) {
+    try {
+      const { nom_pdv, msisdn_responsable, latitude_creation, longitude_creation, device_info } = req.body;
+
+      if (!msisdn_responsable) {
+        return res.status(400).json({ error: 'msisdn_responsable requis' });
+      }
+
+      const existingPDV = await PDV.findOne({ where: { msisdn_responsable } });
+      if (existingPDV) {
+        return res.json({ ...existingPDV.toJSON(), _existing: true });
+      }
+
+      const payload = await completerLocalisation({
+        nom_pdv: nom_pdv || `PDV ${msisdn_responsable}`,
+        msisdn_responsable,
+        latitude_creation,
+        longitude_creation,
+        statut: 'actif',
+        device_info,
+        derniere_position_latitude: latitude_creation,
+        derniere_position_longitude: longitude_creation,
+        derniere_position_date: new Date(),
+      });
+
+      const pdv = await PDV.create(payload);
+      logger.info(`Nouveau PDV mobile enregistré: ${pdv.nom_pdv} (${msisdn_responsable})`);
+      res.status(201).json({ ...pdv.toJSON(), _existing: false });
+    } catch (error) {
+      logger.error("Erreur lors de l'upsert mobile du PDV:", error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
   async mobileRegister(req, res) {
     try {
       const { nom_pdv, msisdn_responsable, latitude_creation, longitude_creation, device_info } = req.body;

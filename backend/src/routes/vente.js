@@ -17,6 +17,7 @@ const createVenteValidation = [
 
 // Routes publiques pour l'application mobile
 router.post('/mobile/create', venteController.mobileCreateVente);
+router.get('/mobile/history/:pdvId', venteController.mobileGetHistory);
 
 // Routes protégées (require auth)
 router.post('/', authMiddleware, createVenteValidation, venteController.createVente);

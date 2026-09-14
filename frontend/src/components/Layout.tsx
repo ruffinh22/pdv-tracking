@@ -1,4 +1,5 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   MapPin,
@@ -18,7 +19,10 @@ import {
   Building2,
 } from 'lucide-react';
 import { useAuthStore } from '../contexts/authContext';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { pdvService } from '../services/pdvService';
+import { produitService } from '../services/produitService';
+import { agenceService } from '../services/agenceService';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -49,10 +53,65 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
 
 const Layout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+  // --- Recherche globale (header) ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  const { data: searchResults, isFetching: isSearching } = useQuery({
+    queryKey: ['global-search', debouncedQuery],
+    queryFn: async () => {
+      const q = debouncedQuery.toLowerCase();
+      const [pdvRes, produits, agences] = await Promise.all([
+        pdvService.getAllPDVs(1, 6, { search: debouncedQuery }),
+        produitService.getProduitsList().catch(() => []),
+        agenceService.getAllAgencesList().catch(() => []),
+      ]);
+      return {
+        pdv: pdvRes?.data || [],
+        produits: (Array.isArray(produits) ? produits : []).filter((p: any) =>
+          p.nom_produit?.toLowerCase().includes(q)
+        ).slice(0, 5),
+        agences: (Array.isArray(agences) ? agences : []).filter((a: any) =>
+          a.nom_agence?.toLowerCase().includes(q)
+        ).slice(0, 5),
+      };
+    },
+    enabled: debouncedQuery.length >= 2,
+    staleTime: 30_000,
+  });
+
+  const hasResults =
+    !!searchResults &&
+    (searchResults.pdv.length > 0 || searchResults.produits.length > 0 || searchResults.agences.length > 0);
+
+  const goToResult = (path: string) => {
+    navigate(path);
+    setIsSearchOpen(false);
+    setSearchQuery('');
+  };
 
   const isActive = (path: string) => location.pathname === path;
   const isSettingsActive = () =>
@@ -194,14 +253,93 @@ const Layout = () => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="relative hidden md:block">
+            <div className="relative hidden md:block" ref={searchBoxRef}>
               <Search className="w-4 h-4 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Rechercher..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSearchOpen(true);
+                }}
+                onFocus={() => setIsSearchOpen(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsSearchOpen(false);
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                placeholder="Rechercher un PDV, produit, agence..."
                 className="w-56 lg:w-72 pl-9 pr-3 py-2 text-sm bg-ink-50 border border-ink-200 rounded-md text-ink-800 placeholder:text-ink-400
                            focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-400 focus:bg-white transition-colors"
               />
+
+              {isSearchOpen && debouncedQuery.length >= 2 && (
+                <div className="absolute right-0 mt-2 w-96 max-h-96 overflow-y-auto bg-white rounded-lg border border-ink-200 shadow-popover py-2 z-[2000]">
+                  {isSearching ? (
+                    <div className="px-4 py-6 text-center text-sm text-ink-400">Recherche...</div>
+                  ) : !hasResults ? (
+                    <div className="px-4 py-6 text-center text-sm text-ink-400">
+                      Aucun résultat pour « {debouncedQuery} »
+                    </div>
+                  ) : (
+                    <>
+                      {searchResults!.pdv.length > 0 && (
+                        <div className="mb-1">
+                          <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400">
+                            Points de vente
+                          </p>
+                          {searchResults!.pdv.map((pdv: any) => (
+                            <button
+                              key={`pdv-${pdv.id}`}
+                              onClick={() => goToResult(`/pdv/${pdv.id}`)}
+                              className="w-full text-left px-4 py-2 text-sm text-ink-700 hover:bg-primary-50 flex items-center gap-2"
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-ink-400 shrink-0" />
+                              <span className="truncate">{pdv.nom_pdv}</span>
+                              <span className="text-xs text-ink-400 ml-auto shrink-0">{pdv.msisdn_responsable}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {searchResults!.produits.length > 0 && (
+                        <div className="mb-1">
+                          <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400">
+                            Produits
+                          </p>
+                          {searchResults!.produits.map((p: any) => (
+                            <button
+                              key={`produit-${p.id}`}
+                              onClick={() => goToResult('/produits')}
+                              className="w-full text-left px-4 py-2 text-sm text-ink-700 hover:bg-primary-50 flex items-center gap-2"
+                            >
+                              <Package className="w-3.5 h-3.5 text-ink-400 shrink-0" />
+                              <span className="truncate">{p.nom_produit}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {searchResults!.agences.length > 0 && (
+                        <div>
+                          <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400">
+                            Agences
+                          </p>
+                          {searchResults!.agences.map((a: any) => (
+                            <button
+                              key={`agence-${a.id}`}
+                              onClick={() => goToResult('/agences')}
+                              className="w-full text-left px-4 py-2 text-sm text-ink-700 hover:bg-primary-50 flex items-center gap-2"
+                            >
+                              <Building2 className="w-3.5 h-3.5 text-ink-400 shrink-0" />
+                              <span className="truncate">{a.nom_agence}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <button className="relative inline-flex items-center justify-center w-9 h-9 rounded-md text-ink-500 hover:bg-ink-100 hover:text-ink-800 transition-colors" title="Notifications">

@@ -35,7 +35,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
-      <AppHeader subtitle={msisdn} />
+      <AppHeader title="Accueil" icon="home" subtitle={msisdn} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}

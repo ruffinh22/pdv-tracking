@@ -48,9 +48,10 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
     const initialView: LatLng = center ?? (points[0] ?? [6.3703, 2.3912]); // fallback Cotonou
     mapRef.current = L.map(containerRef.current).setView(initialView, center || points.length ? 14 : 6);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(mapRef.current);
+    L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; <a href="https://www.esri.com">Esri</a> — Esri, HERE, Garmin, \u00a9 OpenStreetMap contributors, GIS User Community',
+        maxZoom: 16
+      }).addTo(mapRef.current);
 
     return () => {
       mapRef.current?.remove();

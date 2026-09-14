@@ -50,7 +50,7 @@ export default function HistoriqueScreen() {
 
   return (
     <View style={styles.screen}>
-      <AppHeader subtitle={msisdn} />
+      <AppHeader title="Historique" icon="time" subtitle={msisdn} />
       <Animated.View entering={FadeInUp.duration(320)} style={styles.headerRow}>
         <Text style={styles.title}>Historique des ventes</Text>
         <Text style={styles.count}>{history.length} enregistrement(s)</Text>

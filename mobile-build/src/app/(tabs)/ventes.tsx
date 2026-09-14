@@ -117,42 +117,47 @@ export default function VentesScreen() {
     }
 
     const horodatage = new Date().toISOString();
-    let successCount = 0;
-    for (const produit of selected) {
-      const saved = await syncService.saveVenteLocally({
-        produit: produit.nom_produit,
-        nom_concessionnaire: nomConcessionnaire,
-        nom_vendeur: nomVendeur,
-        contact_vendeur: contactVendeur,
-        montant: Number(produit.prix_unitaire) || 0,
-        latitude: gps.latitude,
-        longitude: gps.longitude,
-        horodatage,
-      });
-      if (saved) successCount++;
-    }
 
-    if (typeof (syncService as any).autoSync === 'function') {
-      try {
-        await (syncService as any).autoSync();
-      } catch (e) {
-        console.warn('[ventes] autoSync failed:', e);
-      }
-    } else {
-      console.info('[ventes] autoSync not available on syncService');
-    }
+    // Chaque produit n'est écrit qu'en local ici (SQLite, quasi instantané) — l'envoi
+    // au serveur part déjà en arrière-plan depuis saveVenteLocally. On n'attend plus
+    // aucun aller-retour réseau avant de rendre la main à l'utilisateur : c'est ce qui
+    // rendait la saisie d'une commande à plusieurs produits très lente auparavant.
+    const results = await Promise.all(
+      selected.map((produit) =>
+        syncService.saveVenteLocally({
+          produit: produit.nom_produit,
+          nom_concessionnaire: nomConcessionnaire,
+          nom_vendeur: nomVendeur,
+          contact_vendeur: contactVendeur,
+          montant: Number(produit.prix_unitaire) || 0,
+          latitude: gps.latitude,
+          longitude: gps.longitude,
+          horodatage,
+        })
+      )
+    );
+    const successCount = results.filter(Boolean).length;
+
     await refreshHistory();
     setSubmitting(false);
 
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Alert.alert('Vente enregistrée', `${successCount} ligne(s) de vente enregistrée(s) avec succès.`);
     resetForm();
+
+    // Synchronisation de rattrapage en arrière-plan (ventes/positions en attente),
+    // sans bloquer l'écran : l'utilisateur peut déjà enchaîner sur autre chose.
+    if (typeof (syncService as any).autoSync === 'function') {
+      (syncService as any).autoSync().catch((e: unknown) => {
+        console.warn('[ventes] autoSync failed:', e);
+      });
+    }
   };
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.screen}>
-        <AppHeader subtitle={msisdn} />
+        <AppHeader title="Nouvelle vente" icon="cart" subtitle={msisdn} />
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
           <Text style={styles.pageTitle}>Saisie des ventes</Text>
           <Text style={styles.pageSubtitle}>Enregistrez vos ventes sur le terrain, même hors connexion.</Text>

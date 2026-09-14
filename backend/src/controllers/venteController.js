@@ -3,6 +3,37 @@ const logger = require('../utils/logger');
 const geocodingService = require('../services/geocodingService');
 
 const venteController = {
+  /**
+   * Historique des ventes d'un PDV, pour re-remplir la base locale du mobile
+   * après une déconnexion/purge (aucune auth admin requise, comme les autres
+   * routes /mobile/*, identifiées uniquement par pdv_id). Limité et indexé sur
+   * pdv_id + horodatage pour rester rapide même avec beaucoup d'historique.
+   */
+  async mobileGetHistory(req, res) {
+    try {
+      const pdvId = parseInt(req.params.pdvId, 10);
+      if (!pdvId) {
+        return res.status(400).json({ error: 'pdv_id invalide' });
+      }
+      const limit = Math.min(parseInt(req.query.limit, 10) || 300, 500);
+
+      const ventes = await Vente.findAll({
+        where: { pdv_id: pdvId },
+        order: [['horodatage', 'DESC']],
+        limit,
+        attributes: [
+          'id', 'produit', 'nom_concessionnaire', 'nom_vendeur', 'contact_vendeur',
+          'montant', 'latitude_saisie', 'longitude_saisie', 'horodatage',
+        ],
+      });
+
+      res.json({ data: ventes });
+    } catch (error) {
+      logger.error('Erreur récupération historique mobile:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
   // Route mobile sans auth
   async mobileCreateVente(req, res) {
     try {

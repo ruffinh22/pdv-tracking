@@ -13,6 +13,7 @@ const createPDVValidation = [
 ];
 
 // Routes publiques pour l'application mobile
+router.post('/mobile/upsert', pdvController.mobileUpsert);
 router.post('/mobile/register', pdvController.mobileRegister);
 router.post('/mobile/login', pdvController.mobileLogin);
 

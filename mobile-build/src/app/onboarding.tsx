@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -17,8 +18,10 @@ import { colors, radius } from '@/theme/colors';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import GPSStatusCard from '@/components/GPSStatusCard';
+import { CONFIG } from '@/config';
 
 export default function OnboardingScreen() {
+  const insets = useSafeAreaInsets();
   const { register, refreshLocation, currentLocation } = useApp();
   const [msisdn, setMsisdn] = useState('');
   const [consent, setConsent] = useState(false);
@@ -65,7 +68,7 @@ export default function OnboardingScreen() {
             colors={[colors.primary[700], colors.primary[500]]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.hero}
+            style={[styles.hero, { paddingTop: insets.top + 12 }]}
           >
             <View style={styles.flagChip}>
               <View style={[styles.flagDot, { backgroundColor: colors.flag.orange }]} />
@@ -116,6 +119,7 @@ export default function OnboardingScreen() {
             <View style={{ height: 8 }} />
 
             <Button title="Créer mon compte" onPress={handleSubmit} loading={submitting} />
+            <Text style={styles.debugUrl}>Serveur : {CONFIG.API_BASE_URL}</Text>
           </Animated.View>
         </View>
       </ScrollView>
@@ -124,9 +128,14 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
+  debugUrl: {
+    textAlign: 'center',
+    fontSize: 10.5,
+    color: colors.ink[400],
+    marginTop: 10,
+  },
   container: { flex: 1, backgroundColor: colors.ink[50] },
   hero: {
-    paddingTop: 36,
     paddingBottom: 18,
     paddingHorizontal: 20,
     borderBottomLeftRadius: radius.xl,

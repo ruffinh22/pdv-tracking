@@ -27,8 +27,9 @@ const LeafletMap = ({ pdvs }: LeafletMapProps) => {
       mapRef.current = L.map(mapContainerRef.current).setView([0, 0], 2);
 
       // Ajouter le layer OpenStreetMap
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; <a href="https://www.esri.com">Esri</a> — Esri, HERE, Garmin, \u00a9 OpenStreetMap contributors, GIS User Community',
+        maxZoom: 16
       }).addTo(mapRef.current);
     }
 

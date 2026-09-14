@@ -297,8 +297,8 @@ const GeofenceZones = () => {
 
       {/* Modal de création/édition */}
       {showModal && (
-        <div className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
+          <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-ink-900">
                 {editingZone ? 'Modifier la zone' : 'Nouvelle zone'}
@@ -380,8 +380,8 @@ const GeofenceZones = () => {
 
       {/* Modal d'assignation de PDV */}
       {showAssignModal && selectedZoneForAssign && (
-        <div className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
+          <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-ink-900">
                 Assigner un PDV à {selectedZoneForAssign.nom_zone}

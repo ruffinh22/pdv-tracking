@@ -1,17 +1,23 @@
 import { Platform } from 'react-native';
 
 // Configuration de l'application mobile
-// En web, l'app doit appeler localhost pour la machine hôte.
-// Sur vrai téléphone connecté au même Wi‑Fi, utiliser l'IP locale du PC.
-const apiBaseUrl = Platform.OS === 'web'
-  ? 'http://localhost:3001/api'
-  : 'http://10.199.199.116:3001/api';
+//
+// L'URL de l'API est surchageable via la variable d'environnement
+// EXPO_PUBLIC_API_URL (fichier .env, ou `EXPO_PUBLIC_API_URL=... npx expo start`)
+// sans avoir à modifier ce fichier ni reconstruire l'app — pratique quand on
+// change de réseau Wi‑Fi ou que l'IP du PC de dev change (cause la plus
+// fréquente de "Impossible de créer votre compte" en environnement de dev).
+//
+// Sur le web, le navigateur tourne sur la même machine que le serveur : localhost suffit.
+// Sur un vrai téléphone, il doit joindre l'IP locale du PC sur le même réseau Wi‑Fi.
+const FALLBACK_LAN_IP = '10.19.190.116';
+
+const apiBaseUrl =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (Platform.OS === 'web' ? 'http://localhost:3001/api' : `http://${FALLBACK_LAN_IP}:3001/api`);
 
 export const CONFIG = {
   API_BASE_URL: apiBaseUrl,
-
-  // NOTE: si tu changes de machine ou de point d'accès, remplace ici la bonne URL
-  // API_BASE_URL: 'http://<TON_IP>:<PORT>/api',
 
   LOCATION: {
     // Intervalle entre deux remontées de position en arrière-plan (ms)

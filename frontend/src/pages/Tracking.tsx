@@ -15,6 +15,7 @@ interface PDV {
   derniere_position_longitude?: number;
   derniere_position_date?: string;
   statut: string;
+  zone_geofence_id?: number | null;
 }
 
 interface Position {
@@ -35,13 +36,23 @@ const Tracking = () => {
   const [isTracking, setIsTracking] = useState(true);
   const [selectedPDV, setSelectedPDV] = useState<number | null>(null);
   const [livePositions, setLivePositions] = useState<Map<number, Position>>(new Map());
+  const [statutFilter, setStatutFilter] = useState<string>('all');
+  const [zoneFilter, setZoneFilter] = useState<string>('all');
 
   const { data: pdvsResponse } = useQuery({
     queryKey: ['pdvsForTracking'],
     queryFn: () => pdvService.getAllPDVsNoPagination(),
   });
 
-  const pdvs: PDV[] = pdvsResponse?.data || [];
+  const allPdvs: PDV[] = pdvsResponse?.data || [];
+
+  // Filtres statut / zone réellement appliqués à la carte (auparavant ces deux
+  // sélecteurs ne faisaient qu'un console.log, sans le moindre effet visible).
+  const pdvs: PDV[] = allPdvs.filter((pdv) => {
+    if (statutFilter !== 'all' && pdv.statut !== statutFilter) return false;
+    if (zoneFilter === 'none' && pdv.zone_geofence_id) return false;
+    return true;
+  });
 
   // Initialiser la carte
   useEffect(() => {
@@ -54,8 +65,9 @@ const Tracking = () => {
         zoomControl: true
       });
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; <a href="https://www.esri.com">Esri</a> — Esri, HERE, Garmin, \u00a9 OpenStreetMap contributors, GIS User Community',
+        maxZoom: 16
       }).addTo(mapRef.current);
     }
 
@@ -260,7 +272,7 @@ const Tracking = () => {
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-2">
               <span className="text-ink-400">PDV actifs:</span>
-              <span className="text-success-400 font-bold">{pdvs.filter(p => p.statut === 'actif').length || 0}</span>
+              <span className="text-success-400 font-bold">{allPdvs.filter(p => p.statut === 'actif').length || 0}</span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-ink-400">En mouvement:</span>
@@ -316,10 +328,9 @@ const Tracking = () => {
           <div className="flex items-center space-x-2">
             <label className="text-xs text-gray-400">Statut:</label>
             <select 
+              value={statutFilter}
               className="bg-ink-800 text-white text-sm px-3 py-1.5 rounded border border-ink-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              onChange={(e) => {
-                console.log('Filtre statut:', e.target.value);
-              }}
+              onChange={(e) => setStatutFilter(e.target.value)}
             >
               <option value="all">Tous</option>
               <option value="actif">Actifs</option>
@@ -331,16 +342,21 @@ const Tracking = () => {
           <div className="flex items-center space-x-2">
             <label className="text-xs text-gray-400">Zone:</label>
             <select 
+              value={zoneFilter}
               className="bg-ink-800 text-white text-sm px-3 py-1.5 rounded border border-ink-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              onChange={(e) => {
-                console.log('Filtre zone:', e.target.value);
-              }}
+              onChange={(e) => setZoneFilter(e.target.value)}
             >
               <option value="all">Toutes les zones</option>
               <option value="none">Sans zone</option>
             </select>
           </div>
         </div>
+
+        {(statutFilter !== 'all' || zoneFilter !== 'all') && (
+          <span className="text-xs text-primary-300 bg-primary-500/10 px-2.5 py-1 rounded-md">
+            {pdvs.length} / {allPdvs.length} PDV affiché(s)
+          </span>
+        )}
 
         <div className="flex items-center space-x-4 text-xs text-gray-400">
           <div className="flex items-center">

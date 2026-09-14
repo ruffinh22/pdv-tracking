@@ -43,12 +43,19 @@ class SyncService {
     return getDatabase();
   }
 
+  /**
+   * Enregistre une vente en local et retourne IMMÉDIATEMENT après l'écriture SQLite,
+   * sans attendre le réseau : l'app est offline-first, l'utilisateur ne doit jamais
+   * patienter sur un aller-retour serveur pour valider une saisie. La tentative
+   * d'envoi immédiat au serveur part en arrière-plan (best-effort, non bloquante) ;
+   * en cas d'échec ou d'absence de réseau, la ligne reste "en_attente" et sera
+   * reprise par autoSync()/syncVentes() au prochain passage.
+   */
   async saveVenteLocally(vente: VenteInput): Promise<boolean> {
     try {
       const db = await this.ensureDb();
       const pdvId = await getSecureItem('pdvId');
 
-      // Always insert locally first to keep a record for history/UX.
       const res = await db.runAsync(
         `INSERT INTO ventes (produit, nom_concessionnaire, nom_vendeur, contact_vendeur, montant, latitude, longitude, horodatage, statut, pdv_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -68,30 +75,25 @@ class SyncService {
 
       const insertId = res && (res.insertId || res.lastID || 0);
 
-      // Try immediate server persistence when online and when we have a pdvId.
-      const online = await this.checkConnection();
-      if (online && pdvId) {
-        try {
-          await api.post('/ventes/mobile/create', {
-            pdv_id: pdvId ? Number(pdvId) : undefined,
-            produit: vente.produit,
-            nom_concessionnaire: vente.nom_concessionnaire || '',
-            nom_vendeur: vente.nom_vendeur || '',
-            contact_vendeur: vente.contact_vendeur || '',
-            latitude_saisie: vente.latitude,
-            longitude_saisie: vente.longitude,
-            horodatage: vente.horodatage,
-            montant: vente.montant || 0,
-          });
-
-          // Mark local row as synchronized so it won't be re-sent.
-          if (insertId) {
-            await db.runAsync('UPDATE ventes SET synchronise = 1 WHERE id = ?', [insertId]);
-          }
-        } catch (error) {
-          // If server call fails, keep the local row as unsynchronized for retry later.
-          console.warn('[sync] Envoi immédiat vente échoué, conservation locale pour resynchronisation', error);
-        }
+      if (pdvId && insertId) {
+        // Fire-and-forget : ne bloque jamais l'écran d'appel. On ne fait plus de
+        // ping /health préalable (qui doublait chaque écriture d'un aller-retour
+        // réseau supplémentaire, jusqu'à 5s de latence par produit) — on tente
+        // directement l'envoi avec un timeout court et on retombe sur la file
+        // d'attente locale en cas d'échec.
+        this.attemptImmediateSync(insertId, {
+          pdv_id: Number(pdvId),
+          produit: vente.produit,
+          nom_concessionnaire: vente.nom_concessionnaire || '',
+          nom_vendeur: vente.nom_vendeur || '',
+          contact_vendeur: vente.contact_vendeur || '',
+          latitude_saisie: vente.latitude,
+          longitude_saisie: vente.longitude,
+          horodatage: vente.horodatage,
+          montant: vente.montant || 0,
+        }).catch(() => {
+          /* déjà loggé plus bas, la ligne reste en attente pour retry */
+        });
       } else if (!pdvId) {
         console.info('[sync] Pas d\'identifiant PDV (pdvId) trouvé — enregistrement local uniquement.');
       }
@@ -100,6 +102,17 @@ class SyncService {
     } catch (error) {
       console.error('[sync] Erreur enregistrement vente locale:', error);
       return false;
+    }
+  }
+
+  /** Tentative d'envoi immédiat en arrière-plan, sans bloquer l'appelant. */
+  private async attemptImmediateSync(insertId: number, payload: Record<string, unknown>): Promise<void> {
+    try {
+      const db = await this.ensureDb();
+      await api.post('/ventes/mobile/create', payload, { timeout: 6000 });
+      await db.runAsync('UPDATE ventes SET synchronise = 1 WHERE id = ?', [insertId]);
+    } catch (error) {
+      console.warn('[sync] Envoi immédiat vente échoué, conservation locale pour resynchronisation', error);
     }
   }
 
@@ -122,6 +135,32 @@ class SyncService {
     }
   }
 
+  /** Limite de requêtes simultanées pour ne pas saturer le serveur/réseau mobile. */
+  private static readonly SYNC_CONCURRENCY = 5;
+
+  private async runWithConcurrency<T>(
+    items: T[],
+    worker: (item: T) => Promise<boolean>
+  ): Promise<number> {
+    let cursor = 0;
+    let synced = 0;
+
+    const runNext = async (): Promise<void> => {
+      while (cursor < items.length) {
+        const item = items[cursor++];
+        if (await worker(item)) synced++;
+      }
+    };
+
+    // Quelques "workers" tournent en parallèle plutôt qu'un for..await strictement
+    // séquentiel : sur une commande de plusieurs produits, ça divise le temps total
+    // de synchronisation par ~SYNC_CONCURRENCY au lieu de le multiplier par le nombre d'items.
+    await Promise.all(
+      Array.from({ length: Math.min(SyncService.SYNC_CONCURRENCY, items.length) }, runNext)
+    );
+    return synced;
+  }
+
   async syncVentes(): Promise<{ success: boolean; synced: number }> {
     try {
       const db = await this.ensureDb();
@@ -131,34 +170,37 @@ class SyncService {
       if (ventes.length === 0) return { success: true, synced: 0 };
 
       const pdvId = await getSecureItem('pdvId');
-      let synced = 0;
 
-      for (const vente of ventes) {
+      const synced = await this.runWithConcurrency(ventes, async (vente: any) => {
+        const sendPdvId = vente.pdv_id || (pdvId ? Number(pdvId) : undefined);
+        if (!sendPdvId) {
+          console.warn(`[sync] Ignorer vente ${vente.id} sans pdv_id (attente d'onboarding)`);
+          return false;
+        }
         try {
-          // determine pdv id to send: prefer the row's pdv_id, fallback to stored pdvId
-          const sendPdvId = vente.pdv_id || (pdvId ? Number(pdvId) : undefined);
-          if (!sendPdvId) {
-            console.warn(`[sync] Ignorer vente ${vente.id} sans pdv_id (attente d'onboarding)`);
-            continue;
-          }
-
-          await api.post('/ventes/mobile/create', {
-            pdv_id: sendPdvId,
-            produit: vente.produit,
-            nom_concessionnaire: vente.nom_concessionnaire,
-            nom_vendeur: vente.nom_vendeur,
-            contact_vendeur: vente.contact_vendeur,
-            latitude_saisie: vente.latitude,
-            longitude_saisie: vente.longitude,
-            horodatage: vente.horodatage,
-            montant: vente.montant || 0,
-          });
+          await api.post(
+            '/ventes/mobile/create',
+            {
+              pdv_id: sendPdvId,
+              produit: vente.produit,
+              nom_concessionnaire: vente.nom_concessionnaire,
+              nom_vendeur: vente.nom_vendeur,
+              contact_vendeur: vente.contact_vendeur,
+              latitude_saisie: vente.latitude,
+              longitude_saisie: vente.longitude,
+              horodatage: vente.horodatage,
+              montant: vente.montant || 0,
+            },
+            { timeout: 6000 }
+          );
           await db.runAsync('UPDATE ventes SET synchronise = 1 WHERE id = ?', [vente.id]);
-          synced++;
+          return true;
         } catch (error) {
           console.error(`[sync] Échec sync vente ${vente.id}:`, error);
+          return false;
         }
-      }
+      });
+
       return { success: true, synced };
     } catch (error) {
       console.error('[sync] Erreur syncVentes:', error);
@@ -175,22 +217,27 @@ class SyncService {
       if (positions.length === 0) return { success: true, synced: 0 };
 
       const pdvId = await getSecureItem('pdvId');
-      let synced = 0;
 
-      for (const position of positions) {
+      const synced = await this.runWithConcurrency(positions, async (position: any) => {
         try {
-          await api.post('/positions/mobile/create', {
-            pdv_id: pdvId ? Number(pdvId) : undefined,
-            latitude: position.latitude,
-            longitude: position.longitude,
-            horodatage: position.horodatage,
-          });
+          await api.post(
+            '/positions/mobile/create',
+            {
+              pdv_id: pdvId ? Number(pdvId) : undefined,
+              latitude: position.latitude,
+              longitude: position.longitude,
+              horodatage: position.horodatage,
+            },
+            { timeout: 6000 }
+          );
           await db.runAsync('UPDATE positions SET synchronise = 1 WHERE id = ?', [position.id]);
-          synced++;
+          return true;
         } catch (error) {
           console.error(`[sync] Échec sync position ${position.id}:`, error);
+          return false;
         }
-      }
+      });
+
       return { success: true, synced };
     } catch (error) {
       console.error('[sync] Erreur syncPositions:', error);
@@ -213,9 +260,49 @@ class SyncService {
     );
   }
 
+  async hasLocalHistory(): Promise<boolean> {
+    const db = await this.ensureDb();
+    const row: any = await db.getFirstAsync('SELECT id FROM ventes LIMIT 1');
+    return !!row;
+  }
+
+  /**
+   * Réimporte l'historique d'un PDV depuis le serveur (utilisé après une
+   * reconnexion post-purge, quand la base locale a été vidée mais que le
+   * serveur a gardé les ventes). Import en une seule transaction pour rester
+   * rapide même avec plusieurs centaines de lignes, et marqué "synchronise = 1"
+   * puisque ces ventes existent déjà côté serveur (pas de re-envoi inutile).
+   */
+  async importVentesFromServer(pdvId: number, ventes: any[]): Promise<number> {
+    if (!ventes || ventes.length === 0) return 0;
+    const db = await this.ensureDb();
+    let imported = 0;
+    await db.withTransactionAsync(async () => {
+      for (const v of ventes) {
+        await db.runAsync(
+          `INSERT INTO ventes (produit, nom_concessionnaire, nom_vendeur, contact_vendeur, montant, latitude, longitude, horodatage, statut, synchronise, pdv_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'traitee', 1, ?)`,
+          [
+            v.produit,
+            v.nom_concessionnaire || '',
+            v.nom_vendeur || '',
+            v.contact_vendeur || '',
+            v.montant || 0,
+            v.latitude_saisie,
+            v.longitude_saisie,
+            v.horodatage,
+            pdvId,
+          ]
+        );
+        imported++;
+      }
+    });
+    return imported;
+  }
+
   async checkConnection(): Promise<boolean> {
     try {
-      await api.get('/health', { timeout: 5000 });
+      await api.get('/health', { timeout: 3000 });
       return true;
     } catch {
       return false;

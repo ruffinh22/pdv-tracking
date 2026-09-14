@@ -81,6 +81,78 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
+/**
+ * Récupère une position GPS rapidement plutôt que d'attendre une précision
+ * maximale. `Accuracy.High` peut mettre 10-30s (voire plus) à converger en
+ * intérieur ou avec un signal faible — largement suffisant pour un tracking
+ * au mètre près, mais inutile ici : la géofence a un rayon de 500m. On utilise
+ * `Balanced` (assisté réseau, beaucoup plus rapide) avec un timeout court, et
+ * si même ça traîne, on retombe sur la dernière position connue (quasi
+ * instantanée) plutôt que de bloquer l'utilisateur indéfiniment.
+ */
+async function getFastLocation(LocationModule: any) {
+  const freshFix = LocationModule.getCurrentPositionAsync({
+    accuracy: LocationModule.Accuracy.Balanced,
+  });
+  const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 8000));
+
+  const loc = await Promise.race([freshFix, timeout]);
+  if (loc) return loc;
+
+  try {
+    const lastKnown = await LocationModule.getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000 });
+    if (lastKnown) return lastKnown;
+  } catch {
+    // pas de position en cache non plus, on retente la position fraîche ci-dessous
+  }
+
+  // Dernier recours : on attend la position fraîche jusqu'au bout, tant pis pour le délai.
+  return freshFix;
+}
+
+/**
+ * Un message d'erreur diagnostique plutôt que le générique "vérifiez votre
+ * connexion" : quand axios ne reçoit AUCUNE réponse (error.request existe mais
+ * pas error.response), c'est très souvent que l'app n'arrive pas à joindre
+ * l'adresse configurée (mauvais réseau Wi‑Fi, IP du serveur qui a changé) —
+ * on le dit explicitement avec l'URL utilisée pour que ce soit diagnosticable
+ * sur le terrain, au lieu de faire deviner à l'utilisateur.
+ */
+function networkErrorMessage(error: any): string {
+  if (error?.code === 'ECONNABORTED') {
+    return `Le serveur (${CONFIG.API_BASE_URL}) met trop de temps à répondre. Réessayez, ou vérifiez que le serveur est bien démarré.`;
+  }
+  if (error?.request && !error?.response) {
+    return `Serveur injoignable à l'adresse ${CONFIG.API_BASE_URL}. Vérifiez que votre téléphone est sur le même réseau Wi‑Fi que le serveur, et que l'adresse configurée est correcte.`;
+  }
+  return 'Impossible de créer votre compte. Vérifiez votre connexion réseau.';
+}
+
+/**
+ * Re-remplit la base locale avec l'historique serveur d'un PDV existant —
+ * utile après une reconnexion suivant un "purge" (déconnexion), qui vide la
+ * base locale. Ne fait rien si la base locale a déjà des ventes (cas normal
+ * de reconnexion sans purge) : ni appel réseau superflu, ni doublon, et ça
+ * reste quasi instantané dans le cas courant.
+ */
+async function pullHistoryFromServer(pdvId: string): Promise<void> {
+  try {
+    const alreadyHasData = await syncService.hasLocalHistory();
+    if (alreadyHasData) return;
+
+    const { data } = await api.get(`/ventes/mobile/history/${pdvId}`, { timeout: 8000 });
+    const ventes = Array.isArray(data) ? data : data?.data || [];
+    if (ventes.length > 0) {
+      await syncService.importVentesFromServer(Number(pdvId), ventes);
+    }
+  } catch (error) {
+    // Best-effort : on ne bloque jamais la connexion pour ça, l'utilisateur
+    // pourra retenter plus tard (le prochain login réessaiera automatiquement
+    // puisque la base locale sera toujours vide).
+    console.warn('[app] Récupération historique serveur échouée (non-bloquant):', error);
+  }
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState(false);
@@ -106,7 +178,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadProducts = useCallback(async () => {
     try {
-      const { data } = await api.get('/produits/list', { params: { all: 'true' } });
+      const { data } = await api.get('/produits/list', { params: { all: 'true' }, timeout: 8000 });
       const list = Array.isArray(data) ? data : data?.data || [];
       setProduits(list);
     } catch (error) {
@@ -139,19 +211,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await initDatabase();
         const onboarded = await getSecureItem('isOnboarded');
         if (onboarded === 'true') {
-          const savedMsisdn = await getSecureItem('msisdn');
-          const savedPdvId = await getSecureItem('pdvId');
-          const savedLat = await getSecureItem('initialLat');
-          const savedLng = await getSecureItem('initialLng');
+          // Lectures indépendantes du stockage sécurisé : en parallèle plutôt qu'en
+          // chaîne, pour ne pas cumuler leurs latences une par une au démarrage.
+          const [savedMsisdn, savedPdvId, savedLat, savedLng] = await Promise.all([
+            getSecureItem('msisdn'),
+            getSecureItem('pdvId'),
+            getSecureItem('initialLat'),
+            getSecureItem('initialLng'),
+          ]);
           setMsisdn(savedMsisdn || '');
           setPdvId(savedPdvId);
           if (savedLat && savedLng) {
             setInitialLocation({ latitude: Number(savedLat), longitude: Number(savedLng) });
           }
           setIsOnboarded(true);
-          await refreshHistory();
-          await loadProducts();
-          await beginTracking();
+          // Historique local (rapide, SQLite) et catalogue produit (réseau) n'ont pas
+          // de dépendance entre eux : on les lance en parallèle. Le tracking démarre
+          // en même temps plutôt que d'attendre la fin des deux précédents.
+          await Promise.all([refreshHistory(), loadProducts(), beginTracking()]);
         }
       } catch (error) {
         console.error('[app] Erreur bootstrap:', error);
@@ -193,7 +270,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return null;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const loc = await getFastLocation(Location);
       const point: GPSPoint = {
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
@@ -248,7 +325,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         let loc;
         try {
-          loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+          loc = await getFastLocation(Location);
         } catch {
           return { ok: false, message: "Impossible d'obtenir votre position GPS. Vérifiez que le GPS est activé." };
         }
@@ -262,98 +339,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        // Compte déjà existant → connexion
-        try {
-          const { data: existing } = await api.post('/pdv/mobile/login', { msisdn: cleanedMsisdn });
-          if (existing?.id) {
-            await setSecureItem('pdvId', String(existing.id));
-            await setSecureItem('msisdn', cleanedMsisdn);
-            await setSecureItem('isOnboarded', 'true');
-            await setSecureItem('initialLat', String(existing.latitude_creation ?? point.latitude));
-            await setSecureItem('initialLng', String(existing.longitude_creation ?? point.longitude));
-            setPdvId(String(existing.id));
-            setMsisdn(cleanedMsisdn);
-            setInitialLocation({
-              latitude: Number(existing.latitude_creation ?? point.latitude),
-              longitude: Number(existing.longitude_creation ?? point.longitude),
-            });
-            setIsOnboarded(true);
-            await refreshHistory();
-            await loadProducts();
-            await beginTracking();
-            return { ok: true };
-          }
-        } catch {
-          // pas de compte existant, on continue vers la création
-        }
-
-        try {
-          const { data: created } = await api.post('/pdv/mobile/register', {
+        // Un seul aller-retour réseau : le backend renvoie le PDV existant s'il
+        // y en a un pour ce msisdn, sinon en crée un nouveau — au lieu de
+        // l'ancien pattern "login qui échoue puis register" qui coûtait
+        // systématiquement 2 requêtes séquentielles à la création d'un compte.
+        const { data: pdv } = await api.post(
+          '/pdv/mobile/upsert',
+          {
             nom_pdv: `PDV ${cleanedMsisdn}`,
             msisdn_responsable: cleanedMsisdn,
             latitude_creation: point.latitude,
             longitude_creation: point.longitude,
-            statut: 'actif',
             device_info: { platform: 'mobile', version: '1.1.0', timestamp: new Date().toISOString() },
-          });
+          },
+          { timeout: 8000 }
+        );
 
-          if (!created?.id) {
-            return { ok: false, message: 'Réponse invalide du serveur.' };
-          }
-
-          await setSecureItem('pdvId', String(created.id));
-          await setSecureItem('msisdn', cleanedMsisdn);
-          await setSecureItem('isOnboarded', 'true');
-          await setSecureItem('initialLat', String(point.latitude));
-          await setSecureItem('initialLng', String(point.longitude));
-
-          setPdvId(String(created.id));
-          setMsisdn(cleanedMsisdn);
-          setInitialLocation(point);
-          setIsOnboarded(true);
-          await refreshHistory();
-          await loadProducts();
-          await beginTracking();
-          return { ok: true };
-        } catch (error: any) {
-          const backendMessage = error?.response?.data?.error || '';
-
-          // Si le backend confirme que le MSISDN existe déjà, on se reconnecte au compte existant.
-          if (typeof backendMessage === 'string' && backendMessage.toLowerCase().includes('déjà enregistré')) {
-            try {
-              const { data: existing } = await api.post('/pdv/mobile/login', { msisdn: cleanedMsisdn });
-              if (existing?.id) {
-                await setSecureItem('pdvId', String(existing.id));
-                await setSecureItem('msisdn', cleanedMsisdn);
-                await setSecureItem('isOnboarded', 'true');
-                await setSecureItem('initialLat', String(existing.latitude_creation ?? point.latitude));
-                await setSecureItem('initialLng', String(existing.longitude_creation ?? point.longitude));
-                setPdvId(String(existing.id));
-                setMsisdn(cleanedMsisdn);
-                setInitialLocation({
-                  latitude: Number(existing.latitude_creation ?? point.latitude),
-                  longitude: Number(existing.longitude_creation ?? point.longitude),
-                });
-                setIsOnboarded(true);
-                await refreshHistory();
-                await loadProducts();
-                await beginTracking();
-                return { ok: true };
-              }
-            } catch {
-              // rien à faire, on continue avec le message d'erreur
-            }
-          }
-
-          const message =
-            backendMessage ||
-            "Impossible de créer votre compte. Vérifiez votre connexion réseau.";
-          return { ok: false, message };
+        if (!pdv?.id) {
+          return { ok: false, message: 'Réponse invalide du serveur.' };
         }
+
+        const lat = Number(pdv.latitude_creation ?? point.latitude);
+        const lng = Number(pdv.longitude_creation ?? point.longitude);
+
+        await setSecureItem('pdvId', String(pdv.id));
+        await setSecureItem('msisdn', cleanedMsisdn);
+        await setSecureItem('isOnboarded', 'true');
+        await setSecureItem('initialLat', String(lat));
+        await setSecureItem('initialLng', String(lng));
+
+        setPdvId(String(pdv.id));
+        setMsisdn(cleanedMsisdn);
+        setInitialLocation({ latitude: lat, longitude: lng });
+        setIsOnboarded(true);
+
+        // pullHistoryFromServer ne fait rien (et n'appelle pas le réseau) si la
+        // base locale a déjà des données — donc pas de coût pour un nouveau compte.
+        await Promise.all([pullHistoryFromServer(String(pdv.id)), loadProducts(), beginTracking()]);
+        await refreshHistory();
+        return { ok: true };
       } catch (error: any) {
-        const message =
-          error?.response?.data?.error ||
-          "Impossible de créer votre compte. Vérifiez votre connexion réseau.";
+        const message = error?.response?.data?.error || networkErrorMessage(error);
         return { ok: false, message };
       }
     },
@@ -411,11 +437,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // If the app is not onboarded, redirect to onboarding/root.
+  // If the app is not onboarded, redirect to onboarding.
   useEffect(() => {
     if (!bootstrapping && !isOnboarded) {
       try {
-        router.replace('/');
+        router.replace('/onboarding');
       } catch (e) {
         // ignore routing errors
       }

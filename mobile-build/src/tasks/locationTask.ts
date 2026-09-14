@@ -48,8 +48,14 @@ if (Platform.OS !== 'web' && !TaskManager.isTaskDefined(LOCATION_TASK_NAME)) {
         horodatage: new Date(last.timestamp).toISOString(),
         accuracy: last.coords.accuracy,
       });
-      // Tentative de synchronisation opportuniste (silencieuse si hors-ligne)
-      await syncService.syncPositions();
+      // Synchronisation opportuniste en arrière-plan, SANS l'attendre : cette
+      // tâche tourne à chaque tick GPS (potentiellement toutes les 30s), et le
+      // système d'exploitation peut throttle/tuer une tâche background trop
+      // lente. L'écriture locale (rapide) suffit pour que le tick soit "fait" ;
+      // syncPositions() gère elle-même les tentatives suivantes de toute façon.
+      syncService.syncPositions().catch((e) => {
+        console.warn('[locationTask] Sync positions différée (non-bloquant):', e);
+      });
     } catch (e) {
       console.error('[locationTask] Erreur sauvegarde position:', e);
     }

@@ -32,7 +32,7 @@ export default function ProfilScreen() {
               console.warn('[profil] logout failed:', error);
               Alert.alert('Erreur', 'La déconnexion a rencontré une erreur.');
             } finally {
-              router.replace('/');
+              router.replace('/onboarding');
             }
           },
         },
@@ -42,7 +42,7 @@ export default function ProfilScreen() {
 
   return (
     <View style={styles.screen}>
-      <AppHeader subtitle={msisdn} />
+      <AppHeader title="Mon profil" icon="person" subtitle={msisdn} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <Animated.View entering={FadeInDown.delay(0).duration(400).springify().damping(18)}>
           <Card style={styles.profileCard}>

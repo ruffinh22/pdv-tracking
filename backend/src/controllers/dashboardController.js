@@ -433,7 +433,7 @@ const dashboardController = {
       });
 
       feuille.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      feuille.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } };
+      feuille.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB93333' } };
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename=instrus_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -548,7 +548,7 @@ const dashboardController = {
       });
 
       feuillePdv.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      feuillePdv.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5641D6' } };
+      feuillePdv.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE06E00' } };
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename=tracking_pdv_export.xlsx');

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   interpolateColor,
@@ -14,8 +15,17 @@ import { useApp } from '@/context/AppContext';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export default function AppHeader({ subtitle }: { subtitle?: string }) {
+type AppHeaderProps = {
+  /** Titre de la page affiché en grand — distingue chaque écran (Accueil, Nouvelle vente, ...) */
+  title: string;
+  /** Icône Ionicons illustrant la section, affichée dans un badge coloré */
+  icon: keyof typeof Ionicons.glyphMap;
+  subtitle?: string;
+};
+
+export default function AppHeader({ title, icon, subtitle }: AppHeaderProps) {
   const { syncNow, syncStatus, pendingVentes } = useApp();
+  const insets = useSafeAreaInsets();
 
   const rotation = useSharedValue(0);
   const statusProgress = useSharedValue(0);
@@ -69,15 +79,25 @@ export default function AppHeader({ subtitle }: { subtitle?: string }) {
 
   return (
     <View>
-      <View style={styles.flagStripe}>
+      <View style={[styles.flagStripe, { paddingTop: insets.top }]}>
         <View style={[styles.flagBand, { backgroundColor: colors.flag.orange }]} />
         <View style={[styles.flagBand, { backgroundColor: colors.flag.white }]} />
         <View style={[styles.flagBand, { backgroundColor: colors.flag.green }]} />
       </View>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Tracking PDV</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <View style={styles.identity}>
+          <View style={styles.iconBadge}>
+            <Ionicons name={icon} size={18} color={colors.primary[700]} />
+          </View>
+          <View style={{ flexShrink: 1 }}>
+            <Text style={styles.title} numberOfLines={1}>{title}</Text>
+            {subtitle ? (
+              <View style={styles.subtitlePill}>
+                <Ionicons name="call-outline" size={10} color={colors.ink[500]} />
+                <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
         <AnimatedPressable
@@ -118,12 +138,11 @@ const styles = StyleSheet.create({
   flagStripe: {
     flexDirection: 'row',
     height: 3,
-    paddingTop: 44,
   },
   flagBand: { flex: 1 },
   header: {
     backgroundColor: colors.white,
-    paddingTop: 12,
+    paddingTop: 14,
     paddingBottom: 14,
     paddingHorizontal: 16,
     flexDirection: 'row',
@@ -132,8 +151,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.ink[100],
   },
-  title: { color: colors.ink[900], fontSize: 17, fontWeight: '800' },
-  subtitle: { color: colors.ink[500], fontSize: 11.5, marginTop: 2 },
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 1,
+  },
+  iconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { color: colors.ink[900], fontSize: 18, fontWeight: '800', letterSpacing: -0.2 },
+  subtitlePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
+  subtitle: { color: colors.ink[500], fontSize: 11.5, fontWeight: '600' },
   syncButton: {
     flexDirection: 'row',
     alignItems: 'center',
