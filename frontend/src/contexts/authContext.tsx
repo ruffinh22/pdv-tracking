@@ -6,6 +6,7 @@ interface User {
   prenom: string;
   email: string;
   role: string;
+  agence_id?: number | null;
 }
 
 interface AuthState {
@@ -23,21 +24,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: localStorage.getItem('token'),
   isAuthenticated: !!localStorage.getItem('token'),
   login: async (email: string, password: string) => {
-    console.log('Tentative de connexion avec:', email);
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, mot_de_passe: password }),
     });
 
-    console.log('Response status:', response.status);
-
     if (!response.ok) {
       throw new Error('Email ou mot de passe incorrect');
     }
 
     const data = await response.json();
-    console.log('Login response:', data);
 
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));

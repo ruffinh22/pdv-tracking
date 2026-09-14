@@ -25,6 +25,21 @@ interface Position {
   horodatage: string;
 }
 
+// Le backend peut renvoyer l'historique de positions avec des noms de champs
+// légèrement différents selon l'endpoint ; on normalise ici plutôt que de
+// supposer un seul format.
+const normalizePosition = (raw: any): Position | null => {
+  const lat = Number(raw?.latitude ?? raw?.lat);
+  const lng = Number(raw?.longitude ?? raw?.lng ?? raw?.lon);
+  if (isNaN(lat) || isNaN(lng)) return null;
+  return {
+    pdv_id: raw?.pdv_id ?? raw?.pdvId,
+    latitude: lat,
+    longitude: lng,
+    horodatage: raw?.horodatage ?? raw?.date ?? raw?.timestamp ?? raw?.created_at ?? '',
+  };
+};
+
 const Tracking = () => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -38,10 +53,23 @@ const Tracking = () => {
   const [livePositions, setLivePositions] = useState<Map<number, Position>>(new Map());
   const [statutFilter, setStatutFilter] = useState<string>('all');
   const [zoneFilter, setZoneFilter] = useState<string>('all');
+  const [isConnected, setIsConnected] = useState(false);
 
   const { data: pdvsResponse } = useQuery({
     queryKey: ['pdvsForTracking'],
     queryFn: () => pdvService.getAllPDVsNoPagination(),
+    // On revalide périodiquement au cas où le socket serait momentanément
+    // coupé, pour ne pas rester bloqué sur des positions figées.
+    refetchInterval: 60_000,
+  });
+
+  // Historique réel des positions du PDV suivi (pour tracer la trajectoire),
+  // au lieu de points générés aléatoirement.
+  const { data: selectedPdvPositions } = useQuery({
+    queryKey: ['pdvPositions', selectedPDV],
+    queryFn: () => (selectedPDV ? pdvService.getPDVPositions(selectedPDV) : Promise.resolve([])),
+    enabled: !!selectedPDV,
+    staleTime: 15_000,
   });
 
   const allPdvs: PDV[] = pdvsResponse?.data || [];
@@ -79,61 +107,56 @@ const Tracking = () => {
     };
   }, []);
 
-  // Initialiser Socket.IO
+  // Initialiser Socket.IO une seule fois au montage. Dépendances volontairement
+  // vides : le tableau de dépendances précédent incluait `livePositions`, qui
+  // change à chaque position reçue, ce qui fermait et recréait la connexion
+  // en boucle toutes les quelques secondes. La connexion doit rester stable
+  // pour un vrai suivi en temps réel.
   useEffect(() => {
-    // Connect to Socket.IO on the same origin (works with backend serving the frontend)
-    socketRef.current = io(undefined, {
-      transports: ['websocket', 'polling']
+    const socket = io(undefined, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: Infinity,
     });
+    socketRef.current = socket;
 
-    socketRef.current.on('connect', () => {
-      console.log('Connecté au serveur Socket.IO');
-    });
-
-    socketRef.current.on('position_update', (data: Position) => {
-      setLivePositions(prev => new Map(prev.set(data.pdv_id, data)));
-    });
-
-    socketRef.current.on('disconnect', () => {
-      console.log('Déconnecté du serveur Socket.IO');
-    });
-
-    // Simuler des mises à jour de position pour démonstration
-    const simulateMovement = () => {
-      if (!isTracking || !pdvs) return;
-      
-      pdvs.forEach((pdv) => {
-        if (pdv.statut === 'actif') {
-          const currentPos = livePositions.get(pdv.id);
-          const baseLat = currentPos?.latitude || pdv.derniere_position_latitude || pdv.latitude_creation;
-          const baseLng = currentPos?.longitude || pdv.derniere_position_longitude || pdv.longitude_creation;
-          
-          // Simuler un petit mouvement aléatoire
-          const latOffset = (Math.random() - 0.5) * 0.001;
-          const lngOffset = (Math.random() - 0.5) * 0.001;
-          
-          const newPosition: Position = {
-            pdv_id: pdv.id,
-            latitude: Number(baseLat) + latOffset,
-            longitude: Number(baseLng) + lngOffset,
-            horodatage: new Date().toISOString()
-          };
-          
-          setLivePositions(prev => new Map(prev.set(pdv.id, newPosition)));
-        }
-      });
-    };
-
-    // Simuler des mises à jour toutes les 3 secondes
-    const movementInterval = setInterval(simulateMovement, 3000);
+    socket.on('connect', () => setIsConnected(true));
+    socket.on('disconnect', () => setIsConnected(false));
+    socket.on('connect_error', () => setIsConnected(false));
 
     return () => {
-      clearInterval(movementInterval);
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
+      socket.disconnect();
     };
-  }, [pdvs, isTracking, livePositions]);
+  }, []);
+
+  // Le bouton pause/lecture n'interrompt plus une simulation : il indique au
+  // serveur de suspendre/reprendre l'envoi des positions pour cette session,
+  // et ignore localement les événements entrants pendant la pause.
+  useEffect(() => {
+    if (!socketRef.current) return;
+    socketRef.current.emit(isTracking ? 'tracking:resume' : 'tracking:pause');
+  }, [isTracking]);
+
+  useEffect(() => {
+    if (!socketRef.current) return;
+    const socket = socketRef.current;
+    const handler = (data: any) => {
+      if (!isTracking) return;
+      const pos = normalizePosition(data);
+      if (!pos || !pos.pdv_id) return;
+      setLivePositions((prev) => {
+        const next = new Map(prev);
+        next.set(pos.pdv_id, pos);
+        return next;
+      });
+    };
+    socket.off('position_update');
+    socket.on('position_update', handler);
+    return () => {
+      socket.off('position_update', handler);
+    };
+  }, [isTracking]);
 
   // Mettre à jour les marqueurs et trajectoires
   useEffect(() => {
@@ -206,23 +229,31 @@ const Tracking = () => {
 
           markersRef.current.set(pdv.id, marker);
 
-          // Créer une trajectoire simulée pour le PDV sélectionné
+          // Tracer la trajectoire réelle du PDV suivi, à partir de son
+          // historique de positions renvoyé par le backend (plus de points
+          // aléatoires). On termine sur la position live/actuelle.
           if (selectedPDV === pdv.id) {
-            // Utiliser les positions historiques ou créer une trajectoire simulée
-            const trajectoryPoints: [number, number][] = [
-              [latNum, lngNum],
-              [latNum + (Math.random() - 0.5) * 0.01, lngNum + (Math.random() - 0.5) * 0.01],
-              [latNum + (Math.random() - 0.5) * 0.015, lngNum + (Math.random() - 0.5) * 0.015]
-            ];
-            
-            const polyline = L.polyline(trajectoryPoints, {
-              color: '#e06e00',
-              weight: 3,
-              opacity: 0.7,
-              dashArray: '10, 10'
-            }).addTo(mapRef.current!);
+            const history = (selectedPdvPositions || [])
+              .map(normalizePosition)
+              .filter((p): p is Position => !!p)
+              .sort((a, b) => new Date(a.horodatage).getTime() - new Date(b.horodatage).getTime());
 
-            polylinesRef.current.set(pdv.id, polyline);
+            const trajectoryPoints: [number, number][] = history.map((p) => [p.latitude, p.longitude]);
+            const last = trajectoryPoints[trajectoryPoints.length - 1];
+            if (!last || last[0] !== latNum || last[1] !== lngNum) {
+              trajectoryPoints.push([latNum, lngNum]);
+            }
+
+            if (trajectoryPoints.length > 1) {
+              const polyline = L.polyline(trajectoryPoints, {
+                color: '#e06e00',
+                weight: 3,
+                opacity: 0.7,
+                dashArray: '10, 10'
+              }).addTo(mapRef.current!);
+
+              polylinesRef.current.set(pdv.id, polyline);
+            }
           }
         }
       }

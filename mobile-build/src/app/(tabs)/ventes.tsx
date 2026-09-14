@@ -22,6 +22,7 @@ import GPSStatusCard from '@/components/GPSStatusCard';
 import ProductPickerModal from '@/components/ProductPickerModal';
 import { syncService } from '@/services/syncService';
 import { Produit } from '@/types';
+import { formatTerminalIdShort } from '@/lib/terminalId';
 
 // Conditional import for expo-location (native only)
 let Location: any = null;
@@ -34,7 +35,7 @@ if (Platform.OS !== 'web') {
 }
 
 export default function VentesScreen() {
-  const { msisdn, pdvId, produits, loadProducts, initialLocation, refreshHistory, refreshLocation } = useApp();
+  const { terminalId, pdvId, produits, loadProducts, initialLocation, refreshHistory, refreshLocation } = useApp();
 
   const [location, setLocation] = useState<{ latitude: number; longitude: number; accuracy?: number | null } | null>(
     null
@@ -157,7 +158,7 @@ export default function VentesScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.screen}>
-        <AppHeader title="Nouvelle vente" icon="cart" subtitle={msisdn} />
+        <AppHeader title="Nouvelle vente" icon="cart" subtitle={formatTerminalIdShort(terminalId)} />
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
           <Text style={styles.pageTitle}>Saisie des ventes</Text>
           <Text style={styles.pageSubtitle}>Enregistrez vos ventes sur le terrain, même hors connexion.</Text>

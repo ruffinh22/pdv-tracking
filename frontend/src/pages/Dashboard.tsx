@@ -12,6 +12,8 @@ import { dashboardService, Periode, Dimension } from '../services/dashboardServi
 import { pdvService } from '../services/pdvService';
 import LeafletMap from '../components/LeafletMap';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../contexts/authContext';
+import { ROLE_DASHBOARD_SUBTITLE, ROLE_DIMENSIONS, Role } from '../config/permissions';
 
 const KPI_CARDS = [
   {
@@ -59,7 +61,7 @@ const PERIODE_LABEL: Record<Periode, string> = {
   all: 'Depuis le début',
 };
 
-const DIMENSION_OPTIONS: { value: Dimension; label: string }[] = [
+const ALL_DIMENSION_OPTIONS: { value: Dimension; label: string }[] = [
   { value: 'ville', label: 'Ville' },
   { value: 'commune', label: 'Commune' },
   { value: 'quartier', label: 'Quartier' },
@@ -72,6 +74,16 @@ const DIMENSION_OPTIONS: { value: Dimension; label: string }[] = [
 const PIE_COLORS = ['#e06e00', '#009a44', '#c98a00', '#d64545', '#3B82F6', '#795548', '#14B8A6', '#8f4500', '#00683a', '#6b6b78'];
 
 const Dashboard = () => {
+  const { user } = useAuthStore();
+  const role = (user?.role as Role) ?? 'commercial';
+
+  // Options d'analyse transverse restreintes au périmètre du rôle connecté
+  // (ex: un Commercial n'a pas de sens à se ventiler "par commercial").
+  const DIMENSION_OPTIONS = useMemo(
+    () => ALL_DIMENSION_OPTIONS.filter((d) => ROLE_DIMENSIONS[role]?.includes(d.value)),
+    [role]
+  );
+
   const [periode, setPeriode] = useState<Periode>('jour');
   const [produitsPeriode, setProduitsPeriode] = useState<Periode>('all');
   const [dimension, setDimension] = useState<Dimension>('ville');
@@ -191,6 +203,7 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 pb-4 border-b border-ink-200">
         <div>
+          <p className="text-sm font-medium text-ink-700">{ROLE_DASHBOARD_SUBTITLE[role]}</p>
           <p className="text-sm text-ink-500">
             Situation au {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
@@ -366,14 +379,16 @@ const Dashboard = () => {
       {/* Point 3 : analyses transverses */}
       <div className="panel-pro">
         <div className="panel-pro-head">
-          <h2 className="text-base font-semibold text-ink-900">Analyses par {DIMENSION_OPTIONS.find(d => d.value === dimension)?.label}</h2>
-          <select
-            value={dimension}
-            onChange={(e) => setDimension(e.target.value as Dimension)}
-            className="toolbar-select !py-1.5"
-          >
-            {DIMENSION_OPTIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
-          </select>
+          <h2 className="text-base font-semibold text-ink-900">Analyses par {DIMENSION_OPTIONS.find(d => d.value === dimension)?.label ?? DIMENSION_OPTIONS[0]?.label}</h2>
+          {DIMENSION_OPTIONS.length > 1 && (
+            <select
+              value={dimension}
+              onChange={(e) => setDimension(e.target.value as Dimension)}
+              className="toolbar-select !py-1.5"
+            >
+              {DIMENSION_OPTIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </select>
+          )}
         </div>
         <div className="p-6 h-80">
           {analysesLoading ? (

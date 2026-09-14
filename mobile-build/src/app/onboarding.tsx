@@ -12,42 +12,31 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { useApp } from '@/context/AppContext';
 import { colors, radius } from '@/theme/colors';
-import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import GPSStatusCard from '@/components/GPSStatusCard';
 import { CONFIG } from '@/config';
+import { getOrCreateTerminalId } from '@/lib/terminalId';
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { register, refreshLocation, currentLocation } = useApp();
-  const [msisdn, setMsisdn] = useState('');
-  const [consent, setConsent] = useState(false);
+  const [terminalId, setTerminalId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     refreshLocation();
+    // L'ID terminal est généré (ou relu s'il existe déjà) dès l'arrivée sur
+    // l'écran, pour l'afficher à l'utilisateur avant même qu'il n'appuie sur
+    // "Se connecter" — il n'y a plus rien à saisir.
+    getOrCreateTerminalId().then(setTerminalId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async () => {
-    const cleaned = msisdn.replace(/\s+/g, '');
-    if (cleaned.length < 8) {
-      Alert.alert('Numéro invalide', 'Veuillez saisir un numéro MSISDN valide.');
-      return;
-    }
-    if (!consent) {
-      Alert.alert(
-        'Consentement requis',
-        "Merci d'accepter la collecte de votre position GPS pour activer le suivi du point de vente."
-      );
-      return;
-    }
-
     setSubmitting(true);
-    const result = await register(cleaned);
+    const result = await register();
     setSubmitting(false);
 
     if (result.ok) {
@@ -86,39 +75,37 @@ export default function OnboardingScreen() {
         </Animated.View>
 
         <View style={styles.content}>
-          <GPSStatusCard current={currentLocation} initial={null} />
+          <GPSStatusCard current={currentLocation} initial={null} showRefreshButton={false} />
 
           <View style={{ height: 16 }} />
 
           <Animated.View entering={FadeInUp.delay(140).duration(420).springify().damping(18)} style={styles.formCard}>
-            <Text style={styles.formTitle}>Créer / retrouver votre compte</Text>
-            <Input
-              label="Numéro MSISDN"
-              placeholder="+229 90 00 00 00"
-              keyboardType="phone-pad"
-              maxLength={17}
-              value={msisdn}
-              onChangeText={setMsisdn}
-              helper="Ce numéro identifie votre PDV de façon unique sur la plateforme."
-            />
+            <Text style={styles.formTitle}>Connexion du point de vente</Text>
 
-            <Button
-              title={consent ? '✓ Consentement accordé' : "J'accepte la géolocalisation (RGPD)"}
-              variant={consent ? 'success' : 'secondary'}
-              onPress={() => {
-                if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setConsent((v) => !v);
-              }}
-            />
+            <View style={styles.terminalBox}>
+              <Text style={styles.terminalLabel}>ID terminal</Text>
+              <Text style={styles.terminalValue} numberOfLines={1} ellipsizeMode="middle">
+                {terminalId || 'Génération en cours…'}
+              </Text>
+              <Text style={styles.terminalHelper}>
+                Identifiant unique de cet appareil, généré automatiquement. Il identifie votre PDV
+                sur la plateforme — vous n'avez rien à saisir.
+              </Text>
+            </View>
+
             <Text style={styles.consentHelper}>
-              Votre position est utilisée pour créer le PDV, détecter les sorties de zone (rayon
-              de 500 m) et horodater vos ventes. Vous pouvez retirer ce consentement en désinstallant
-              l'application.
+              Votre position GPS est utilisée pour créer le PDV, détecter les sorties de zone (rayon
+              de 500 m) et horodater vos ventes.
             </Text>
 
             <View style={{ height: 8 }} />
 
-            <Button title="Créer mon compte" onPress={handleSubmit} loading={submitting} />
+            <Button
+              title="Se connecter"
+              onPress={handleSubmit}
+              loading={submitting}
+              disabled={!terminalId}
+            />
             <Text style={styles.debugUrl}>Serveur : {CONFIG.API_BASE_URL}</Text>
           </Animated.View>
         </View>
@@ -168,4 +155,21 @@ const styles = StyleSheet.create({
   },
   formTitle: { fontSize: 16, fontWeight: '800', color: colors.ink[900], marginBottom: 14 },
   consentHelper: { fontSize: 11.5, color: colors.ink[400], marginTop: 8, lineHeight: 16 },
+  terminalBox: {
+    backgroundColor: colors.ink[50],
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.ink[100],
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
+  },
+  terminalLabel: { fontSize: 12, fontWeight: '700', color: colors.ink[500], marginBottom: 4 },
+  terminalValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.ink[900],
+    fontVariant: ['tabular-nums'],
+  },
+  terminalHelper: { fontSize: 11.5, color: colors.ink[400], marginTop: 6, lineHeight: 16 },
 });

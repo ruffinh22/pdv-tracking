@@ -11,9 +11,10 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { CONFIG } from '@/config';
+import { formatTerminalIdShort } from '@/lib/terminalId';
 
 export default function ProfilScreen() {
-  const { msisdn, pdvId, isTracking, pendingVentes, history, syncNow, syncStatus, logout } = useApp();
+  const { terminalId, pdvId, isTracking, pendingVentes, history, syncNow, syncStatus, logout } = useApp();
 
   const handleLogout = () => {
     Alert.alert(
@@ -42,7 +43,7 @@ export default function ProfilScreen() {
 
   return (
     <View style={styles.screen}>
-      <AppHeader title="Mon profil" icon="person" subtitle={msisdn} />
+      <AppHeader title="Mon profil" icon="person" subtitle={formatTerminalIdShort(terminalId)} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <Animated.View entering={FadeInDown.delay(0).duration(400).springify().damping(18)}>
           <Card style={styles.profileCard}>
@@ -51,7 +52,9 @@ export default function ProfilScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.pdvId}>PDV #{pdvId ?? '—'}</Text>
-              <Text style={styles.msisdn}>{msisdn}</Text>
+              <Text style={styles.msisdn} numberOfLines={1} ellipsizeMode="middle">
+                ID terminal · {terminalId || '—'}
+              </Text>
             </View>
             <Badge
               label={isTracking ? 'Suivi actif' : 'Suivi inactif'}

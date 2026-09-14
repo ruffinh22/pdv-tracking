@@ -20,9 +20,10 @@ import { GPSPoint } from '@/types';
 interface Props {
   current: GPSPoint | null;
   initial: GPSPoint | null;
+  showRefreshButton?: boolean;
 }
 
-export default function GPSStatusCard({ current, initial }: Props) {
+export default function GPSStatusCard({ current, initial, showRefreshButton = true }: Props) {
   const { refreshLocation } = useApp();
   const distance =
     current && initial
@@ -101,8 +102,12 @@ export default function GPSStatusCard({ current, initial }: Props) {
             <ActivityIndicator size="small" color={colors.primary[600]} />
             <View style={{ marginLeft: 8 }}>
               <Text style={styles.loadingText}>Position introuvable — activez la géolocalisation.</Text>
-              <View style={{ height: 8 }} />
-              <Button title="Réessayer" onPress={refreshLocation} variant="secondary" />
+              {showRefreshButton && (
+                <>
+                  <View style={{ height: 8 }} />
+                  <Button title="Réessayer" onPress={refreshLocation} variant="secondary" />
+                </>
+              )}
             </View>
           </View>
         )}

@@ -14,8 +14,9 @@ const agenceController = {
   },
 
   // Liste des agences. Supporte la pagination classique (page/limit) pour
-  // l'écran de gestion, et le mode complet (?all=true) pour alimenter les
-  // listes déroulantes du formulaire de tagging PDV.
+  // l'écran de gestion (réservé à l'admin), et le mode complet (?all=true)
+  // pour alimenter les listes déroulantes du formulaire de tagging PDV
+  // (ouvert à tous les rôles authentifiés).
   async getAllAgences(req, res) {
     try {
       if (req.query.all === 'true') {
@@ -24,6 +25,10 @@ const agenceController = {
           order: [['nom_agence', 'ASC']]
         });
         return res.json(agences);
+      }
+
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Accès non autorisé' });
       }
 
       const page = parseInt(req.query.page) || 1;

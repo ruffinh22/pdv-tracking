@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { CONFIG } from '@/config';
 import { syncService } from '@/services/syncService';
 import { startBackgroundLocationTracking, stopBackgroundLocationTracking } from '@/tasks/locationTask';
+import { getOrCreateTerminalId } from '@/lib/terminalId';
 import { GPSPoint, Produit, SyncStatus, VenteLocale } from '@/types';
 
 // Mock storage for web
@@ -61,7 +62,7 @@ const deleteSecureItem = async (key: string): Promise<void> => {
 interface AppContextValue {
   bootstrapping: boolean;
   isOnboarded: boolean;
-  msisdn: string;
+  terminalId: string;
   pdvId: string | null;
   initialLocation: GPSPoint | null;
   currentLocation: GPSPoint | null;
@@ -71,7 +72,7 @@ interface AppContextValue {
   history: VenteLocale[];
   syncStatus: SyncStatus;
   lastSyncedCount: number | null;
-  register: (msisdn: string) => Promise<{ ok: boolean; message?: string }>;
+  register: () => Promise<{ ok: boolean; message?: string }>;
   refreshLocation: () => Promise<GPSPoint | null>;
   refreshHistory: () => Promise<void>;
   loadProducts: () => Promise<void>;
@@ -156,7 +157,7 @@ async function pullHistoryFromServer(pdvId: string): Promise<void> {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState(false);
-  const [msisdn, setMsisdn] = useState('');
+  const [terminalId, setTerminalId] = useState('');
   const [pdvId, setPdvId] = useState<string | null>(null);
   const [initialLocation, setInitialLocation] = useState<GPSPoint | null>(null);
   const [currentLocation, setCurrentLocation] = useState<GPSPoint | null>(null);
@@ -213,13 +214,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (onboarded === 'true') {
           // Lectures indépendantes du stockage sécurisé : en parallèle plutôt qu'en
           // chaîne, pour ne pas cumuler leurs latences une par une au démarrage.
-          const [savedMsisdn, savedPdvId, savedLat, savedLng] = await Promise.all([
+          // On relit aussi l'ancienne clé "msisdn" en repli, pour les terminaux déjà
+          // associés avant ce changement — leur session reste valide sans qu'ils
+          // aient à se réassocier.
+          const [savedTerminalId, savedLegacyMsisdn, savedPdvId, savedLat, savedLng] = await Promise.all([
+            getSecureItem('terminalId'),
             getSecureItem('msisdn'),
             getSecureItem('pdvId'),
             getSecureItem('initialLat'),
             getSecureItem('initialLng'),
           ]);
-          setMsisdn(savedMsisdn || '');
+          setTerminalId(savedTerminalId || savedLegacyMsisdn || '');
           setPdvId(savedPdvId);
           if (savedLat && savedLng) {
             setInitialLocation({ latitude: Number(savedLat), longitude: Number(savedLng) });
@@ -286,8 +291,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (msisdnInput: string): Promise<{ ok: boolean; message?: string }> => {
-      const cleanedMsisdn = (msisdnInput || '').trim();
+    async (): Promise<{ ok: boolean; message?: string }> => {
+      // L'ID terminal n'est plus saisi par l'utilisateur : il est généré une
+      // seule fois par l'app puis persisté sur l'appareil (voir lib/terminalId).
+      const deviceTerminalId = await getOrCreateTerminalId();
       let point: GPSPoint | null = null;
 
       if (Platform.OS === 'web') {
@@ -340,14 +347,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       try {
         // Un seul aller-retour réseau : le backend renvoie le PDV existant s'il
-        // y en a un pour ce msisdn, sinon en crée un nouveau — au lieu de
+        // y en a un pour cet ID terminal, sinon en crée un nouveau — au lieu de
         // l'ancien pattern "login qui échoue puis register" qui coûtait
         // systématiquement 2 requêtes séquentielles à la création d'un compte.
+        //
+        // Note : le champ réseau reste `msisdn_responsable` pour ne pas casser
+        // le backend / la base existante — seule sa valeur change de sens,
+        // elle transporte désormais l'ID terminal généré par l'app plutôt
+        // qu'un numéro de téléphone saisi à la main.
         const { data: pdv } = await api.post(
           '/pdv/mobile/upsert',
           {
-            nom_pdv: `PDV ${cleanedMsisdn}`,
-            msisdn_responsable: cleanedMsisdn,
+            nom_pdv: `PDV ${deviceTerminalId.slice(0, 8).toUpperCase()}`,
+            msisdn_responsable: deviceTerminalId,
             latitude_creation: point.latitude,
             longitude_creation: point.longitude,
             device_info: { platform: 'mobile', version: '1.1.0', timestamp: new Date().toISOString() },
@@ -363,13 +375,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const lng = Number(pdv.longitude_creation ?? point.longitude);
 
         await setSecureItem('pdvId', String(pdv.id));
-        await setSecureItem('msisdn', cleanedMsisdn);
+        await setSecureItem('terminalId', deviceTerminalId);
         await setSecureItem('isOnboarded', 'true');
         await setSecureItem('initialLat', String(lat));
         await setSecureItem('initialLng', String(lng));
 
         setPdvId(String(pdv.id));
-        setMsisdn(cleanedMsisdn);
+        setTerminalId(deviceTerminalId);
         setInitialLocation({ latitude: lat, longitude: lng });
         setIsOnboarded(true);
 
@@ -402,7 +414,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLastSyncedCount(null);
 
     setIsOnboarded(false);
-    setMsisdn('');
+    setTerminalId('');
     setPdvId(null);
     setInitialLocation(null);
     setCurrentLocation(null);
@@ -411,6 +423,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setProduits([]);
 
     // Remove secure items (best-effort). Do not let failures prevent UI logout.
+    // Note : on garde volontairement `terminalId` — c'est l'identité stable de
+    // cet appareil. Se déconnecter remet l'écran d'association, mais tant que
+    // l'app n'est pas désinstallée, elle retrouve le même PDV côté backend
+    // (upsert) sans jamais redemander de saisie à l'utilisateur.
     try {
       await Promise.all([
         deleteSecureItem('pdvId'),
@@ -452,7 +468,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     () => ({
       bootstrapping,
       isOnboarded,
-      msisdn,
+      terminalId,
       pdvId,
       initialLocation,
       currentLocation,
@@ -472,7 +488,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [
       bootstrapping,
       isOnboarded,
-      msisdn,
+      terminalId,
       pdvId,
       initialLocation,
       currentLocation,

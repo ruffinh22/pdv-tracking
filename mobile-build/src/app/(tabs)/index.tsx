@@ -8,10 +8,11 @@ import StatCard from '@/components/ui/StatCard';
 import GPSStatusCard from '@/components/GPSStatusCard';
 import Badge from '@/components/ui/Badge';
 import AppHeader from '@/components/AppHeader';
+import { formatTerminalIdShort } from '@/lib/terminalId';
 
 export default function HomeScreen() {
   const {
-    msisdn,
+    terminalId,
     isTracking,
     currentLocation,
     initialLocation,
@@ -35,7 +36,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
-      <AppHeader title="Accueil" icon="home" subtitle={msisdn} />
+      <AppHeader title="Accueil" icon="home" subtitle={formatTerminalIdShort(terminalId)} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}

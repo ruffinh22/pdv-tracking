@@ -8,11 +8,12 @@ import AppHeader from '@/components/AppHeader';
 import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/ui/EmptyState';
 import { VenteLocale } from '@/types';
+import { formatTerminalIdShort } from '@/lib/terminalId';
 
 const MAX_STAGGER = 12;
 
 export default function HistoriqueScreen() {
-  const { msisdn, history, refreshHistory } = useApp();
+  const { terminalId, history, refreshHistory } = useApp();
 
   useFocusEffect(
     useCallback(() => {
@@ -50,7 +51,7 @@ export default function HistoriqueScreen() {
 
   return (
     <View style={styles.screen}>
-      <AppHeader title="Historique" icon="time" subtitle={msisdn} />
+      <AppHeader title="Historique" icon="time" subtitle={formatTerminalIdShort(terminalId)} />
       <Animated.View entering={FadeInUp.duration(320)} style={styles.headerRow}>
         <Text style={styles.title}>Historique des ventes</Text>
         <Text style={styles.count}>{history.length} enregistrement(s)</Text>

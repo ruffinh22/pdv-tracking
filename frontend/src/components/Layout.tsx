@@ -15,40 +15,39 @@ import {
   ChevronRight,
   Search,
   Bell,
-  Radar,
   Building2,
 } from 'lucide-react';
 import { useAuthStore } from '../contexts/authContext';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { pdvService } from '../services/pdvService';
 import { produitService } from '../services/produitService';
 import { agenceService } from '../services/agenceService';
+import { PAGES, ROLE_DASHBOARD_SUBTITLE, roleLabel } from '../config/permissions';
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/pdv', label: 'Points de Vente', icon: MapPin },
-  { to: '/tracking', label: 'Tracking', icon: Activity },
-  { to: '/alertes', label: 'Alertes', icon: AlertTriangle },
-  { to: '/reporting', label: 'Reporting', icon: FileText },
-];
+// Icônes et sous-titres associés à chaque page déclarée dans permissions.ts.
+// permissions.ts reste la seule source de vérité pour QUI a accès à QUOI ;
+// ceci n'est que l'habillage visuel du menu.
+const PAGE_ICON: Record<string, typeof LayoutDashboard> = {
+  '': LayoutDashboard,
+  pdv: MapPin,
+  tracking: Activity,
+  alertes: AlertTriangle,
+  reporting: FileText,
+  users: Users,
+  agences: Building2,
+  produits: Package,
+  geofence: MapPin,
+};
 
-const SETTINGS_ITEMS = [
-  { to: '/users', label: 'Utilisateurs', icon: Users },
-  { to: '/agences', label: 'Agences', icon: Building2 },
-  { to: '/produits', label: 'Produits', icon: Package },
-  { to: '/geofence', label: 'Zones Geofence', icon: MapPin },
-];
-
-const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
-  '/': { title: 'Dashboard', subtitle: "Vue d'ensemble de votre activité" },
-  '/pdv': { title: 'Points de Vente', subtitle: 'Gérez vos points de vente' },
-  '/tracking': { title: 'Suivi en temps réel', subtitle: 'Localisation live de vos équipes' },
-  '/alertes': { title: 'Alertes', subtitle: 'Notifications et anomalies terrain' },
-  '/reporting': { title: 'Reporting', subtitle: 'Analyse et exportation des données' },
-  '/users': { title: 'Utilisateurs', subtitle: 'Gestion des comptes et rôles' },
-  '/agences': { title: 'Agences', subtitle: 'Référentiel des agences' },
-  '/produits': { title: 'Produits', subtitle: 'Catalogue de produits pour les ventes' },
-  '/geofence': { title: 'Zones Geofence', subtitle: 'Zones géographiques et assignations' },
+const PAGE_SUBTITLE: Record<string, string> = {
+  pdv: 'Gérez vos points de vente',
+  tracking: 'Localisation live de vos équipes',
+  alertes: 'Notifications et anomalies terrain',
+  reporting: 'Analyse et exportation des données',
+  users: 'Gestion des comptes et rôles',
+  agences: 'Référentiel des agences',
+  produits: 'Catalogue de produits pour les ventes',
+  geofence: 'Zones géographiques et assignations',
 };
 
 const Layout = () => {
@@ -113,14 +112,39 @@ const Layout = () => {
     setSearchQuery('');
   };
 
-  const isActive = (path: string) => location.pathname === path;
-  const isSettingsActive = () =>
-    ['/users', '/agences', '/produits', '/geofence'].includes(location.pathname);
+  // Espace de l'utilisateur connecté : navigation et pages "Paramètres"
+  // dérivées de permissions.ts selon son rôle. C'est ce qui construit
+  // l'espace dédié à chaque rôle (Agence / Commercial / Superviseur / Chef
+  // de zone / Admin) — chacun ne voit que ce que son rôle autorise.
+  const { navItems, settingsItems } = useMemo(() => {
+    const visible = PAGES.filter((p) => !user?.role || p.roles.includes(user.role as any));
+    const toItem = (p: (typeof PAGES)[number]) => ({
+      to: p.path ? `/${p.path}` : '/',
+      label: p.label,
+      icon: PAGE_ICON[p.path] ?? LayoutDashboard,
+    });
+    return {
+      navItems: visible.filter((p) => p.section === 'main').map(toItem),
+      settingsItems: visible.filter((p) => p.section === 'settings').map(toItem),
+    };
+  }, [user?.role]);
 
-  const currentPage = PAGE_TITLES[location.pathname] ?? {
-    title: 'Tracking PDV',
-    subtitle: '',
-  };
+  const isActive = (path: string) => location.pathname === path;
+  const isSettingsActive = () => settingsItems.some((item) => item.to === location.pathname);
+
+  const currentPageMeta = useMemo(() => {
+    const relativePath = location.pathname.replace(/^\/+/, '').split('/')[0];
+    const page = PAGES.find((p) => p.path === relativePath);
+    if (relativePath === '') {
+      return { title: 'Dashboard', subtitle: ROLE_DASHBOARD_SUBTITLE[(user?.role as any) ?? 'commercial'] };
+    }
+    return {
+      title: page?.label ?? 'Tracking PDV',
+      subtitle: PAGE_SUBTITLE[relativePath] ?? '',
+    };
+  }, [location.pathname, user?.role]);
+
+  const currentPage = currentPageMeta;
 
   const initials = `${user?.prenom?.[0] ?? ''}${user?.nom?.[0] ?? ''}`.toUpperCase() || 'U';
 
@@ -145,12 +169,12 @@ const Layout = () => {
 
           {/* Brand */}
           <div className="flex items-center gap-3 h-16 px-5 border-b border-white/10 shrink-0">
-            <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 bg-primary-600">
-              <Radar className="w-5 h-5 text-white" />
+            <div className="bg-white rounded-md px-2 py-1.5 shrink-0 shadow-sm">
+              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-6 w-auto" />
             </div>
-            <div className="leading-tight">
-              <p className="text-sm font-bold text-white tracking-tight">Tracking PDV</p>
-              <p className="text-xs text-ink-400">Administration</p>
+            <div className="leading-tight min-w-0">
+              <p className="text-sm font-bold text-white tracking-tight truncate">Tracking PDV</p>
+              <p className="text-xs text-ink-400 truncate">Espace {roleLabel(user?.role)}</p>
             </div>
           </div>
 
@@ -158,7 +182,7 @@ const Layout = () => {
           <nav className="flex-1 overflow-y-auto px-3 py-4">
             <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-500">Menu</p>
             <ul className="space-y-1">
-              {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+              {navItems.map(({ to, label, icon: Icon }) => (
                 <li key={to}>
                   <Link to={to} className={navLinkClasses(isActive(to))}>
                     {isActive(to) && (
@@ -170,40 +194,42 @@ const Layout = () => {
                 </li>
               ))}
 
-              <li className="pt-3">
-                <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-500">Configuration</p>
-                <button
-                  onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                  className={`flex items-center justify-between w-full pl-4 pr-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                    isSettingsActive() ? 'bg-white/10 text-white' : 'text-ink-300 hover:bg-white/5 hover:text-white'
-                  }`}
-                >
-                  <span className="flex items-center gap-3">
-                    <Settings className={`w-[18px] h-[18px] ${isSettingsActive() ? 'text-primary-400' : ''}`} />
-                    Paramètres
-                  </span>
-                  {isSettingsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                </button>
-                {isSettingsOpen && (
-                  <ul className="mt-1 ml-4 pl-4 space-y-1 border-l border-white/10">
-                    {SETTINGS_ITEMS.map(({ to, label, icon: Icon }) => (
-                      <li key={to}>
-                        <Link
-                          to={to}
-                          className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
-                            isActive(to)
-                              ? 'bg-white/10 text-white font-medium'
-                              : 'text-ink-400 hover:bg-white/5 hover:text-white'
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                          {label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
+              {settingsItems.length > 0 && (
+                <li className="pt-3">
+                  <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-500">Configuration</p>
+                  <button
+                    onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                    className={`flex items-center justify-between w-full pl-4 pr-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                      isSettingsActive() ? 'bg-white/10 text-white' : 'text-ink-300 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Settings className={`w-[18px] h-[18px] ${isSettingsActive() ? 'text-primary-400' : ''}`} />
+                      Paramètres
+                    </span>
+                    {isSettingsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  </button>
+                  {isSettingsOpen && (
+                    <ul className="mt-1 ml-4 pl-4 space-y-1 border-l border-white/10">
+                      {settingsItems.map(({ to, label, icon: Icon }) => (
+                        <li key={to}>
+                          <Link
+                            to={to}
+                            className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
+                              isActive(to)
+                                ? 'bg-white/10 text-white font-medium'
+                                : 'text-ink-400 hover:bg-white/5 hover:text-white'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            {label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              )}
             </ul>
           </nav>
 
@@ -215,7 +241,7 @@ const Layout = () => {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-white truncate">{user?.prenom} {user?.nom}</p>
-                <p className="text-xs text-ink-400 truncate capitalize">{user?.role}</p>
+                <p className="text-xs text-ink-400 truncate">{roleLabel(user?.role)}</p>
               </div>
               <button
                 onClick={logout}
@@ -359,7 +385,7 @@ const Layout = () => {
                 </div>
                 <div className="text-left hidden sm:block leading-tight">
                   <p className="text-sm font-medium text-ink-800">{user?.prenom} {user?.nom}</p>
-                  <p className="text-xs text-ink-500 capitalize">{user?.role}</p>
+                  <p className="text-xs text-ink-500">{roleLabel(user?.role)}</p>
                 </div>
                 <ChevronDown className="w-4 h-4 text-ink-400" />
               </button>
