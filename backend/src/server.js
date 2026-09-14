@@ -12,6 +12,7 @@ const rateLimit = require('express-rate-limit');
 
 // Import des configurations
 const { sequelize } = require('./config/database');
+const { runMigrations } = require('./database/runMigrations');
 const logger = require('./utils/logger');
 const socketHandler = require('./sockets/socketHandler');
 
@@ -185,19 +186,22 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 socketHandler(io);
 
 // --- Démarrage ---------------------------------------------------------
-sequelize
-  .sync()
-  .then(() => {
+async function startServer() {
+  try {
+    await runMigrations();
+    await sequelize.sync();
     logger.info('Base de données synchronisée avec succès');
     server.listen(PORT, '0.0.0.0', () => {
       logger.info(`Serveur démarré sur le port ${PORT}`);
       logger.info(`Environnement: ${NODE_ENV}`);
     });
-  })
-  .catch((err) => {
+  } catch (err) {
     logger.error('Erreur de synchronisation de la base de données:', err);
     process.exit(1);
-  });
+  }
+}
+
+startServer();
 
 // Arrêt propre (containers, PM2, systemd, Ctrl+C…) : on laisse les requêtes en cours
 // se terminer et on ferme proprement la connexion à la base avant de quitter.

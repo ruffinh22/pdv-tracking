@@ -135,8 +135,9 @@ const Layout = () => {
   const currentPageMeta = useMemo(() => {
     const relativePath = location.pathname.replace(/^\/+/, '').split('/')[0];
     const page = PAGES.find((p) => p.path === relativePath);
+    const roleKey = (user?.role as keyof typeof ROLE_DASHBOARD_SUBTITLE | undefined) ?? 'commercial';
     if (relativePath === '') {
-      return { title: 'Dashboard', subtitle: ROLE_DASHBOARD_SUBTITLE[(user?.role as any) ?? 'commercial'] };
+      return { title: 'Dashboard', subtitle: ROLE_DASHBOARD_SUBTITLE[roleKey] };
     }
     return {
       title: page?.label ?? 'Tracking PDV',

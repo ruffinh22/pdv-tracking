@@ -417,9 +417,9 @@ const Tracking = () => {
       
       {/* Indicateur de connexion */}
       <div className="absolute bottom-6 right-6 z-40 bg-white rounded-xl shadow-popover px-4 py-3 flex items-center border border-ink-100">
-        <div className={`w-2.5 h-2.5 rounded-full mr-3 ${socketRef.current?.connected ? 'bg-success-500' : 'bg-danger-500'}`}></div>
+        <div className={`w-2.5 h-2.5 rounded-full mr-3 ${isConnected ? 'bg-success-500' : 'bg-danger-500'}`}></div>
         <span className="text-sm font-medium text-ink-700">
-          {socketRef.current?.connected ? 'Connecté' : 'Déconnecté'}
+          {isConnected ? 'Connecté' : 'Déconnecté'}
         </span>
       </div>
     </div>
