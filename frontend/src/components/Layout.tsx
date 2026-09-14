@@ -170,8 +170,8 @@ const Layout = () => {
 
           {/* Brand */}
           <div className="flex items-center gap-3 h-16 px-5 border-b border-white/10 shrink-0">
-            <div className="bg-white rounded-md px-2 py-1.5 shrink-0 shadow-sm">
-              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-6 w-auto" />
+            <div className="bg-white rounded-md px-1.5 py-1 shrink-0 shadow-sm flex items-center justify-center max-w-[70px]">
+              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-5 w-auto max-w-[52px] object-contain" />
             </div>
             <div className="leading-tight min-w-0">
               <p className="text-sm font-bold text-white tracking-tight truncate">Tracking PDV</p>

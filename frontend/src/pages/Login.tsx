@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../contexts/authContext';
-import { Radar, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Login = () => {
@@ -42,8 +42,8 @@ const Login = () => {
         />
         <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full flex-1">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-md bg-white/15 flex items-center justify-center">
-              <Radar className="w-5 h-5" />
+            <div className="bg-white rounded-md px-2 py-1.5 shadow-sm flex items-center justify-center">
+              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-8 w-auto" />
             </div>
             <span className="text-lg font-bold">Tracking PDV</span>
           </div>
@@ -66,8 +66,8 @@ const Login = () => {
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-10 h-10 rounded-md bg-primary-600 flex items-center justify-center">
-              <Radar className="w-5 h-5 text-white" />
+            <div className="bg-primary-600 rounded-md px-2 py-1.5 shadow-sm flex items-center justify-center">
+              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-8 w-auto" />
             </div>
             <span className="text-lg font-bold text-ink-900">Tracking PDV</span>
           </div>
