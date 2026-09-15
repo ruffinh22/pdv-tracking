@@ -18,15 +18,25 @@ export interface ProduitRef {
   nom_produit: string;
 }
 
+import type { PdvAttributValorise } from './pdvAttributService';
+
 export interface PDV {
   id: number;
   id_terminal?: string;
   nom_pdv: string;
-  msisdn_responsable: string;
+  msisdn_responsable?: string;
   latitude_creation: number;
   longitude_creation: number;
   date_installation_app: string;
   statut: 'actif' | 'inactif' | 'suspendu';
+
+  // Cycle de vie du dossier : 'brouillon' = enrôlé depuis le mobile (terminal
+  // + GPS seulement), 'complet' = fiche renseignée depuis le back-office.
+  statut_dossier: 'brouillon' | 'complet';
+  matricule_agent?: string;
+  date_completion?: string;
+  complete_par?: number;
+
   zone_geofence_id?: number;
   device_info?: any;
   derniere_position_latitude?: number;
@@ -58,14 +68,59 @@ export interface PDV {
   produits?: ProduitRef[];
   produits_ids?: number[];
 
+  // Champs personnalisés définis par l'admin, avec leur valeur courante.
+  // Renvoyés par getPDVById / completerPDV uniquement.
+  attributs_personnalises?: PdvAttributValorise[];
+  // Ce qu'il reste à renseigner pour que le dossier passe en 'complet'.
+  informations_manquantes?: string[];
+
   zone?: any;
   positions?: any[];
   ventes?: any[];
   alertes?: any[];
 }
 
+export interface HistoriqueParams {
+  /** Date ISO de début (défaut : il y a 24 h) */
+  debut?: string;
+  /** Date ISO de fin (défaut : maintenant) */
+  fin?: string;
+  /** Plafond de points renvoyés, entre 100 et 5000 (défaut : 1000) */
+  limit?: number;
+}
+
+export interface PositionPDV {
+  id: number;
+  latitude: number;
+  longitude: number;
+  precision?: number;
+  horodatage: string;
+  source: 'gps' | 'network' | 'passive';
+}
+
+export interface HistoriquePositions {
+  data: PositionPDV[];
+  periode: { debut: string; fin: string };
+  total: number;
+  retournes: number;
+  /** 1 = aucun échantillonnage ; n = un point sur n a été conservé */
+  echantillonnage: number;
+}
+
+export interface TrajetPDV {
+  pdv_id: number;
+  periode: { debut: string; fin: string };
+  points: number;
+  distance_parcourue_m: number;
+  eloignement_max_m: number;
+  premiere_position: string | null;
+  derniere_position: string | null;
+  point_ancrage: { latitude: number; longitude: number };
+}
+
 export interface PDVFilters {
   statut?: string;
+  statut_dossier?: 'brouillon' | 'complet';
   ville?: string;
   commune?: string;
   quartier?: string;
@@ -104,6 +159,22 @@ export const pdvService = {
     return response.data;
   },
 
+  /**
+   * Enregistre la complétion d'un dossier enrôlé depuis le mobile.
+   *
+   * `attributs` est un objet { code_attribut: valeur }. Le serveur décide seul
+   * si le dossier bascule en 'complet' : on peut donc enregistrer un dossier
+   * partiellement rempli sans perdre la saisie, il reste simplement en
+   * brouillon et la réponse indique ce qui manque encore.
+   */
+  completerPDV: async (
+    id: number,
+    payload: Partial<PDV> & { attributs?: Record<string, unknown>; produits_ids?: number[] }
+  ): Promise<PDV> => {
+    const response = await api.put(`/pdv/${id}/completer`, payload);
+    return response.data;
+  },
+
   updatePDVProduits: async (id: number, produits_ids: number[]): Promise<PDV> => {
     const response = await api.put(`/pdv/${id}/produits`, { produits_ids });
     return response.data;
@@ -113,8 +184,27 @@ export const pdvService = {
     await api.delete(`/pdv/${id}`);
   },
 
-  getPDVPositions: async (id: number): Promise<any[]> => {
-    const response = await api.get(`/pdv/${id}/positions`);
+  /**
+   * Historique de positions. L'API borne la période (24 h par défaut) et
+   * échantillonne au-delà de `limit` points : on récupère donc toujours une
+   * réponse de taille raisonnable, quelle que soit l'ancienneté du PDV.
+   * L'enveloppe est déballée ici pour rester compatible avec les appelants
+   * existants, qui attendent un simple tableau.
+   */
+  getPDVPositions: async (id: number, params: HistoriqueParams = {}): Promise<any[]> => {
+    const response = await api.get(`/pdv/${id}/positions`, { params });
+    return Array.isArray(response.data) ? response.data : response.data?.data || [];
+  },
+
+  /** Même donnée, avec les métadonnées de période et d'échantillonnage. */
+  getPDVHistorique: async (id: number, params: HistoriqueParams = {}): Promise<HistoriquePositions> => {
+    const response = await api.get(`/pdv/${id}/positions`, { params });
+    return response.data;
+  },
+
+  /** Synthèse du déplacement sur une période (distance, éloignement max). */
+  getPDVTrajet: async (id: number, params: HistoriqueParams = {}): Promise<TrajetPDV> => {
+    const response = await api.get(`/pdv/${id}/trajet`, { params });
     return response.data;
   },
 

@@ -34,6 +34,7 @@ const UsersPage = () => {
     mot_de_passe: '',
     role: 'commercial' as 'admin' | 'superviseur' | 'commercial' | 'chef_zone',
     telephone: '',
+    matricule: '',
     statut: 'actif' as 'actif' | 'inactif'
   });
 
@@ -137,6 +138,7 @@ const UsersPage = () => {
       mot_de_passe: '',
       role: user.role,
       telephone: user.telephone || '',
+      matricule: user.matricule || '',
       statut: user.statut
     });
     setShowModal(true);
@@ -161,6 +163,7 @@ const UsersPage = () => {
       mot_de_passe: '',
       role: 'commercial',
       telephone: '',
+      matricule: '',
       statut: 'actif'
     });
     setEditingUser(null);
@@ -385,6 +388,23 @@ const UsersPage = () => {
                     onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
                     className="input"
                   />
+                </div>
+                <div>
+                  <label className="label">Numéro matricule</label>
+                  <input
+                    type="text"
+                    value={formData.matricule}
+                    onChange={(e) =>
+                      setFormData({ ...formData, matricule: e.target.value.toUpperCase() })
+                    }
+                    className="input"
+                    placeholder="Ex : AG00412"
+                  />
+                  <p className="text-xs text-ink-400 mt-1">
+                    C'est ce numéro que l'agent saisit sur l'application mobile pour enrôler un
+                    point de vente. Sans matricule, le compte ne peut pas être utilisé sur le
+                    terrain.
+                  </p>
                 </div>
                 <div>
                   <label className="label">Rôle</label>

@@ -59,10 +59,19 @@ const deleteSecureItem = async (key: string): Promise<void> => {
   await SecureStore.deleteItemAsync(key);
 };
 
+export interface AgentInfo {
+  id: number;
+  nom: string;
+  prenom: string;
+  matricule: string;
+}
+
 interface AppContextValue {
   bootstrapping: boolean;
   isOnboarded: boolean;
   terminalId: string;
+  matricule: string;
+  agent: AgentInfo | null;
   pdvId: string | null;
   initialLocation: GPSPoint | null;
   currentLocation: GPSPoint | null;
@@ -72,7 +81,7 @@ interface AppContextValue {
   history: VenteLocale[];
   syncStatus: SyncStatus;
   lastSyncedCount: number | null;
-  register: () => Promise<{ ok: boolean; message?: string }>;
+  register: (matricule: string) => Promise<{ ok: boolean; message?: string }>;
   refreshLocation: () => Promise<GPSPoint | null>;
   refreshHistory: () => Promise<void>;
   loadProducts: () => Promise<void>;
@@ -158,6 +167,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [terminalId, setTerminalId] = useState('');
+  const [matricule, setMatricule] = useState('');
+  const [agent, setAgent] = useState<AgentInfo | null>(null);
   const [pdvId, setPdvId] = useState<string | null>(null);
   const [initialLocation, setInitialLocation] = useState<GPSPoint | null>(null);
   const [currentLocation, setCurrentLocation] = useState<GPSPoint | null>(null);
@@ -217,14 +228,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // On relit aussi l'ancienne clé "msisdn" en repli, pour les terminaux déjà
           // associés avant ce changement — leur session reste valide sans qu'ils
           // aient à se réassocier.
-          const [savedTerminalId, savedLegacyMsisdn, savedPdvId, savedLat, savedLng] = await Promise.all([
-            getSecureItem('terminalId'),
-            getSecureItem('msisdn'),
-            getSecureItem('pdvId'),
-            getSecureItem('initialLat'),
-            getSecureItem('initialLng'),
-          ]);
+          const [savedTerminalId, savedLegacyMsisdn, savedPdvId, savedLat, savedLng, savedMatricule, savedAgent] =
+            await Promise.all([
+              getSecureItem('terminalId'),
+              getSecureItem('msisdn'),
+              getSecureItem('pdvId'),
+              getSecureItem('initialLat'),
+              getSecureItem('initialLng'),
+              getSecureItem('matricule'),
+              getSecureItem('agent'),
+            ]);
           setTerminalId(savedTerminalId || savedLegacyMsisdn || '');
+          setMatricule(savedMatricule || '');
+          if (savedAgent) {
+            try {
+              setAgent(JSON.parse(savedAgent));
+            } catch {
+              // Entrée corrompue : on repart sans identité d'agent affichée,
+              // ce qui est purement cosmétique (le PDV reste rattaché côté serveur).
+            }
+          }
           setPdvId(savedPdvId);
           if (savedLat && savedLng) {
             setInitialLocation({ latitude: Number(savedLat), longitude: Number(savedLng) });
@@ -291,9 +314,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (): Promise<{ ok: boolean; message?: string }> => {
-      // L'ID terminal n'est plus saisi par l'utilisateur : il est généré une
-      // seule fois par l'app puis persisté sur l'appareil (voir lib/terminalId).
+    async (matriculeSaisi: string): Promise<{ ok: boolean; message?: string }> => {
+      const matriculeNormalise = String(matriculeSaisi || '').trim().toUpperCase();
+      if (!matriculeNormalise) {
+        return { ok: false, message: 'Saisissez votre numéro matricule.' };
+      }
+
+      // L'ID terminal n'est pas saisi par l'utilisateur : il est dérivé de
+      // l'appareil (ou tiré au sort en repli) une seule fois puis persisté
+      // — voir lib/terminalId. C'est lui qui identifiera le PDV côté serveur.
       const deviceTerminalId = await getOrCreateTerminalId();
       let point: GPSPoint | null = null;
 
@@ -346,25 +375,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        // Un seul aller-retour réseau : le backend renvoie le PDV existant s'il
-        // y en a un pour cet ID terminal, sinon en crée un nouveau — au lieu de
-        // l'ancien pattern "login qui échoue puis register" qui coûtait
-        // systématiquement 2 requêtes séquentielles à la création d'un compte.
-        //
-        // Note : le champ réseau reste `msisdn_responsable` pour ne pas casser
-        // le backend / la base existante — seule sa valeur change de sens,
-        // elle transporte désormais l'ID terminal généré par l'app plutôt
-        // qu'un numéro de téléphone saisi à la main.
+        // Un seul aller-retour réseau, idempotent côté serveur sur
+        // `terminal_id` : si ce terminal a déjà été enrôlé, on récupère son
+        // dossier au lieu d'en créer un doublon. Le serveur crée le PDV à
+        // l'état "brouillon" et le rattache à l'agent via son matricule ;
+        // le reste de la fiche sera complété depuis le back-office.
         const { data: pdv } = await api.post(
-          '/pdv/mobile/upsert',
+          '/pdv/mobile/enroll',
           {
-            nom_pdv: `PDV ${deviceTerminalId.slice(0, 8).toUpperCase()}`,
-            msisdn_responsable: deviceTerminalId,
-            latitude_creation: point.latitude,
-            longitude_creation: point.longitude,
-            device_info: { platform: 'mobile', version: '1.1.0', timestamp: new Date().toISOString() },
+            matricule: matriculeNormalise,
+            terminal_id: deviceTerminalId,
+            latitude: point.latitude,
+            longitude: point.longitude,
+            device_info: {
+              platform: Platform.OS,
+              version: '2.0.0',
+              accuracy: point.accuracy ?? null,
+              timestamp: new Date().toISOString(),
+            },
           },
-          { timeout: 8000 }
+          { timeout: 10000 }
         );
 
         if (!pdv?.id) {
@@ -374,19 +404,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const lat = Number(pdv.latitude_creation ?? point.latitude);
         const lng = Number(pdv.longitude_creation ?? point.longitude);
 
-        await setSecureItem('pdvId', String(pdv.id));
-        await setSecureItem('terminalId', deviceTerminalId);
-        await setSecureItem('isOnboarded', 'true');
-        await setSecureItem('initialLat', String(lat));
-        await setSecureItem('initialLng', String(lng));
+        await Promise.all([
+          setSecureItem('pdvId', String(pdv.id)),
+          setSecureItem('terminalId', deviceTerminalId),
+          setSecureItem('matricule', matriculeNormalise),
+          setSecureItem('isOnboarded', 'true'),
+          setSecureItem('initialLat', String(lat)),
+          setSecureItem('initialLng', String(lng)),
+          pdv.agent ? setSecureItem('agent', JSON.stringify(pdv.agent)) : Promise.resolve(),
+        ]);
 
         setPdvId(String(pdv.id));
         setTerminalId(deviceTerminalId);
+        setMatricule(matriculeNormalise);
+        if (pdv.agent) setAgent(pdv.agent);
         setInitialLocation({ latitude: lat, longitude: lng });
         setIsOnboarded(true);
 
         // pullHistoryFromServer ne fait rien (et n'appelle pas le réseau) si la
-        // base locale a déjà des données — donc pas de coût pour un nouveau compte.
+        // base locale a déjà des données — donc pas de coût pour un nouveau PDV.
         await Promise.all([pullHistoryFromServer(String(pdv.id)), loadProducts(), beginTracking()]);
         await refreshHistory();
         return { ok: true };
@@ -415,6 +451,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setIsOnboarded(false);
     setTerminalId('');
+    setMatricule('');
+    setAgent(null);
     setPdvId(null);
     setInitialLocation(null);
     setCurrentLocation(null);
@@ -431,6 +469,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await Promise.all([
         deleteSecureItem('pdvId'),
         deleteSecureItem('msisdn'),
+        deleteSecureItem('matricule'),
+        deleteSecureItem('agent'),
         deleteSecureItem('isOnboarded'),
         deleteSecureItem('initialLat'),
         deleteSecureItem('initialLng'),
@@ -469,6 +509,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       bootstrapping,
       isOnboarded,
       terminalId,
+      matricule,
+      agent,
       pdvId,
       initialLocation,
       currentLocation,
@@ -489,6 +531,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       bootstrapping,
       isOnboarded,
       terminalId,
+      matricule,
+      agent,
       pdvId,
       initialLocation,
       currentLocation,

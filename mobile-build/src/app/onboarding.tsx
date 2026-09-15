@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -15,36 +15,81 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useApp } from '@/context/AppContext';
 import { colors, radius } from '@/theme/colors';
 import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import GPSStatusCard from '@/components/GPSStatusCard';
 import { CONFIG } from '@/config';
+import { api } from '@/lib/api';
 import { getOrCreateTerminalId } from '@/lib/terminalId';
+
+type EtatVerification =
+  | { statut: 'vide' }
+  | { statut: 'verification' }
+  | { statut: 'trouve'; nom: string; prenom: string }
+  | { statut: 'inconnu' };
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { register, refreshLocation, currentLocation } = useApp();
   const [terminalId, setTerminalId] = useState<string | null>(null);
+  const [matricule, setMatricule] = useState('');
+  const [verification, setVerification] = useState<EtatVerification>({ statut: 'vide' });
   const [submitting, setSubmitting] = useState(false);
+  const verificationEnCours = useRef<string | null>(null);
 
   useEffect(() => {
     refreshLocation();
-    // L'ID terminal est généré (ou relu s'il existe déjà) dès l'arrivée sur
-    // l'écran, pour l'afficher à l'utilisateur avant même qu'il n'appuie sur
-    // "Se connecter" — il n'y a plus rien à saisir.
+    // L'ID terminal est lu (ou créé au premier lancement) dès l'arrivée sur
+    // l'écran, pour l'afficher avant même que l'agent n'appuie sur
+    // "Se connecter" : il n'a rien à saisir de ce côté-là.
     getOrCreateTerminalId().then(setTerminalId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Vérification du matricule pendant la saisie, plutôt qu'au moment de la
+  // soumission : l'agent voit son nom s'afficher (ou une faute de frappe
+  // signalée) sans avoir à attendre le relevé GPS, qui est l'étape lente.
+  useEffect(() => {
+    const valeur = matricule.trim().toUpperCase();
+    if (valeur.length < 3) {
+      setVerification({ statut: 'vide' });
+      return;
+    }
+
+    const minuteur = setTimeout(async () => {
+      verificationEnCours.current = valeur;
+      setVerification({ statut: 'verification' });
+      try {
+        const { data } = await api.get(`/pdv/mobile/matricule/${encodeURIComponent(valeur)}`, {
+          timeout: 6000,
+        });
+        // Une réponse plus lente qu'une frappe suivante ne doit pas écraser
+        // le résultat de la saisie la plus récente.
+        if (verificationEnCours.current !== valeur) return;
+        setVerification({ statut: 'trouve', nom: data.nom, prenom: data.prenom });
+      } catch (error: any) {
+        if (verificationEnCours.current !== valeur) return;
+        // Un serveur injoignable n'est pas un matricule invalide : on n'affiche
+        // "inconnu" que si le serveur a répondu explicitement 404.
+        setVerification(error?.response?.status === 404 ? { statut: 'inconnu' } : { statut: 'vide' });
+      }
+    }, 450);
+
+    return () => clearTimeout(minuteur);
+  }, [matricule]);
+
   const handleSubmit = async () => {
     setSubmitting(true);
-    const result = await register();
+    const result = await register(matricule);
     setSubmitting(false);
 
     if (result.ok) {
       router.replace('/(tabs)');
     } else {
-      Alert.alert('Erreur', result.message || 'Une erreur est survenue.');
+      Alert.alert('Connexion impossible', result.message || 'Une erreur est survenue.');
     }
   };
+
+  const matriculeValide = matricule.trim().length >= 3;
 
   return (
     <KeyboardAvoidingView
@@ -69,7 +114,7 @@ export default function OnboardingScreen() {
             </View>
             <Text style={styles.heroTitle}>Tracking PDV</Text>
             <Text style={styles.heroSubtitle}>
-              Géolocalisez votre point de vente et démarrez le suivi de couverture terrain.
+              Géolocalisez le point de vente et démarrez le suivi de couverture terrain.
             </Text>
           </LinearGradient>
         </Animated.View>
@@ -79,8 +124,34 @@ export default function OnboardingScreen() {
 
           <View style={{ height: 16 }} />
 
-          <Animated.View entering={FadeInUp.delay(140).duration(420).springify().damping(18)} style={styles.formCard}>
+          <Animated.View
+            entering={FadeInUp.delay(140).duration(420).springify().damping(18)}
+            style={styles.formCard}
+          >
             <Text style={styles.formTitle}>Connexion du point de vente</Text>
+
+            <Input
+              label="Numéro matricule de l'agent"
+              value={matricule}
+              onChangeText={(t) => setMatricule(t.toUpperCase())}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder="Ex: AG00412"
+              returnKeyType="done"
+              editable={!submitting}
+            />
+
+            {verification.statut === 'verification' ? (
+              <Text style={styles.verifNeutre}>Vérification du matricule…</Text>
+            ) : verification.statut === 'trouve' ? (
+              <Text style={styles.verifOk}>
+                Agent reconnu : {verification.prenom} {verification.nom}
+              </Text>
+            ) : verification.statut === 'inconnu' ? (
+              <Text style={styles.verifErreur}>
+                Matricule inconnu. Vérifiez votre numéro auprès de votre superviseur.
+              </Text>
+            ) : null}
 
             <View style={styles.terminalBox}>
               <Text style={styles.terminalLabel}>ID terminal</Text>
@@ -88,14 +159,15 @@ export default function OnboardingScreen() {
                 {terminalId || 'Génération en cours…'}
               </Text>
               <Text style={styles.terminalHelper}>
-                Identifiant unique de cet appareil, généré automatiquement. Il identifie votre PDV
-                sur la plateforme — vous n'avez rien à saisir.
+                Identifiant unique de cet appareil, récupéré automatiquement. Il identifie ce point
+                de vente sur la plateforme — vous n'avez rien à saisir ici.
               </Text>
             </View>
 
             <Text style={styles.consentHelper}>
-              Votre position GPS est utilisée pour créer le PDV, détecter les sorties de zone (rayon
-              de 500 m) et horodater vos ventes.
+              À la connexion, la position GPS actuelle est enregistrée comme emplacement du point de
+              vente. Le dossier est créé en brouillon : vous le compléterez ensuite depuis le
+              back-office (nom, prénom, agence, superviseur…).
             </Text>
 
             <View style={{ height: 8 }} />
@@ -104,7 +176,7 @@ export default function OnboardingScreen() {
               title="Se connecter"
               onPress={handleSubmit}
               loading={submitting}
-              disabled={!terminalId}
+              disabled={!terminalId || !matriculeValide || verification.statut === 'inconnu'}
             />
             <Text style={styles.debugUrl}>Serveur : {CONFIG.API_BASE_URL}</Text>
           </Animated.View>
@@ -154,6 +226,9 @@ const styles = StyleSheet.create({
     borderColor: colors.ink[100],
   },
   formTitle: { fontSize: 16, fontWeight: '800', color: colors.ink[900], marginBottom: 14 },
+  verifNeutre: { fontSize: 12, color: colors.ink[400], marginTop: -8, marginBottom: 12 },
+  verifOk: { fontSize: 12, color: colors.success[600], fontWeight: '700', marginTop: -8, marginBottom: 12 },
+  verifErreur: { fontSize: 12, color: colors.danger[600], fontWeight: '600', marginTop: -8, marginBottom: 12 },
   consentHelper: { fontSize: 11.5, color: colors.ink[400], marginTop: 8, lineHeight: 16 },
   terminalBox: {
     backgroundColor: colors.ink[50],

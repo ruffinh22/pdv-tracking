@@ -8,6 +8,8 @@ const Alerte = require('./Alerte');
 const Produit = require('./Produit');
 const Agence = require('./Agence');
 const PDVProduit = require('./PDVProduit');
+const PdvAttribut = require('./PdvAttribut');
+const PdvAttributValeur = require('./PdvAttributValeur');
 
 // Définition des relations
 User.hasMany(PDV, { foreignKey: 'cree_par', as: 'pdvsCrees' });
@@ -62,6 +64,17 @@ PDVProduit.belongsTo(Produit, { foreignKey: 'produit_id', as: 'produit' });
 PDV.hasMany(PDVProduit, { foreignKey: 'pdv_id', as: 'tagsProduits' });
 Produit.hasMany(PDVProduit, { foreignKey: 'produit_id', as: 'tagsPdv' });
 
+// Auteur de la complétion du dossier (agent commercial côté web)
+User.hasMany(PDV, { foreignKey: 'complete_par', as: 'pdvsCompletes' });
+PDV.belongsTo(User, { foreignKey: 'complete_par', as: 'completeur' });
+
+// Attributs personnalisés administrés par l'admin (schéma dynamique)
+PDV.hasMany(PdvAttributValeur, { foreignKey: 'pdv_id', as: 'attributs', onDelete: 'CASCADE' });
+PdvAttributValeur.belongsTo(PDV, { foreignKey: 'pdv_id', as: 'pdv' });
+
+PdvAttribut.hasMany(PdvAttributValeur, { foreignKey: 'attribut_id', as: 'valeurs', onDelete: 'CASCADE' });
+PdvAttributValeur.belongsTo(PdvAttribut, { foreignKey: 'attribut_id', as: 'attribut' });
+
 module.exports = {
   sequelize,
   User,
@@ -72,5 +85,7 @@ module.exports = {
   Alerte,
   Produit,
   Agence,
-  PDVProduit
+  PDVProduit,
+  PdvAttribut,
+  PdvAttributValeur
 };

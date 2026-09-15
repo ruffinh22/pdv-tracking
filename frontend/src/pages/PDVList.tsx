@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, MapPin, Phone, Search, X, ChevronDown, Tag, Filter } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Edit, Trash2, MapPin, Phone, Search, X, ChevronDown, Tag, Filter, FileEdit } from 'lucide-react';
 import { pdvService, PDV } from '../services/pdvService';
 import { agenceService } from '../services/agenceService';
 import { userService } from '../services/userService';
@@ -58,12 +59,16 @@ const EMPTY_FORM: FormState = {
 
 const PDVList = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [editingPDV, setEditingPDV] = useState<PDV | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'actif' | 'inactif' | 'suspendu'>('all');
+  // File de travail de l'agent commercial : les dossiers enrôlés depuis le
+  // mobile qui attendent d'être complétés.
+  const [dossierFilter, setDossierFilter] = useState<'all' | 'brouillon' | 'complet'>('all');
   const [agenceFilter, setAgenceFilter] = useState<number | ''>('');
   const [commercialFilter, setCommercialFilter] = useState<number | ''>('');
   const [superviseurFilter, setSuperviseurFilter] = useState<number | ''>('');
@@ -96,13 +101,14 @@ const PDVList = () => {
 
   const filters = useMemo(() => ({
     ...(statusFilter !== 'all' ? { statut: statusFilter } : {}),
+    ...(dossierFilter !== 'all' ? { statut_dossier: dossierFilter } : {}),
     ...(agenceFilter ? { agence_id: agenceFilter } : {}),
     ...(commercialFilter ? { commercial_id: commercialFilter } : {}),
     ...(superviseurFilter ? { superviseur_id: superviseurFilter } : {}),
     ...(chefZoneFilter ? { chef_zone_id: chefZoneFilter } : {}),
     ...(produitFilter ? { produit_id: produitFilter } : {}),
     ...(searchTerm ? { search: searchTerm } : {}),
-  }), [statusFilter, agenceFilter, commercialFilter, superviseurFilter, chefZoneFilter, produitFilter, searchTerm]);
+  }), [statusFilter, dossierFilter, agenceFilter, commercialFilter, superviseurFilter, chefZoneFilter, produitFilter, searchTerm]);
 
   const { data: pdvsResponse, isLoading } = useQuery({
     queryKey: ['pdvs', currentPage, itemsPerPage, filters],
@@ -306,6 +312,28 @@ const PDVList = () => {
             <option value="inactif">Inactif</option>
             <option value="suspendu">Suspendu</option>
           </select>
+          {/* Bascule rapide sur la file des dossiers à compléter : c'est le
+              point d'entrée quotidien après une tournée d'installation. */}
+          <div className="flex rounded-lg border border-ink-200 overflow-hidden">
+            {([
+              { cle: 'all', libelle: 'Tous' },
+              { cle: 'brouillon', libelle: 'Brouillons' },
+              { cle: 'complet', libelle: 'Complets' },
+            ] as const).map((onglet) => (
+              <button
+                key={onglet.cle}
+                type="button"
+                onClick={() => { setDossierFilter(onglet.cle); setCurrentPage(1); }}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                  dossierFilter === onglet.cle
+                    ? 'bg-primary-50 text-primary-700'
+                    : 'text-ink-500 hover:bg-ink-50'
+                }`}
+              >
+                {onglet.libelle}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => setShowMoreFilters((v) => !v)}
@@ -400,29 +428,37 @@ const PDVList = () => {
                 <th>Chef de zone</th>
                 <th>Localisation</th>
                 <th>Statut</th>
+                <th>Dossier</th>
                 <th className="text-right pr-6">Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-10 text-ink-400">Chargement...</td>
+                  <td colSpan={11} className="text-center py-10 text-ink-400">Chargement...</td>
                 </tr>
               ) : pdvs.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-10 text-ink-400">Aucun PDV trouvé</td>
+                  <td colSpan={11} className="text-center py-10 text-ink-400">Aucun PDV trouvé</td>
                 </tr>
               ) : (
                 pdvs.map((pdv) => (
-                  <tr key={pdv.id}>
+                  <tr
+                    key={pdv.id}
+                    onClick={() => navigate(`/pdv/${pdv.id}`)}
+                    className="cursor-pointer hover:bg-ink-50/60"
+                  >
                     <td>
                       <div className="font-medium text-ink-900">{pdv.nom_pdv}</div>
-                      <div className="text-xs text-ink-400">{pdv.id_terminal || '—'}</div>
+                      <div className="text-xs text-ink-400 break-all">{pdv.id_terminal || '—'}</div>
+                      {pdv.matricule_agent ? (
+                        <div className="text-xs text-ink-400">Agent {pdv.matricule_agent}</div>
+                      ) : null}
                     </td>
                     <td>
                       <div className="flex items-center text-ink-600">
                         <Phone className="w-3.5 h-3.5 mr-1.5 text-ink-400" />
-                        {pdv.msisdn_responsable}
+                        {pdv.msisdn_responsable || '—'}
                       </div>
                     </td>
                     <td>
@@ -454,7 +490,25 @@ const PDVList = () => {
                       </span>
                     </td>
                     <td>
+                      <span
+                        className={
+                          pdv.statut_dossier === 'brouillon'
+                            ? 'badge badge-warning'
+                            : 'badge badge-success'
+                        }
+                      >
+                        {pdv.statut_dossier === 'brouillon' ? 'À compléter' : 'Complet'}
+                      </span>
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => navigate(`/pdv/${pdv.id}`)}
+                          className="btn-icon hover:text-primary-600 hover:bg-primary-50"
+                          title="Compléter le dossier"
+                        >
+                          <FileEdit className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => handleEdit(pdv)}
                           className="btn-icon hover:text-primary-600 hover:bg-primary-50"

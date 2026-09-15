@@ -5,12 +5,24 @@ const logger = require('../utils/logger');
 const userController = {
   async createUser(req, res) {
     try {
-      const { nom, prenom, email, mot_de_passe, role, telephone } = req.body;
+      const { nom, prenom, email, mot_de_passe, role, telephone, agence_id } = req.body;
 
       // Vérifier si l'utilisateur existe déjà
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
         return res.status(400).json({ error: 'Cet email est déjà utilisé' });
+      }
+
+      // Le matricule est la clé d'enrôlement mobile : il est normalisé en
+      // majuscules pour que l'agent puisse le taper comme il veut sur le
+      // terrain, et son unicité est vérifiée ici pour renvoyer un message
+      // clair plutôt qu'une erreur de contrainte SQL.
+      const matricule = req.body.matricule ? String(req.body.matricule).trim().toUpperCase() : null;
+      if (matricule) {
+        const matriculeExistant = await User.findOne({ where: { matricule } });
+        if (matriculeExistant) {
+          return res.status(400).json({ error: 'Ce matricule est déjà attribué à un autre agent' });
+        }
       }
 
       // Hasher le mot de passe
@@ -22,7 +34,9 @@ const userController = {
         email,
         mot_de_passe: hashedPassword,
         role,
-        telephone
+        telephone,
+        matricule,
+        agence_id: agence_id || null
       });
 
       logger.info(`Nouvel utilisateur créé: ${email}`);
@@ -32,6 +46,7 @@ const userController = {
         prenom: user.prenom,
         email: user.email,
         role: user.role,
+        matricule: user.matricule,
         statut: user.statut
       });
     } catch (error) {
@@ -125,6 +140,19 @@ const userController = {
         req.body.mot_de_passe = await bcrypt.hash(req.body.mot_de_passe, 10);
       }
 
+      // Même normalisation qu'à la création : le matricule saisi sur le mobile
+      // est comparé en majuscules, il doit donc être stocké ainsi.
+      if (req.body.matricule !== undefined) {
+        const matricule = req.body.matricule ? String(req.body.matricule).trim().toUpperCase() : null;
+        if (matricule) {
+          const doublon = await User.findOne({ where: { matricule } });
+          if (doublon && doublon.id !== user.id) {
+            return res.status(400).json({ error: 'Ce matricule est déjà attribué à un autre agent' });
+          }
+        }
+        req.body.matricule = matricule;
+      }
+
       await user.update(req.body);
       res.json({
         id: user.id,
@@ -132,6 +160,7 @@ const userController = {
         prenom: user.prenom,
         email: user.email,
         role: user.role,
+        matricule: user.matricule,
         statut: user.statut
       });
     } catch (error) {

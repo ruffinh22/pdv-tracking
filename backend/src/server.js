@@ -15,6 +15,7 @@ const { sequelize } = require('./config/database');
 const { runMigrations } = require('./database/runMigrations');
 const logger = require('./utils/logger');
 const socketHandler = require('./sockets/socketHandler');
+const { demarrerPurgePeriodique } = require('./services/positionRetentionService');
 
 // Import des routes
 const authRoutes = require('./routes/auth');
@@ -27,6 +28,7 @@ const userRoutes = require('./routes/user');
 const dashboardRoutes = require('./routes/dashboard');
 const produitRoutes = require('./routes/produit');
 const agenceRoutes = require('./routes/agence');
+const pdvAttributRoutes = require('./routes/pdvAttribut');
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = process.env.PORT || 3000;
@@ -121,6 +123,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/produits', produitRoutes);
 app.use('/api/agences', agenceRoutes);
+app.use('/api/pdv-attributs', pdvAttributRoutes);
 
 // Routes de santé (déclarées avant le fallback statique pour ne jamais être masquées par lui)
 app.get(['/health', '/api/health'], (req, res) => {
@@ -191,6 +194,10 @@ async function startServer() {
     await runMigrations();
     await sequelize.sync();
     logger.info('Base de données synchronisée avec succès');
+
+    // Fenêtre glissante sur l'historique de positions : sans elle, la table
+    // `positions` croît indéfiniment (un point toutes les 30 s par terminal).
+    demarrerPurgePeriodique();
     server.listen(PORT, '0.0.0.0', () => {
       logger.info(`Serveur démarré sur le port ${PORT}`);
       logger.info(`Environnement: ${NODE_ENV}`);

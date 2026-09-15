@@ -66,6 +66,7 @@ export const PAGES: PageDef[] = [
   { path: 'users', label: 'Utilisateurs', section: 'settings', roles: ['admin'] },
   { path: 'agences', label: 'Agences', section: 'settings', roles: ['admin'] },
   { path: 'produits', label: 'Produits', section: 'settings', roles: ['admin'] },
+  { path: 'pdv-attributs', label: 'Attributs PDV', section: 'settings', roles: ['admin'] },
   { path: 'geofence', label: 'Zones Geofence', section: 'settings', roles: ['admin'] },
 ];
 

@@ -37,6 +37,14 @@ const User = sequelize.define('User', {
     allowNull: false,
     defaultValue: 'actif'
   },
+  // Numéro matricule de l'agent. C'est l'identifiant que l'agent commercial
+  // saisit sur l'app mobile pour enrôler un PDV : il relie le dossier créé
+  // sur le terrain au compte qui pourra le compléter depuis le back-office.
+  matricule: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    unique: true
+  },
   telephone: {
     type: DataTypes.STRING(20),
     allowNull: true
@@ -55,6 +63,7 @@ const User = sequelize.define('User', {
   tableName: 'users',
   indexes: [
     { fields: ['email'] },
+    { fields: ['matricule'] },
     { fields: ['role'] },
     { fields: ['statut'] },
     { fields: ['agence_id'] }

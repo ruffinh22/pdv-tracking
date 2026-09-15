@@ -1,6 +1,6 @@
 import api from './api';
 
-export type UserRole = 'admin' | 'superviseur' | 'commercial' | 'chef_zone';
+export type UserRole = 'admin' | 'superviseur' | 'commercial' | 'chef_zone' | 'agence';
 
 export interface User {
   id: number;
@@ -10,6 +10,10 @@ export interface User {
   role: UserRole;
   statut: 'actif' | 'inactif';
   telephone?: string;
+  // Identifiant que l'agent saisit sur l'app mobile pour enrôler un PDV.
+  // Sans matricule, un compte ne peut pas être utilisé sur le terrain.
+  matricule?: string;
+  agence_id?: number;
 }
 
 export const userService = {

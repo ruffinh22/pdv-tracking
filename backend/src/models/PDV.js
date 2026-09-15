@@ -7,19 +7,26 @@ const PDV = sequelize.define('PDV', {
     primaryKey: true,
     autoIncrement: true
   },
+  // Identité principale du PDV depuis l'enrôlement mobile : identifiant unique
+  // et stable du terminal, généré par l'app à la première installation. C'est
+  // la clé d'idempotence de /pdv/mobile/enroll — un même terminal qui se
+  // reconnecte retombe toujours sur le même dossier PDV.
   id_terminal: {
-    type: DataTypes.STRING(50),
+    type: DataTypes.STRING(100),
     allowNull: true,
     unique: true,
-    comment: 'Identifiant physique du terminal (si différent du MSISDN)'
+    comment: 'Identifiant unique du terminal (installation app), clé d\'enrôlement mobile'
   },
   nom_pdv: {
     type: DataTypes.STRING(200),
     allowNull: false
   },
+  // Devenu optionnel : le MSISDN n'est plus saisi à l'enrôlement (c'est
+  // l'id_terminal qui identifie l'appareil). Il reste renseignable par
+  // l'agent commercial lors de la complétion du dossier sur le web.
   msisdn_responsable: {
     type: DataTypes.STRING(20),
-    allowNull: false,
+    allowNull: true,
     unique: true
   },
   latitude_creation: {
@@ -39,6 +46,34 @@ const PDV = sequelize.define('PDV', {
     type: DataTypes.ENUM('actif', 'inactif', 'suspendu'),
     allowNull: false,
     defaultValue: 'actif'
+  },
+
+  // --- Cycle de vie du dossier -------------------------------------------
+  // 'brouillon' : créé par l'app mobile (terminal + GPS uniquement)
+  // 'complet'   : l'agent commercial a renseigné la fiche depuis le web
+  statut_dossier: {
+    type: DataTypes.ENUM('brouillon', 'complet'),
+    allowNull: false,
+    defaultValue: 'brouillon'
+  },
+  // Matricule saisi sur le mobile au moment de l'enrôlement. Conservé tel quel
+  // (en plus de commercial_id) pour garder la trace de qui a posé le terminal,
+  // même si le compte utilisateur est plus tard renommé ou supprimé.
+  matricule_agent: {
+    type: DataTypes.STRING(50),
+    allowNull: true
+  },
+  date_completion: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  complete_par: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   },
   zone_geofence_id: {
     type: DataTypes.INTEGER,
@@ -143,6 +178,8 @@ const PDV = sequelize.define('PDV', {
   tableName: 'pdv',
   indexes: [
     { fields: ['statut'] },
+    { fields: ['statut_dossier'] },
+    { fields: ['matricule_agent'] },
     { fields: ['zone_geofence_id'] },
     { fields: ['agence_id'] },
     { fields: ['commercial_id'] },

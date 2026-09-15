@@ -31,8 +31,7 @@ export const TERMINAL_ID_KEY = 'terminalId';
 /**
  * Génère un UUID v4. Un générateur cryptographique n'est pas nécessaire ici :
  * l'ID terminal sert uniquement à distinguer les appareils entre eux, pas à
- * protéger un secret — Math.random suffit et évite d'ajouter une dépendance
- * native (expo-crypto) pour ce seul besoin.
+ * protéger un secret.
  */
 function generateUUID(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -43,25 +42,58 @@ function generateUUID(): string {
 }
 
 /**
- * Retourne l'ID terminal déjà associé à cet appareil, ou en génère un nouveau
- * et le persiste au premier lancement. Cet identifiant remplace l'ancienne
- * saisie manuelle du numéro MSISDN : l'utilisateur n'a plus rien à taper,
- * l'app identifie l'appareil elle-même, de façon stable tant qu'elle n'est
- * pas désinstallée.
+ * Tente de récupérer un identifiant fourni par le système d'exploitation
+ * (ANDROID_ID sur Android, identifierForVendor sur iOS).
+ *
+ * C'est préférable à un UUID tiré au sort : ces valeurs survivent à une
+ * réinstallation de l'app sur Android, donc un terminal réinstallé retrouve
+ * son PDV au lieu d'en créer un doublon côté serveur. `expo-application` peut
+ * ne pas être installé (ou indisponible sur le web) : dans ce cas on retombe
+ * silencieusement sur l'UUID, qui reste parfaitement fonctionnel tant que
+ * l'app n'est pas désinstallée.
+ */
+async function getDeviceIdentifier(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Application = require('expo-application');
+
+    if (Platform.OS === 'android' && Application.getAndroidId) {
+      const androidId = Application.getAndroidId();
+      if (androidId) return `and-${androidId}`;
+    }
+    if (Platform.OS === 'ios' && Application.getIosIdForVendorAsync) {
+      const vendorId = await Application.getIosIdForVendorAsync();
+      if (vendorId) return `ios-${vendorId}`;
+    }
+  } catch {
+    // expo-application absent du build : repli sur l'UUID
+  }
+  return null;
+}
+
+/**
+ * Retourne l'identifiant unique de ce terminal, en le générant et en le
+ * persistant au premier lancement.
+ *
+ * C'est cette valeur qui est envoyée au serveur comme `terminal_id` lors de
+ * l'enrôlement : elle identifie le PDV de façon stable, sans que l'utilisateur
+ * ait quoi que ce soit à saisir. Le serveur s'en sert comme clé d'idempotence,
+ * donc un même terminal qui se reconnecte retombe toujours sur son dossier.
  */
 export async function getOrCreateTerminalId(): Promise<string> {
   const existing = await SecureStore.getItemAsync(TERMINAL_ID_KEY);
   if (existing) return existing;
 
-  const id = generateUUID();
+  const id = (await getDeviceIdentifier()) || generateUUID();
   await SecureStore.setItemAsync(TERMINAL_ID_KEY, id);
   return id;
 }
 
 /**
  * Version courte et lisible d'un ID terminal pour l'affichage dans les
- * en-têtes d'écran (ex: "Terminal · 9F3A2C1D"), où l'UUID complet prendrait
- * trop de place. L'ID complet reste visible sur l'écran Profil.
+ * en-têtes d'écran (ex: "Terminal · 9F3A2C1D"), où l'ID complet prendrait trop
+ * de place. L'ID complet reste visible sur l'écran Profil.
  */
 export function formatTerminalIdShort(terminalId: string | null | undefined): string {
   if (!terminalId) return '';

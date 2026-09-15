@@ -19,6 +19,7 @@ const Tracking = lazy(() => import('./pages/Tracking'));
 const Reporting = lazy(() => import('./pages/Reporting'));
 const Produits = lazy(() => import('./pages/Produits'));
 const Agences = lazy(() => import('./pages/Agences'));
+const PdvAttributs = lazy(() => import('./pages/PdvAttributs'));
 
 function RouteFallback() {
   return (
@@ -67,6 +68,7 @@ function App() {
               <Route path="reporting" element={<Reporting />} />
               <Route path="produits" element={<Produits />} />
               <Route path="agences" element={<Agences />} />
+              <Route path="pdv-attributs" element={<PdvAttributs />} />
             </Route>
           </Routes>
         </Suspense>
