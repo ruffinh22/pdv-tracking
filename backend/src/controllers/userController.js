@@ -60,7 +60,7 @@ const userController = {
       const { role } = req.query;
       const isDropdownMode = req.query.all === 'true';
       const requester = req.user || {};
-      const ROLES_TAGGING = ['admin', 'superviseur', 'chef_zone', 'agence'];
+      const ROLES_TAGGING = ['admin', 'superviseur', 'chef_zone', 'agence', 'commercial'];
 
       // La liste paginée complète (page "Utilisateurs") est réservée à l'admin.
       if (!isDropdownMode && requester.role !== 'admin') {
