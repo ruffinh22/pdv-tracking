@@ -16,6 +16,7 @@ export default function ProfilScreen() {
   const {
     terminalId,
     pdvId,
+    pdv,
     agent,
     matricule,
     isTracking,
@@ -82,12 +83,12 @@ export default function ProfilScreen() {
 
         <Animated.View entering={FadeInDown.delay(60).duration(400).springify().damping(18)}>
           <Card>
-            <Text style={styles.sectionTitle}>Agent associé</Text>
-            <Row label="Matricule" value={matricule || '—'} />
-            <Row
-              label="Nom"
-              value={agent ? `${agent.prenom} ${agent.nom}` : 'Non renseigné'}
-            />
+            <Text style={styles.sectionTitle}>Point de vente</Text>
+            <Row label="Nom du PDV" value={pdv?.nom_pdv || 'Non renseigné'} />
+            <Row label="Concessionnaire" value={pdv?.concessionnaire_nom || '—'} />
+            <Row label="Vendeur" value={pdv?.vendeur_nom || '—'} />
+            <Row label="Contact vendeur" value={pdv?.contact_vendeur || (pdv?.msisdn_responsable || '—')} />
+            <Row label="Localisation" value={`${pdv?.ville || '—'}${pdv?.commune ? ' • ' + pdv?.commune : ''}${pdv?.quartier ? ' • ' + pdv?.quartier : ''}`} />
           </Card>
         </Animated.View>
 
@@ -143,10 +144,8 @@ export default function ProfilScreen() {
         </Animated.View>
 
         <View style={{ height: 20 }} />
-        {/* Le bouton « Purger données locales » a été retiré : il faisait
-            doublon avec la déconnexion (qui vide déjà la base) et redirigeait
-            vers une route inexistante, ce qui cassait la navigation. */}
-        <Button title="Se déconnecter" variant="danger" onPress={handleLogout} />
+        {/* Les actions de déconnexion et purge locale ont été désactivées
+          dans cette version pour éviter des pertes de données accidentelles. */}
       </ScrollView>
     </View>
   );

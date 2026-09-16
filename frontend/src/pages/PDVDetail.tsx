@@ -904,12 +904,15 @@ const PDVDetail = () => {
                   <button
                     type="button"
                     key={p.id}
-                    onClick={() =>
-                      setProduitsIds(
-                        actif ? produitsIds.filter((x) => x !== p.id) : [...produitsIds, p.id]
-                      )
-                    }
-                    className={actif ? 'chip !bg-primary-50 !text-primary-700 !border-primary-200' : 'chip'}
+                    onClick={() => {
+                      // Debug: vérifier que le handler est appelé et quel id est cliqué
+                      // eslint-disable-next-line no-console
+                      console.log('[PDVDetail] toggle produit click:', p.id);
+                      setProduitsIds((prev: number[]) =>
+                        prev.includes(p.id) ? prev.filter((x) => x !== p.id) : [...prev, p.id]
+                      );
+                    }}
+                    className={actif ? 'chip chip--active' : 'chip'}
                   >
                     {p.nom_produit}
                   </button>

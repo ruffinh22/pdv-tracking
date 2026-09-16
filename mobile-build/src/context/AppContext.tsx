@@ -54,6 +54,18 @@ export interface AgentInfo {
   matricule: string;
 }
 
+export interface PDVInfo {
+  id: number;
+  nom_pdv?: string;
+  msisdn_responsable?: string;
+  concessionnaire_nom?: string;
+  vendeur_nom?: string;
+  contact_vendeur?: string;
+  ville?: string;
+  commune?: string;
+  quartier?: string;
+}
+
 /**
  * État de l'acquisition GPS, explicite. C'est ce qui manquait : l'écran ne
  * disposait que de `currentLocation === null`, qui confond « en cours »,
@@ -72,6 +84,7 @@ interface AppContextValue {
   terminalId: string;
   matricule: string;
   agent: AgentInfo | null;
+  pdv: PDVInfo | null;
   pdvId: string | null;
   initialLocation: GPSPoint | null;
   currentLocation: GPSPoint | null;
@@ -127,6 +140,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [terminalId, setTerminalId] = useState('');
   const [matricule, setMatricule] = useState('');
   const [agent, setAgent] = useState<AgentInfo | null>(null);
+  const [pdv, setPdv] = useState<PDVInfo | null>(null);
   const [pdvId, setPdvId] = useState<string | null>(null);
   const [initialLocation, setInitialLocation] = useState<GPSPoint | null>(null);
   const [currentLocation, setCurrentLocation] = useState<GPSPoint | null>(null);
@@ -222,16 +236,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const onboarded = await getSecureItem('isOnboarded');
 
         if (onboarded === 'true') {
-          const [savedTerminalId, savedLegacyMsisdn, savedPdvId, savedLat, savedLng, savedMatricule, savedAgent] =
-            await Promise.all([
-              getSecureItem('terminalId'),
-              getSecureItem('msisdn'),
-              getSecureItem('pdvId'),
-              getSecureItem('initialLat'),
-              getSecureItem('initialLng'),
-              getSecureItem('matricule'),
-              getSecureItem('agent'),
-            ]);
+          const [
+            savedTerminalId,
+            savedLegacyMsisdn,
+            savedPdvId,
+            savedPdvRaw,
+            savedLat,
+            savedLng,
+            savedMatricule,
+            savedAgent,
+          ] = await Promise.all([
+            getSecureItem('terminalId'),
+            getSecureItem('msisdn'),
+            getSecureItem('pdvId'),
+            getSecureItem('pdv'),
+            getSecureItem('initialLat'),
+            getSecureItem('initialLng'),
+            getSecureItem('matricule'),
+            getSecureItem('agent'),
+          ]);
 
           setTerminalId(savedTerminalId || savedLegacyMsisdn || '');
           setMatricule(savedMatricule || '');
@@ -243,6 +266,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }
           }
           setPdvId(savedPdvId);
+          if (savedPdvRaw) {
+            try {
+              setPdv(JSON.parse(savedPdvRaw));
+            } catch {
+              // ignore
+            }
+          }
           if (savedLat && savedLng) {
             setInitialLocation({ latitude: Number(savedLat), longitude: Number(savedLng) });
           }
@@ -343,12 +373,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setSecureItem('initialLat', String(lat)),
           setSecureItem('initialLng', String(lng)),
           pdv.agent ? setSecureItem('agent', JSON.stringify(pdv.agent)) : Promise.resolve(),
+          setSecureItem('pdv', JSON.stringify(pdv)),
         ]);
 
         setPdvId(String(pdv.id));
         setTerminalId(deviceTerminalId);
         setMatricule(matriculeNormalise);
         if (pdv.agent) setAgent(pdv.agent);
+        setPdv(pdv);
         setInitialLocation({ latitude: lat, longitude: lng });
         setIsOnboarded(true);
 
@@ -398,6 +430,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await Promise.all([
         deleteSecureItem('pdvId'),
         deleteSecureItem('msisdn'),
+            deleteSecureItem('pdv'),
         deleteSecureItem('matricule'),
         deleteSecureItem('agent'),
         deleteSecureItem('isOnboarded'),
@@ -436,6 +469,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       terminalId,
       matricule,
       agent,
+      pdv,
       pdvId,
       initialLocation,
       currentLocation,
@@ -458,6 +492,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       terminalId,
       matricule,
       agent,
+      pdv,
       pdvId,
       initialLocation,
       currentLocation,

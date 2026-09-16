@@ -10,7 +10,10 @@ import { Platform } from 'react-native';
 //
 // Sur le web, le navigateur tourne sur la même machine que le serveur : localhost suffit.
 // Sur un vrai téléphone, il doit joindre l'IP locale du PC sur le même réseau Wi‑Fi.
-const FALLBACK_LAN_IP = '10.19.190.116';
+// Adresse IP locale de la machine de développement utilisée par défaut
+// (affichée par Metro). Vous pouvez aussi surcharger via
+// `EXPO_PUBLIC_API_URL` pour éviter de modifier ce fichier.
+const FALLBACK_LAN_IP = '10.161.58.116';
 
 const apiBaseUrl =
   process.env.EXPO_PUBLIC_API_URL ||

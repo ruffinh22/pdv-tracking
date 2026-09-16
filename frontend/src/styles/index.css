@@ -211,6 +211,11 @@
            bg-primary-50 text-primary-700 ring-1 ring-inset ring-primary-200;
   }
 
+  /* Visual state for selected chips (clear contrast) */
+  .chip--active {
+    @apply bg-primary-700 text-white ring-0;
+  }
+
   /* Toolbar (search + filters row above tables) */
   .toolbar {
     @apply flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-ink-100 bg-white;
