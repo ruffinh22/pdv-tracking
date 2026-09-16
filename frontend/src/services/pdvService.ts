@@ -155,13 +155,45 @@ export interface PDVFilters {
 
 export const pdvService = {
   getAllPDVs: async (page: number = 1, limit: number = 10, filters: PDVFilters = {}) => {
-    const response = await api.get('/pdv', { params: { page, limit, ...filters } });
-    return response.data;
+    try {
+      const response = await api.get('/pdv', { params: { page, limit, ...filters } });
+      if (response?.data && response.data.code === 403) {
+        console.warn('Accès interdit à /pdv (body.code=403)');
+        return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+      }
+      return response.data;
+    } catch (err: any) {
+      if (err?.response?.status === 403 || err?.response?.data?.code === 403) {
+        console.warn('Accès interdit à /pdv (HTTP 403)');
+        return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+      }
+      if (err?.response?.status === 429) {
+        console.warn('Trop de requêtes vers /pdv (HTTP 429) — renvoi page vide');
+        return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+      }
+      throw err;
+    }
   },
 
   getAllPDVsNoPagination: async (filters: PDVFilters = {}) => {
-    const response = await api.get('/pdv', { params: { page: 1, limit: 1000, ...filters } });
-    return response.data;
+    try {
+      const response = await api.get('/pdv', { params: { page: 1, limit: 1000, ...filters } });
+      if (response?.data && response.data.code === 403) {
+        console.warn('Accès interdit à /pdv (body.code=403)');
+        return { data: [] };
+      }
+      return response.data;
+    } catch (err: any) {
+      if (err?.response?.status === 403 || err?.response?.data?.code === 403) {
+        console.warn('Accès interdit à /pdv (HTTP 403)');
+        return { data: [] };
+      }
+      if (err?.response?.status === 429) {
+        console.warn('Trop de requêtes vers /pdv (HTTP 429) — renvoi d\'un tableau vide');
+        return { data: [] };
+      }
+      throw err;
+    }
   },
 
   getPDVById: async (id: number): Promise<PDV> => {

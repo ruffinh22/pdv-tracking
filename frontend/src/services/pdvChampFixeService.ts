@@ -17,8 +17,24 @@ export interface PdvChampFixe {
 
 export const pdvChampFixeService = {
   getAll: async (): Promise<PdvChampFixe[]> => {
-    const response = await api.get('/pdv-champs-fixes');
-    return response.data;
+    try {
+      const response = await api.get('/pdv-champs-fixes');
+      if (response?.data && response.data.code === 403) {
+        console.warn('Accès interdit à /pdv-champs-fixes (body.code=403)');
+        return [];
+      }
+      return response.data;
+    } catch (err: any) {
+      if (err?.response?.status === 403 || err?.response?.data?.code === 403) {
+        console.warn('Accès interdit à /pdv-champs-fixes (HTTP 403)');
+        return [];
+      }
+      if (err?.response?.status === 429) {
+        console.warn('Trop de requêtes reçues pour /pdv-champs-fixes (HTTP 429) — renvoi d\'un tableau vide');
+        return [];
+      }
+      throw err;
+    }
   },
 
   update: async (

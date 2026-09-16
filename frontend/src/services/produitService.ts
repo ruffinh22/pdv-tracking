@@ -33,7 +33,23 @@ export const produitService = {
 
   // Liste complète (sans pagination), utilisée pour le multi-select "Type de produit vendu"
   getAllProduitsFull: async () => {
-    const response = await api.get('/produits', { params: { all: true } });
-    return response.data;
+    try {
+      const response = await api.get('/produits', { params: { all: true } });
+      if (response?.data && response.data.code === 403) {
+        console.warn('Accès interdit à /produits (body.code=403)');
+        return [];
+      }
+      return response.data;
+    } catch (err: any) {
+      if (err?.response?.status === 403 || err?.response?.data?.code === 403) {
+        console.warn('Accès interdit à /produits (HTTP 403)');
+        return [];
+      }
+      if (err?.response?.status === 429) {
+        console.warn('Trop de requêtes reçues pour /produits (HTTP 429) — renvoi d\'un tableau vide');
+        return [];
+      }
+      throw err;
+    }
   }
 };

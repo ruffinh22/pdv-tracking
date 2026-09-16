@@ -167,7 +167,6 @@ const Produits = () => {
               <tr>
                 <th>Nom</th>
                 <th>Catégorie</th>
-                <th>Prix Unitaire</th>
                 <th>Statut</th>
                 <th className="text-right pr-6">Actions</th>
               </tr>
@@ -175,11 +174,11 @@ const Produits = () => {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-ink-400">Chargement...</td>
+                  <td colSpan={4} className="text-center py-10 text-ink-400">Chargement...</td>
                 </tr>
               ) : filteredProduits.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-ink-400">
+                  <td colSpan={4} className="text-center py-10 text-ink-400">
                     Aucun produit trouvé
                   </td>
                 </tr>
@@ -200,9 +199,6 @@ const Produits = () => {
                       </div>
                     </td>
                     <td className="text-ink-600">{produit.categorie || '-'}</td>
-                    <td className="font-medium text-ink-900">
-                      {produit.prix_unitaire ? `${Number(produit.prix_unitaire).toLocaleString('fr-FR')} FCFA` : '-'}
-                    </td>
                     <td>
                       <span className={produit.statut === 'actif' ? 'badge badge-success' : 'badge badge-neutral'}>
                         {produit.statut === 'actif' ? 'Actif' : 'Inactif'}

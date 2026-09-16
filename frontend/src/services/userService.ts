@@ -25,8 +25,24 @@ export const userService = {
   // Liste complète (sans pagination), utilisée pour alimenter les listes
   // déroulantes Commercial / Superviseur / Chef de zone du formulaire de tagging PDV.
   getUsersByRole: async (role: UserRole): Promise<User[]> => {
-    const response = await api.get('/users', { params: { role, all: true } });
-    return response.data;
+    try {
+      const response = await api.get('/users', { params: { role, all: true } });
+      // Certaines réponses backend renvoient HTTP 200 mais un payload
+      // indiquant `code: 403` — traiter cela comme un accès interdit.
+      if (response?.data && response.data.code === 403) {
+        console.warn('Accès interdit à /users (body.code=403) for role=', role);
+        return [];
+      }
+      return response.data;
+    } catch (err: any) {
+      // Gérer les 403 HTTP classiques et retourner une liste vide pour
+      // ne pas casser les listes déroulantes du formulaire.
+      if (err?.response?.status === 403 || err?.response?.data?.code === 403) {
+        console.warn('Accès interdit à /users (HTTP 403) for role=', role);
+        return [];
+      }
+      throw err;
+    }
   },
 
   getUserById: async (id: number): Promise<User> => {
