@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 import { initDatabase, clearAllData } from '@/lib/database';
@@ -7,51 +7,39 @@ import { CONFIG } from '@/config';
 import { syncService } from '@/services/syncService';
 import { startBackgroundLocationTracking, stopBackgroundLocationTracking } from '@/tasks/locationTask';
 import { getOrCreateTerminalId } from '@/lib/terminalId';
-import { GPSPoint, Produit, SyncStatus, VenteLocale } from '@/types';
+import { EchecLocalisation, obtenirPosition, suivrePosition } from '@/lib/location';
+import { GPSPoint, SyncStatus } from '@/types';
 
-// Mock storage for web
 const webStorage: Record<string, string> = {};
 
-// Conditional imports for native-only modules
 let SecureStore: any = {
   getItemAsync: async (key: string) => webStorage[key] || null,
-  setItemAsync: async (key: string, value: string) => { webStorage[key] = value; },
-  deleteItemAsync: async (key: string) => { delete webStorage[key]; },
+  setItemAsync: async (key: string, value: string) => {
+    webStorage[key] = value;
+  },
+  deleteItemAsync: async (key: string) => {
+    delete webStorage[key];
+  },
 };
 
-let Location: any = {
-  requestForegroundPermissionsAsync: async () => ({ status: 'granted' }),
-  requestBackgroundPermissionsAsync: async () => ({ status: 'granted' }),
-  getCurrentPositionAsync: async () => ({
-    coords: { latitude: 0, longitude: 0, accuracy: 0 },
-    timestamp: Date.now(),
-  }),
-  Accuracy: { High: 'high', Balanced: 'balanced' },
-};
+let Location: any = null;
 
 if (Platform.OS !== 'web') {
   try {
     SecureStore = require('expo-secure-store');
     Location = require('expo-location');
-  } catch (e) {
-    console.warn('[AppContext] Native modules not available:', e);
+  } catch (error) {
+    console.warn('[AppContext] Modules natifs indisponibles:', error);
   }
-}
-
-// Use shared secureStoreMock on web for consistent secure storage across modules
-if (Platform.OS === 'web') {
+} else {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    // Note: path relative to this file -> ../lib/secureStoreMock
     SecureStore = require('../lib/secureStoreMock');
-  } catch (e) {
-    // fallback to local in-file mock
+  } catch {
+    // On garde le mock local.
   }
 }
 
-const getSecureItem = async (key: string): Promise<string | null> => {
-  return await SecureStore.getItemAsync(key);
-};
+const getSecureItem = async (key: string): Promise<string | null> => SecureStore.getItemAsync(key);
 const setSecureItem = async (key: string, value: string): Promise<void> => {
   await SecureStore.setItemAsync(key, value);
 };
@@ -66,6 +54,18 @@ export interface AgentInfo {
   matricule: string;
 }
 
+/**
+ * État de l'acquisition GPS, explicite. C'est ce qui manquait : l'écran ne
+ * disposait que de `currentLocation === null`, qui confond « en cours »,
+ * « permission refusée » et « échec ». Résultat, un indicateur de chargement
+ * tournait indéfiniment sans qu'on puisse savoir quoi corriger.
+ */
+export type EtatGPS =
+  | { statut: 'inconnu' }
+  | { statut: 'acquisition' }
+  | { statut: 'ok'; source: 'fraiche' | 'cache' }
+  | { statut: 'echec'; raison: EchecLocalisation; message: string };
+
 interface AppContextValue {
   bootstrapping: boolean;
   isOnboarded: boolean;
@@ -75,16 +75,16 @@ interface AppContextValue {
   pdvId: string | null;
   initialLocation: GPSPoint | null;
   currentLocation: GPSPoint | null;
+  etatGPS: EtatGPS;
   isTracking: boolean;
-  produits: Produit[];
-  pendingVentes: VenteLocale[];
-  history: VenteLocale[];
+  permissionArrierePlan: boolean;
+  positionsEnAttente: number;
+  derniereSynchro: string | null;
   syncStatus: SyncStatus;
   lastSyncedCount: number | null;
   register: (matricule: string) => Promise<{ ok: boolean; message?: string }>;
   refreshLocation: () => Promise<GPSPoint | null>;
-  refreshHistory: () => Promise<void>;
-  loadProducts: () => Promise<void>;
+  refreshQueue: () => Promise<void>;
   syncNow: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -92,87 +92,24 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 /**
- * Récupère une position GPS rapidement plutôt que d'attendre une précision
- * maximale. `Accuracy.High` peut mettre 10-30s (voire plus) à converger en
- * intérieur ou avec un signal faible — largement suffisant pour un tracking
- * au mètre près, mais inutile ici : la géofence a un rayon de 500m. On utilise
- * `Balanced` (assisté réseau, beaucoup plus rapide) avec un timeout court, et
- * si même ça traîne, on retombe sur la dernière position connue (quasi
- * instantanée) plutôt que de bloquer l'utilisateur indéfiniment.
- */
-async function getFastLocation(LocationModule: any) {
-  const freshFix = LocationModule.getCurrentPositionAsync({
-    accuracy: LocationModule.Accuracy.Balanced,
-  });
-  const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 8000));
-
-  const loc = await Promise.race([freshFix, timeout]);
-  if (loc) return loc;
-
-  try {
-    const lastKnown = await LocationModule.getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000 });
-    if (lastKnown) return lastKnown;
-  } catch {
-    // pas de position en cache non plus, on retente la position fraîche ci-dessous
-  }
-
-  // Dernier recours : on attend la position fraîche jusqu'au bout, tant pis pour le délai.
-  return freshFix;
-}
-
-/**
- * Un message d'erreur diagnostique plutôt que le générique "vérifiez votre
- * connexion" : quand axios ne reçoit AUCUNE réponse (error.request existe mais
- * pas error.response), c'est très souvent que l'app n'arrive pas à joindre
- * l'adresse configurée (mauvais réseau Wi‑Fi, IP du serveur qui a changé) —
- * on le dit explicitement avec l'URL utilisée pour que ce soit diagnosticable
- * sur le terrain, au lieu de faire deviner à l'utilisateur.
+ * Message d'erreur diagnostique plutôt que le générique « vérifiez votre
+ * connexion » : quand axios ne reçoit AUCUNE réponse, c'est presque toujours
+ * que l'app n'arrive pas à joindre l'adresse configurée.
  */
 function networkErrorMessage(error: any): string {
   if (error?.code === 'ECONNABORTED') {
-    return `Le serveur (${CONFIG.API_BASE_URL}) met trop de temps à répondre. Réessayez, ou vérifiez que le serveur est bien démarré.`;
+    return `Le serveur (${CONFIG.API_BASE_URL}) met trop de temps à répondre. Réessayez, ou vérifiez qu'il est bien démarré.`;
   }
   if (error?.request && !error?.response) {
-    return `Serveur injoignable à l'adresse ${CONFIG.API_BASE_URL}. Vérifiez que votre téléphone est sur le même réseau Wi‑Fi que le serveur, et que l'adresse configurée est correcte.`;
+    return `Serveur injoignable à l'adresse ${CONFIG.API_BASE_URL}. Vérifiez que votre téléphone est sur le même réseau que le serveur.`;
   }
-  return 'Impossible de créer votre compte. Vérifiez votre connexion réseau.';
+  return "Impossible de finaliser l'association. Vérifiez votre connexion réseau.";
 }
 
-/**
- * Re-remplit la base locale avec l'historique serveur d'un PDV existant —
- * utile après une reconnexion suivant un "purge" (déconnexion), qui vide la
- * base locale. Ne fait rien si la base locale a déjà des ventes (cas normal
- * de reconnexion sans purge) : ni appel réseau superflu, ni doublon, et ça
- * reste quasi instantané dans le cas courant.
- */
-async function pullHistoryFromServer(pdvId: string): Promise<void> {
-  try {
-    const alreadyHasData = await syncService.hasLocalHistory();
-    if (alreadyHasData) return;
-
-    const { data } = await api.get(`/ventes/mobile/history/${pdvId}`, { timeout: 8000 });
-    const ventes = Array.isArray(data) ? data : data?.data || [];
-    if (ventes.length > 0) {
-      await syncService.importVentesFromServer(Number(pdvId), ventes);
-    }
-  } catch (error) {
-    // Best-effort : on ne bloque jamais la connexion pour ça, l'utilisateur
-    // pourra retenter plus tard (le prochain login réessaiera automatiquement
-    // puisque la base locale sera toujours vide).
-    console.warn('[app] Récupération historique serveur échouée (non-bloquant):', error);
-  }
-}
-
-/**
- * Décrit le terminal (marque + modèle) pour la colonne "Type_Terminal" du
- * mapping standard. `expo-device` est optionnel : s'il n'est pas dans le build,
- * on renvoie un objet vide et le serveur retombe sur la plateforme seule. Rien
- * n'est bloquant — il s'agit d'un pré-remplissage, corrigeable depuis le web.
- */
+/** Décrit le terminal (marque + modèle) pour la colonne « Type_Terminal ». */
 function decrireAppareil(): { marque?: string; modele?: string; os_version?: string } {
   if (Platform.OS === 'web') return {};
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const Device = require('expo-device');
     return {
       marque: Device.brand || Device.manufacturer || undefined,
@@ -193,31 +130,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [pdvId, setPdvId] = useState<string | null>(null);
   const [initialLocation, setInitialLocation] = useState<GPSPoint | null>(null);
   const [currentLocation, setCurrentLocation] = useState<GPSPoint | null>(null);
+  const [etatGPS, setEtatGPS] = useState<EtatGPS>({ statut: 'inconnu' });
   const [isTracking, setIsTracking] = useState(false);
-  const [produits, setProduits] = useState<Produit[]>([]);
-  const [pendingVentes, setPendingVentes] = useState<VenteLocale[]>([]);
-  const [history, setHistory] = useState<VenteLocale[]>([]);
+  const [permissionArrierePlan, setPermissionArrierePlan] = useState(false);
+  const [positionsEnAttente, setPositionsEnAttente] = useState(0);
+  const [derniereSynchro, setDerniereSynchro] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [lastSyncedCount, setLastSyncedCount] = useState<number | null>(null);
 
-  const refreshHistory = useCallback(async () => {
-    const [all, pending] = await Promise.all([
-      syncService.getVentesHistory(),
-      syncService.getPendingVentes(),
-    ]);
-    setHistory(all);
-    setPendingVentes(pending);
+  // Évite les avertissements « setState sur composant démonté » et, surtout,
+  // empêche une réponse GPS tardive d'écraser un état déjà réinitialisé.
+  const monte = useRef(true);
+  useEffect(() => {
+    monte.current = true;
+    return () => {
+      monte.current = false;
+    };
   }, []);
 
-  const loadProducts = useCallback(async () => {
+  const refreshQueue = useCallback(async () => {
     try {
-      const { data } = await api.get('/produits/list', { params: { all: 'true' }, timeout: 8000 });
-      const list = Array.isArray(data) ? data : data?.data || [];
-      setProduits(list);
+      const enAttente = await syncService.getPendingPositions();
+      if (monte.current) setPositionsEnAttente(enAttente.length);
     } catch (error) {
-      console.warn('[app] Erreur chargement produits (non bloquante):', error);
-      setProduits([]);
+      console.warn('[app] Lecture de la file de positions impossible:', error);
     }
+  }, []);
+
+  /**
+   * Acquisition de position. Se termine toujours : succès, ou état d'échec
+   * lisible par l'écran. Aucun chemin ne peut laisser `etatGPS` sur
+   * « acquisition » indéfiniment — c'était la cause du blocage.
+   */
+  const refreshLocation = useCallback(async (): Promise<GPSPoint | null> => {
+    setEtatGPS({ statut: 'acquisition' });
+    const resultat = await obtenirPosition();
+
+    if (!monte.current) return null;
+
+    if (resultat.ok) {
+      setCurrentLocation(resultat.point);
+      setEtatGPS({ statut: 'ok', source: resultat.source });
+      return resultat.point;
+    }
+
+    setEtatGPS({ statut: 'echec', raison: resultat.raison, message: resultat.message });
+    return null;
   }, []);
 
   const beginTracking = useCallback(async () => {
@@ -225,30 +183,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setIsTracking(true);
       return;
     }
-    
-    const { status: fg } = await Location.requestForegroundPermissionsAsync();
-    if (fg !== 'granted') return;
-    const { status: bg } = await Location.requestBackgroundPermissionsAsync();
-    if (bg !== 'granted') return;
+    if (!Location) return;
 
-    await startBackgroundLocationTracking(
-      CONFIG.LOCATION.TRACKING_INTERVAL,
-      CONFIG.LOCATION.TRACKING_DISTANCE
-    );
-    setIsTracking(true);
+    try {
+      const { status: premierPlan } = await Location.requestForegroundPermissionsAsync();
+      if (premierPlan !== 'granted') {
+        setIsTracking(false);
+        return;
+      }
+
+      const { status: arrierePlan } = await Location.requestBackgroundPermissionsAsync();
+      setPermissionArrierePlan(arrierePlan === 'granted');
+
+      if (arrierePlan !== 'granted') {
+        // Sans permission d'arrière-plan on ne peut pas démarrer la tâche
+        // système, mais l'app reste utilisable au premier plan : on ne sort
+        // plus en silence en laissant croire que le suivi tourne.
+        setIsTracking(false);
+        return;
+      }
+
+      await startBackgroundLocationTracking(
+        CONFIG.LOCATION.TRACKING_INTERVAL,
+        CONFIG.LOCATION.TRACKING_DISTANCE
+      );
+      setIsTracking(true);
+    } catch (error) {
+      console.warn('[app] Démarrage du suivi impossible:', error);
+      setIsTracking(false);
+    }
   }, []);
 
+  // --- Démarrage de l'application ---------------------------------------
   useEffect(() => {
     (async () => {
       try {
         await initDatabase();
         const onboarded = await getSecureItem('isOnboarded');
+
         if (onboarded === 'true') {
-          // Lectures indépendantes du stockage sécurisé : en parallèle plutôt qu'en
-          // chaîne, pour ne pas cumuler leurs latences une par une au démarrage.
-          // On relit aussi l'ancienne clé "msisdn" en repli, pour les terminaux déjà
-          // associés avant ce changement — leur session reste valide sans qu'ils
-          // aient à se réassocier.
           const [savedTerminalId, savedLegacyMsisdn, savedPdvId, savedLat, savedLng, savedMatricule, savedAgent] =
             await Promise.all([
               getSecureItem('terminalId'),
@@ -259,14 +232,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               getSecureItem('matricule'),
               getSecureItem('agent'),
             ]);
+
           setTerminalId(savedTerminalId || savedLegacyMsisdn || '');
           setMatricule(savedMatricule || '');
           if (savedAgent) {
             try {
               setAgent(JSON.parse(savedAgent));
             } catch {
-              // Entrée corrompue : on repart sans identité d'agent affichée,
-              // ce qui est purement cosmétique (le PDV reste rattaché côté serveur).
+              // Entrée corrompue : cosmétique, le PDV reste rattaché côté serveur.
             }
           }
           setPdvId(savedPdvId);
@@ -274,65 +247,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setInitialLocation({ latitude: Number(savedLat), longitude: Number(savedLng) });
           }
           setIsOnboarded(true);
-          // Historique local (rapide, SQLite) et catalogue produit (réseau) n'ont pas
-          // de dépendance entre eux : on les lance en parallèle. Le tracking démarre
-          // en même temps plutôt que d'attendre la fin des deux précédents.
-          await Promise.all([refreshHistory(), loadProducts(), beginTracking()]);
+
+          // Le démarrage n'ATTEND plus l'acquisition GPS : elle se poursuit en
+          // arrière-plan et l'accueil affiche son propre état. Auparavant, une
+          // acquisition qui ne revenait jamais bloquait tout le démarrage.
+          await refreshQueue();
+          beginTracking().catch(() => {});
+          refreshLocation().catch(() => {});
         }
       } catch (error) {
         console.error('[app] Erreur bootstrap:', error);
       } finally {
-        setBootstrapping(false);
+        if (monte.current) setBootstrapping(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const refreshLocation = useCallback(async () => {
-    if (Platform.OS === 'web') {
-      const point: GPSPoint | null = await new Promise<GPSPoint | null>((resolve) => {
-        if (!navigator || !navigator.geolocation) {
-          resolve(null);
-          return;
-        }
+  // --- Suivi continu au premier plan -------------------------------------
+  // C'est ce qui fait vivre les coordonnées à l'écran sans intervention.
+  useEffect(() => {
+    if (!isOnboarded) return;
+    let arreter: (() => void) | null = null;
+    let annule = false;
 
-        navigator.geolocation.getCurrentPosition(
-          ({ coords }) => {
-            resolve({
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-              accuracy: coords.accuracy ?? 0,
-              timestamp: Date.now(),
-            });
-          },
-          () => {
-            resolve(null);
-          },
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 1000 }
-        );
-      });
+    suivrePosition((point) => {
+      if (!annule && monte.current) {
+        setCurrentLocation(point);
+        setEtatGPS({ statut: 'ok', source: 'fraiche' });
+      }
+    }).then((stop) => {
+      if (annule) stop();
+      else arreter = stop;
+    });
 
-      setCurrentLocation(point);
-      return point;
-    }
-
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return null;
-      const loc = await getFastLocation(Location);
-      const point: GPSPoint = {
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-        accuracy: loc.coords.accuracy,
-        timestamp: loc.timestamp,
-      };
-      setCurrentLocation(point);
-      return point;
-    } catch (error) {
-      console.error('[app] Erreur GPS:', error);
-      return null;
-    }
-  }, []);
+    return () => {
+      annule = true;
+      if (arreter) arreter();
+    };
+  }, [isOnboarded]);
 
   const register = useCallback(
     async (matriculeSaisi: string): Promise<{ ok: boolean; message?: string }> => {
@@ -341,66 +294,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ok: false, message: 'Saisissez votre numéro matricule.' };
       }
 
-      // L'ID terminal n'est pas saisi par l'utilisateur : il est dérivé de
-      // l'appareil (ou tiré au sort en repli) une seule fois puis persisté
-      // — voir lib/terminalId. C'est lui qui identifiera le PDV côté serveur.
       const deviceTerminalId = await getOrCreateTerminalId();
-      let point: GPSPoint | null = null;
 
-      if (Platform.OS === 'web') {
-        point = await new Promise<GPSPoint | null>((resolve) => {
-            if (!navigator || !navigator.geolocation) {
-              resolve(null);
-              return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-              ({ coords }) => {
-                resolve({
-                  latitude: coords.latitude,
-                  longitude: coords.longitude,
-                  accuracy: coords.accuracy ?? 0,
-                  timestamp: Date.now(),
-                });
-              },
-              () => {
-                resolve(null);
-              },
-              { enableHighAccuracy: true, timeout: 15000, maximumAge: 1000 }
-            );
-          });
-
-          if (!point) {
-            return { ok: false, message: 'Impossible d\'obtenir la position GPS. Autorisez la géolocalisation dans votre navigateur.' };
-          }
-          setCurrentLocation(point);
-      } else {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          return { ok: false, message: "La permission de localisation est requise pour continuer." };
-        }
-
-        let loc;
-        try {
-          loc = await getFastLocation(Location);
-        } catch {
-          return { ok: false, message: "Impossible d'obtenir votre position GPS. Vérifiez que le GPS est activé." };
-        }
-
-        point = {
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-          accuracy: loc.coords.accuracy,
-        };
-        setCurrentLocation(point);
+      // Acquisition bornée : en cas d'échec on remonte le message précis
+      // (permission, GPS coupé, signal absent) plutôt qu'un texte générique.
+      setEtatGPS({ statut: 'acquisition' });
+      const resultat = await obtenirPosition();
+      if (!resultat.ok) {
+        setEtatGPS({ statut: 'echec', raison: resultat.raison, message: resultat.message });
+        return { ok: false, message: resultat.message };
       }
 
+      const point = resultat.point;
+      setCurrentLocation(point);
+      setEtatGPS({ statut: 'ok', source: resultat.source });
+
       try {
-        // Un seul aller-retour réseau, idempotent côté serveur sur
-        // `terminal_id` : si ce terminal a déjà été enrôlé, on récupère son
-        // dossier au lieu d'en créer un doublon. Le serveur crée le PDV à
-        // l'état "brouillon" et le rattache à l'agent via son matricule ;
-        // le reste de la fiche sera complété depuis le back-office.
         const { data: pdv } = await api.post(
           '/pdv/mobile/enroll',
           {
@@ -411,9 +320,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             device_info: {
               platform: Platform.OS,
               version: '2.0.0',
-              // Modèle réel de l'appareil : c'est lui qui alimente la colonne
-              // "Type_Terminal" du mapping standard, qui attend une référence
-              // matériel (TS10, Z100…) et non une famille d'OS.
               ...decrireAppareil(),
               accuracy: point.accuracy ?? null,
               timestamp: new Date().toISOString(),
@@ -446,34 +352,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setInitialLocation({ latitude: lat, longitude: lng });
         setIsOnboarded(true);
 
-        // pullHistoryFromServer ne fait rien (et n'appelle pas le réseau) si la
-        // base locale a déjà des données — donc pas de coût pour un nouveau PDV.
-        await Promise.all([pullHistoryFromServer(String(pdv.id)), loadProducts(), beginTracking()]);
-        await refreshHistory();
+        await refreshQueue();
+        beginTracking().catch(() => {});
         return { ok: true };
       } catch (error: any) {
         const message = error?.response?.data?.error || networkErrorMessage(error);
         return { ok: false, message };
       }
     },
-    [beginTracking, loadProducts, refreshHistory]
+    [beginTracking, refreshQueue]
   );
 
   const syncNow = useCallback(async () => {
     setSyncStatus('syncing');
     const result = await syncService.autoSync();
+    if (!monte.current) return;
     setSyncStatus(result.success ? 'success' : 'error');
     setLastSyncedCount(result.synced);
-    await refreshHistory();
-    setTimeout(() => setSyncStatus('idle'), 2500);
-  }, [refreshHistory]);
+    if (result.success) setDerniereSynchro(new Date().toISOString());
+    await refreshQueue();
+    setTimeout(() => {
+      if (monte.current) setSyncStatus('idle');
+    }, 2500);
+  }, [refreshQueue]);
 
   const logout = useCallback(async () => {
-    // Clear UI state and local session immediately so the app appears logged out.
     setIsTracking(false);
     setSyncStatus('idle');
     setLastSyncedCount(null);
-
     setIsOnboarded(false);
     setTerminalId('');
     setMatricule('');
@@ -481,15 +387,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPdvId(null);
     setInitialLocation(null);
     setCurrentLocation(null);
-    setHistory([]);
-    setPendingVentes([]);
-    setProduits([]);
+    setEtatGPS({ statut: 'inconnu' });
+    setPositionsEnAttente(0);
+    setDerniereSynchro(null);
 
-    // Remove secure items (best-effort). Do not let failures prevent UI logout.
     // Note : on garde volontairement `terminalId` — c'est l'identité stable de
-    // cet appareil. Se déconnecter remet l'écran d'association, mais tant que
-    // l'app n'est pas désinstallée, elle retrouve le même PDV côté backend
-    // (upsert) sans jamais redemander de saisie à l'utilisateur.
+    // cet appareil. Se déconnecter ramène l'écran d'association, mais tant que
+    // l'app n'est pas désinstallée, elle retrouve le même PDV côté backend.
     try {
       await Promise.all([
         deleteSecureItem('pdvId'),
@@ -501,30 +405,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         deleteSecureItem('initialLng'),
       ]);
     } catch (error) {
-      console.warn('[app] Erreur lors de la suppression des identifiants locaux:', error);
+      console.warn('[app] Suppression des identifiants locaux:', error);
     }
 
-    // Clear local DB/persistence (best-effort). This removes local ventes/positions so
-    // history doesn't persist after logout.
     try {
       await clearAllData();
     } catch (error) {
-      console.warn('[app] Erreur lors du nettoyage de la base locale:', error);
+      console.warn('[app] Nettoyage de la base locale:', error);
     }
 
-    // Attempt to stop background tracking but don't block logout flow on failures or delays.
     stopBackgroundLocationTracking().catch((error) => {
-      console.warn('[app] Erreur pendant l\'arrêt du tracking en arrière-plan (non-bloquant):', error);
+      console.warn('[app] Arrêt du suivi en arrière-plan (non bloquant):', error);
     });
   }, []);
 
-  // If the app is not onboarded, redirect to onboarding.
   useEffect(() => {
     if (!bootstrapping && !isOnboarded) {
       try {
         router.replace('/onboarding');
-      } catch (e) {
-        // ignore routing errors
+      } catch {
+        // Erreur de routage ignorée : l'écran suivant re-tentera.
       }
     }
   }, [bootstrapping, isOnboarded]);
@@ -539,16 +439,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       pdvId,
       initialLocation,
       currentLocation,
+      etatGPS,
       isTracking,
-      produits,
-      pendingVentes,
-      history,
+      permissionArrierePlan,
+      positionsEnAttente,
+      derniereSynchro,
       syncStatus,
       lastSyncedCount,
       register,
       refreshLocation,
-      refreshHistory,
-      loadProducts,
+      refreshQueue,
       syncNow,
       logout,
     }),
@@ -561,16 +461,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       pdvId,
       initialLocation,
       currentLocation,
+      etatGPS,
       isTracking,
-      produits,
-      pendingVentes,
-      history,
+      permissionArrierePlan,
+      positionsEnAttente,
+      derniereSynchro,
       syncStatus,
       lastSyncedCount,
       register,
       refreshLocation,
-      refreshHistory,
-      loadProducts,
+      refreshQueue,
       syncNow,
       logout,
     ]

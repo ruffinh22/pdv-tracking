@@ -3,25 +3,23 @@ const router = express.Router();
 const dashboardController = require('../controllers/dashboardController.js');
 const authMiddleware = require('../middleware/authMiddleware');
 
-// KPIs généraux
+// KPIs généraux (tagging + suivi terrain, plus aucun compteur de ventes)
 router.get('/kpi', authMiddleware, dashboardController.getKPIs);
 
-// Point 5 : PDV tagués/actifs/inactifs par période + par produit + ratio
+// Synthèse complète de la page Reporting, en un seul appel
+router.get('/reporting', authMiddleware, dashboardController.getReportingSynthese);
+
+// PDV tagués/actifs/inactifs par période + par produit + ratio
 router.get('/pdv-stats', authMiddleware, dashboardController.getPDVStats);
 router.get('/pdv-par-produit', authMiddleware, dashboardController.getPDVParProduit);
 router.get('/ratio-produits', authMiddleware, dashboardController.getRatioProduits);
 
-// Point 3 : analyses transverses (ville, commune, quartier, agence, commercial, superviseur, chef de zone)
+// Analyses transverses (ville, commune, quartier, agence, commercial, superviseur, chef de zone)
 router.get('/analyses', authMiddleware, dashboardController.getAnalyses);
 
-// Point 6 : instrus (PDV ayant quitté leur zone/position initiale) + export
+// Instrus (PDV ayant quitté leur zone/position initiale) + export
 router.get('/instrus', authMiddleware, dashboardController.getInstrus);
 router.get('/instrus/export', authMiddleware, dashboardController.exportInstrusExcel);
-
-// Ventes
-router.get('/ventes/periode', authMiddleware, dashboardController.getVentesPeriode);
-router.get('/ventes/produit', authMiddleware, dashboardController.getVentesParProduit);
-router.get('/ventes/zone', authMiddleware, dashboardController.getVentesParZone);
 
 router.get('/pdv/actifs', authMiddleware, dashboardController.getPDVActifs);
 router.get('/alertes/actives', authMiddleware, dashboardController.getAlertesActives);

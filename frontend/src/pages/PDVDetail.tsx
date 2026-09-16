@@ -215,11 +215,29 @@ const PDVDetail = () => {
   } | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
-  const { data: pdv, isLoading } = useQuery({
+  const { data: pdv, isLoading, error } = useQuery({
     queryKey: ['pdv', pdvId],
     queryFn: () => pdvService.getPDVById(pdvId),
     enabled: Number.isFinite(pdvId),
+    // Le dossier est relu à chaque ouverture : il porte aussi les attributs
+    // personnalisés (définitions + valeurs). Si l'admin vient d'ajouter ou de
+    // retirer un champ, l'agent doit le voir sans recharger son onglet.
+    staleTime: 0,
+    refetchOnMount: 'always',
+    // Un 403 (hors périmètre) et un 404 (inexistant) sont des réponses
+    // définitives : les réessayer ne fait que multiplier les appels inutiles
+    // et retarder l'affichage du message à l'utilisateur.
+    retry: (nombreEchecs, err: any) => {
+      const code = err?.response?.status;
+      if (code === 403 || code === 404 || code === 401) return false;
+      return nombreEchecs < 1;
+    },
   });
+
+  const codeErreur = (error as any)?.response?.status;
+  // Les requêtes de suivi visent le même PDV : inutile de les lancer si la
+  // fiche elle-même est hors périmètre — elles renverraient trois 403 de plus.
+  const accesAutorise = !codeErreur;
 
   const { data: agences = [] } = useQuery({
     queryKey: ['agences-list'],
@@ -245,6 +263,13 @@ const PDVDetail = () => {
   const { data: champsFixes = [] } = useQuery({
     queryKey: ['pdv-champs-fixes'],
     queryFn: pdvChampFixeService.getAll,
+    // Le `staleTime` global de 5 minutes s'appliquait aussi à ce réglage : un
+    // champ masqué ou renommé par l'admin restait invisible pour l'agent tant
+    // que son onglet n'avait pas été rechargé. La configuration du formulaire
+    // est relue à chaque ouverture d'un dossier — c'est un appel léger, et
+    // c'est ce qui garantit que l'agent remplit bien le formulaire courant.
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
   const champsFixesParCode = useMemo(
     () => new Map(champsFixes.map((c) => [c.code, c] as [string, PdvChampFixe])),
@@ -268,7 +293,7 @@ const PDVDetail = () => {
   const { data: historique } = useQuery({
     queryKey: ['pdv-historique', pdvId, periodeHeures],
     queryFn: () => pdvService.getPDVHistorique(pdvId, { ...fenetre, limit: 1000 }),
-    enabled: Number.isFinite(pdvId),
+    enabled: Number.isFinite(pdvId) && accesAutorise,
     // Le direct passe par le socket ; ce rafraîchissement n'est qu'un filet de
     // sécurité si la connexion temps réel tombe.
     refetchInterval: 120_000,
@@ -277,7 +302,7 @@ const PDVDetail = () => {
   const { data: trajet } = useQuery({
     queryKey: ['pdv-trajet', pdvId, periodeHeures],
     queryFn: () => pdvService.getPDVTrajet(pdvId, fenetre),
-    enabled: Number.isFinite(pdvId),
+    enabled: Number.isFinite(pdvId) && accesAutorise,
     refetchInterval: 120_000,
   });
 
@@ -418,9 +443,32 @@ const PDVDetail = () => {
     );
   }
 
+  if (codeErreur === 403) {
+    return (
+      <div className="card text-center py-16">
+        <p className="text-base font-semibold text-ink-900">Dossier hors de votre périmètre</p>
+        <p className="text-sm text-ink-500 mt-2 max-w-md mx-auto">
+          Ce point de vente n'est pas rattaché à votre compte. Demandez à votre superviseur de vous
+          l'assigner si vous devez le compléter.
+        </p>
+        <button type="button" onClick={() => navigate('/pdv')} className="btn btn-secondary mt-5 mx-auto">
+          Retour à la liste
+        </button>
+      </div>
+    );
+  }
+
   if (!pdv) {
     return (
-      <div className="card text-center py-16 text-ink-400">Ce PDV est introuvable.</div>
+      <div className="card text-center py-16">
+        <p className="text-base font-semibold text-ink-900">Ce dossier est introuvable</p>
+        <p className="text-sm text-ink-500 mt-2">
+          Il a peut-être été supprimé, ou l'adresse est incorrecte.
+        </p>
+        <button type="button" onClick={() => navigate('/pdv')} className="btn btn-secondary mt-5 mx-auto">
+          Retour à la liste
+        </button>
+      </div>
     );
   }
 

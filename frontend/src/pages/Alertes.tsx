@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, AlertTriangle, MapPin, Calendar, Filter } from 'lucide-react';
 import { alerteService, Alerte } from '../services/alerteService';
 import { useState } from 'react';
@@ -19,6 +19,9 @@ const Alertes = () => {
       if (filter === 'all') return { ...allAlertes, data: alertes };
       return { ...allAlertes, data: alertes.filter((a: Alerte) => a.statut === filter) };
     },
+    // Les alertes précédentes restent affichées pendant le rechargement :
+    // changer de filtre ou de page ne doit pas vider l'écran.
+    placeholderData: keepPreviousData,
   });
 
   const alertes = alertesResponse?.data || [];

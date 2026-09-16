@@ -1,5 +1,26 @@
 import { create } from 'zustand';
 
+/**
+ * Callbacks de purge enregistrés par l'application (voir App.tsx). Le store
+ * d'authentification ne peut pas importer le QueryClient sans créer un cycle
+ * d'imports, donc c'est l'application qui vient s'enregistrer ici.
+ */
+const purgeurs: Array<() => void> = [];
+
+export function enregistrerPurgeSession(purge: () => void): void {
+  purgeurs.push(purge);
+}
+
+function purgerSession(): void {
+  for (const purge of purgeurs) {
+    try {
+      purge();
+    } catch (error) {
+      console.warn('[auth] Purge de session partielle:', error);
+    }
+  }
+}
+
 interface User {
   id: number;
   nom: string;
@@ -39,6 +60,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
 
+    // Le cache React Query survit au changement de compte : sans cette purge,
+    // un utilisateur qui se connecte après un autre hérite des listes du
+    // précédent (liste des PDV, référentiels...). Il voyait donc des PDV hors
+    // de son périmètre, et tout clic dessus renvoyait un 403 du serveur —
+    // lequel, lui, filtrait correctement.
+    purgerSession();
+
     set({
       user: data.user,
       token: data.token,
@@ -48,6 +76,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    // Même raison qu'à la connexion : ne laisser aucune donnée du compte
+    // sortant en mémoire pour le compte suivant.
+    purgerSession();
     set({
       user: null,
       token: null,

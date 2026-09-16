@@ -37,6 +37,10 @@ export default function OnboardingScreen() {
   const verificationEnCours = useRef<string | null>(null);
 
   useEffect(() => {
+    // L'acquisition GPS est lancée sans être attendue : elle se termine
+    // toujours (succès ou échec typé) et la carte de position affiche son
+    // propre état. L'écran reste utilisable pendant ce temps — l'agent peut
+    // saisir son matricule sans attendre le signal.
     refreshLocation();
     // L'ID terminal est lu (ou créé au premier lancement) dès l'arrivée sur
     // l'écran, pour l'afficher avant même que l'agent n'appuie sur
@@ -120,7 +124,7 @@ export default function OnboardingScreen() {
         </Animated.View>
 
         <View style={styles.content}>
-          <GPSStatusCard current={currentLocation} initial={null} showRefreshButton={false} />
+          <GPSStatusCard current={currentLocation} initial={null} />
 
           <View style={{ height: 16 }} />
 
@@ -178,6 +182,12 @@ export default function OnboardingScreen() {
               loading={submitting}
               disabled={!terminalId || !matriculeValide || verification.statut === 'inconnu'}
             />
+            {!currentLocation ? (
+              <Text style={styles.gpsHelper}>
+                La position sera relevée au moment de la connexion. Assurez-vous que le GPS est
+                activé et que vous êtes à l'air libre.
+              </Text>
+            ) : null}
             <Text style={styles.debugUrl}>Serveur : {CONFIG.API_BASE_URL}</Text>
           </Animated.View>
         </View>
@@ -187,6 +197,13 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
+  gpsHelper: {
+    fontSize: 11.5,
+    color: colors.ink[400],
+    marginTop: 10,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
   debugUrl: {
     textAlign: 'center',
     fontSize: 10.5,

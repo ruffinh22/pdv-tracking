@@ -6,6 +6,12 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import * as Haptics from 'expo-haptics';
 import { colors } from '@/theme/colors';
 
+/**
+ * Deux onglets seulement : l'app suit la position d'un point de vente, elle
+ * n'enregistre rien d'autre. Les onglets « Ventes » et « Historique » ont été
+ * supprimés avec les écrans correspondants.
+ */
+
 function AnimatedTabIcon({
   name,
   color,
@@ -69,27 +75,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Accueil',
+          title: 'Suivi',
           tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="home" size={size} color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="ventes"
-        options={{
-          title: 'Ventes',
-          tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="add-circle" size={size} color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="historique"
-        options={{
-          title: 'Historique',
-          tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="time" size={size} color={color} focused={focused} />
+            <AnimatedTabIcon name="navigate" size={size} color={color} focused={focused} />
           ),
         }}
       />

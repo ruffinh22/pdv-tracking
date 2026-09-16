@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agenceService, Agence } from '../services/agenceService';
 import { Plus, Edit, Trash2, Building2, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -17,7 +17,11 @@ const Agences = () => {
 
   const { data: agencesResponse, isLoading } = useQuery({
     queryKey: ['agences', currentPage, itemsPerPage],
-    queryFn: () => agenceService.getAllAgences(currentPage, itemsPerPage)
+    queryFn: () => agenceService.getAllAgences(currentPage, itemsPerPage),
+    // Les données précédentes restent affichées pendant le rechargement :
+    // changer de page ou de filtre ne doit pas vider la table puis la
+    // reconstruire, ce qui donnait l'impression d'un rechargement complet.
+    placeholderData: keepPreviousData,
   });
 
   const agences = agencesResponse?.data || [];

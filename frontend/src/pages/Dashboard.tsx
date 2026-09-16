@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
-  MapPin, ShoppingCart, AlertTriangle, Activity, Download, ArrowUpRight,
+  MapPin, AlertTriangle, Activity, Download, ArrowUpRight,
   Users2, UserX, PieChart as PieChartIcon, Navigation
 } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer
 } from 'recharts';
-import { dashboardService, Periode, Dimension } from '../services/dashboardService';
+import { dashboardService, telechargerBlob, Periode, Dimension } from '../services/dashboardService';
 import { pdvService } from '../services/pdvService';
 import LeafletMap from '../components/LeafletMap';
 import toast from 'react-hot-toast';
@@ -26,10 +27,10 @@ const KPI_CARDS = [
     iconColor: 'text-primary-600',
   },
   {
-    key: 'ventes_aujourdhui',
-    label: "Ventes Aujourd'hui",
-    caption: 'Transactions enregistrées',
-    icon: ShoppingCart,
+    key: 'pdv_tagues_aujourdhui',
+    label: "Tagués aujourd'hui",
+    caption: 'Nouveaux PDV enrôlés',
+    icon: Navigation,
     accentBar: 'bg-teal-500',
     iconBg: 'bg-teal-50',
     iconColor: 'text-teal-600',
@@ -44,9 +45,9 @@ const KPI_CARDS = [
     iconColor: 'text-danger-600',
   },
   {
-    key: 'total_pdv',
-    label: 'Total PDV',
-    caption: 'Base complète référencée',
+    key: 'pdv_muets',
+    label: 'Terminaux muets',
+    caption: 'Sans remontée GPS récente',
     icon: Activity,
     accentBar: 'bg-amber-500',
     iconBg: 'bg-amber-50',
@@ -99,10 +100,8 @@ const Dashboard = () => {
     queryFn: dashboardService.getAlertesActives,
   });
 
-  const { data: pdvActifs } = useQuery({
-    queryKey: ['pdvActifs'],
-    queryFn: dashboardService.getPDVActifs,
-  });
+  // NOTE: `pdvActifs` query removed — variable was unused and caused a
+  // TypeScript build error. If needed later, re-add the query and use the data.
 
   const { data: allPDVsResponse } = useQuery({
     queryKey: ['pdvsAllForMap'],
@@ -113,30 +112,37 @@ const Dashboard = () => {
   const { data: pdvStats } = useQuery({
     queryKey: ['pdvStats', periode],
     queryFn: () => dashboardService.getPDVStats(periode),
+    placeholderData: keepPreviousData,
   });
 
   // Point 5 : nombre de PDV tagués par type de produit
   const { data: pdvParProduit = [] } = useQuery({
     queryKey: ['pdvParProduit', produitsPeriode],
     queryFn: () => dashboardService.getPDVParProduit(produitsPeriode),
+    placeholderData: keepPreviousData,
   });
 
   // Point 5 : ratio de chaque produit vs la base totale de PDV tagués
   const { data: ratioProduits } = useQuery({
     queryKey: ['ratioProduits', produitsPeriode],
     queryFn: () => dashboardService.getRatioProduits(produitsPeriode),
+    placeholderData: keepPreviousData,
   });
 
   // Point 3 : analyses transverses par dimension
   const { data: analyses, isLoading: analysesLoading } = useQuery({
     queryKey: ['analyses', dimension],
     queryFn: () => dashboardService.getAnalyses(dimension, 'all'),
+    // Garde les données précédentes pendant le rechargement : changer de
+    // dimension ne doit pas faire clignoter tout le bloc en "Chargement…".
+    placeholderData: keepPreviousData,
   });
 
   // Point 6 : instrus (PDV ayant quitté leur zone/position initiale)
   const { data: instrus = [], isLoading: instrusLoading } = useQuery({
     queryKey: ['instrus', instrusStatut],
     queryFn: () => dashboardService.getInstrus(instrusStatut || undefined),
+    placeholderData: keepPreviousData,
   });
 
   const allPDVs: any[] = allPDVsResponse?.data || [];
@@ -144,14 +150,7 @@ const Dashboard = () => {
   const handleExportExcel = async () => {
     try {
       const blob = await dashboardService.exportExcel();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tracking_pdv_export_${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      telechargerBlob(blob, `tracking_pdv_export_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success('Export Excel réussi');
     } catch (error) {
       toast.error('Erreur lors de l\'export Excel');
@@ -162,14 +161,7 @@ const Dashboard = () => {
   const handleExportInstrus = async () => {
     try {
       const blob = await dashboardService.exportInstrusExcel(instrusStatut || undefined);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `instrus_${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      telechargerBlob(blob, `instrus_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success('Export des instrus réussi');
     } catch (error) {
       toast.error('Erreur lors de l\'export des instrus');
@@ -178,9 +170,9 @@ const Dashboard = () => {
 
   const values: Record<string, number> = {
     pdv_actifs: kpis?.pdv_actifs || 0,
-    ventes_aujourdhui: kpis?.ventes_aujourdhui || 0,
+    pdv_tagues_aujourdhui: kpis?.pdv_tagues_aujourdhui || 0,
     alertes_actives: kpis?.alertes_actives || 0,
-    total_pdv: pdvActifs?.length || 0,
+    pdv_muets: kpis?.pdv_muets || 0,
   };
 
   const analysesChartData = useMemo(() => {
@@ -524,10 +516,14 @@ const Dashboard = () => {
       <div className="panel-pro">
         <div className="panel-pro-head">
           <h2 className="text-base font-semibold text-ink-900">Alertes récentes</h2>
+          {/* <Link> et non <a href> : un <a> déclenche une navigation
+              navigateur, donc un rechargement complet de l'application
+              (re-téléchargement du bundle, perte du cache React Query,
+              re-login visuel). <Link> reste dans le routeur. */}
           {alertesActives && alertesActives.length > 0 && (
-            <a href="/alertes" className="text-sm text-primary-600 font-medium flex items-center gap-1 hover:text-primary-700">
+            <Link to="/alertes" className="text-sm text-primary-600 font-medium flex items-center gap-1 hover:text-primary-700">
               Voir tout <ArrowUpRight className="w-3.5 h-3.5" />
-            </a>
+            </Link>
           )}
         </div>
         <div className="p-4">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { produitService } from '../services/produitService';
 import { Plus, Edit, Trash2, Package, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -23,7 +23,11 @@ const Produits = () => {
 
   const { data: produitsResponse, isLoading } = useQuery({
     queryKey: ['produits', currentPage, itemsPerPage],
-    queryFn: () => produitService.getAllProduits(currentPage, itemsPerPage)
+    queryFn: () => produitService.getAllProduits(currentPage, itemsPerPage),
+    // Les données précédentes restent affichées pendant le rechargement :
+    // changer de page ou de filtre ne doit pas vider la table puis la
+    // reconstruire, ce qui donnait l'impression d'un rechargement complet.
+    placeholderData: keepPreviousData,
   });
 
   const produits = produitsResponse?.data || [];

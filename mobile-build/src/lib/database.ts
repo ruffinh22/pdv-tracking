@@ -1,7 +1,15 @@
 import { Platform } from 'react-native';
 import { CONFIG } from '@/config';
 
-// Conditional import for expo-sqlite (native only)
+/**
+ * Base locale du terminal. Elle ne contient plus qu'une seule table :
+ * `positions`, la file d'attente des points GPS à remonter au serveur quand le
+ * réseau revient. La table `ventes` (produit, montant, vendeur…) a été
+ * supprimée avec le reste de la partie vente ; `nettoyerAncienSchema` la
+ * supprime aussi sur les terminaux déjà installés, pour ne pas laisser traîner
+ * indéfiniment des données commerciales dans la base d'un appareil de terrain.
+ */
+
 let SQLite: any;
 if (Platform.OS !== 'web') {
   SQLite = require('expo-sqlite');
@@ -9,10 +17,10 @@ if (Platform.OS !== 'web') {
 
 let dbInstance: any = null;
 
-// Mock database for web — lightweight persistence using localStorage
-const VENTES_KEY = 'pdv_tracking_ventes';
 const POSITIONS_KEY = 'pdv_tracking_positions';
 const IDS_KEY = 'pdv_tracking_ids';
+// Clés de l'ancienne version, purgées au démarrage.
+const CLES_OBSOLETES = ['pdv_tracking_ventes'];
 
 const readStore = (key: string) => {
   try {
@@ -27,66 +35,32 @@ const writeStore = (key: string, value: any) => {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // ignore
+    // Quota plein ou stockage indisponible : la perte d'une position locale
+    // n'est pas bloquante, la suivante repartira.
   }
 };
 
-// Mock database for web
+/** Implémentation minimale compatible expo-sqlite, pour la cible web. */
 const createMockDatabase = () => ({
-  execAsync: async (_sql?: string) => {
-    // noop for CREATE TABLE statements
-    return;
-  },
-    runAsync: async (sql: string, params?: any[]) => {
-    // Simple parser for INSERT and UPDATE used by the app
-    if (sql.startsWith('INSERT INTO ventes')) {
-      const ventes = readStore(VENTES_KEY);
-      let idsRaw: any = readStore(IDS_KEY);
-      const ids = idsRaw && !Array.isArray(idsRaw) ? idsRaw : { ventes: 0, positions: 0 };
-      const insertId = (ids.ventes || 0) + 1;
-      ids.ventes = insertId;
+  execAsync: async (_sql?: string) => {},
 
-      const [produit, nom_concessionnaire, nom_vendeur, contact_vendeur, montant, latitude, longitude, horodatage, statut, pdv_id] = params || [];
-      const row = {
-        id: insertId,
-        produit,
-        nom_concessionnaire,
-        nom_vendeur,
-        contact_vendeur,
-        montant,
-        latitude,
-        longitude,
-        horodatage,
-        statut: statut || 'en_attente',
-        synchronise: 0,
-        pdv_id: pdv_id || null,
-        created_at: new Date().toISOString(),
-      };
-      ventes.push(row);
-      writeStore(VENTES_KEY, ventes);
-      writeStore(IDS_KEY, ids);
-      return { insertId };
-    }
-
-    if (sql.startsWith('UPDATE ventes SET synchronise = 1 WHERE id =')) {
-      const ventes = readStore(VENTES_KEY);
-      const id = params && params[0];
-      for (const v of ventes) {
-        if (v.id === id) v.synchronise = 1;
-      }
-      writeStore(VENTES_KEY, ventes);
-      return { changes: 1 };
-    }
-
+  runAsync: async (sql: string, params?: any[]) => {
     if (sql.startsWith('INSERT INTO positions')) {
       const positions = readStore(POSITIONS_KEY);
-      let idsRaw: any = readStore(IDS_KEY);
-      const ids = idsRaw && !Array.isArray(idsRaw) ? idsRaw : { ventes: 0, positions: 0 };
+      const idsRaw: any = readStore(IDS_KEY);
+      const ids = idsRaw && !Array.isArray(idsRaw) ? idsRaw : { positions: 0 };
       const insertId = (ids.positions || 0) + 1;
       ids.positions = insertId;
       const [latitude, longitude, horodatage, precision] = params || [];
-      const row = { id: insertId, latitude, longitude, horodatage, precision, synchronise: 0, created_at: new Date().toISOString() };
-      positions.push(row);
+      positions.push({
+        id: insertId,
+        latitude,
+        longitude,
+        horodatage,
+        precision,
+        synchronise: 0,
+        created_at: new Date().toISOString(),
+      });
       writeStore(POSITIONS_KEY, positions);
       writeStore(IDS_KEY, ids);
       return { insertId };
@@ -95,74 +69,72 @@ const createMockDatabase = () => ({
     if (sql.startsWith('UPDATE positions SET synchronise = 1 WHERE id =')) {
       const positions = readStore(POSITIONS_KEY);
       const id = params && params[0];
-      for (const p of positions) {
-        if (p.id === id) p.synchronise = 1;
-      }
+      for (const p of positions) if (p.id === id) p.synchronise = 1;
       writeStore(POSITIONS_KEY, positions);
       return { changes: 1 };
     }
 
+    if (sql.startsWith('DELETE FROM positions')) {
+      writeStore(POSITIONS_KEY, []);
+      return { changes: 0 };
+    }
+
     return { insertId: 0 };
   },
-  getFirstAsync: async () => null,
-  getAllAsync: async (sql?: string, params?: any[]) => {
-    // Support select queries used by syncService
-    if (!sql) return [];
-    if (sql.includes('FROM ventes')) {
-      const ventes = readStore(VENTES_KEY);
-      if (sql.includes('WHERE synchronise = 0')) {
-        return ventes.filter((v: any) => Number(v.synchronise) === 0).sort((a: any, b: any) => (a.horodatage < b.horodatage ? 1 : -1));
-      }
-      if (sql.includes('ORDER BY horodatage DESC LIMIT')) {
-        const limit = params && params[0] ? Number(params[0]) : ventes.length;
-        return ventes.slice().sort((a: any, b: any) => (a.horodatage < b.horodatage ? 1 : -1)).slice(0, limit);
-      }
-      return ventes.slice().sort((a: any, b: any) => (a.horodatage < b.horodatage ? 1 : -1));
-    }
 
-    if (sql.includes('FROM positions')) {
+  getFirstAsync: async (sql?: string) => {
+    if (sql && sql.includes('FROM positions')) {
       const positions = readStore(POSITIONS_KEY);
-      if (sql.includes('WHERE synchronise = 0')) {
-        return positions.filter((p: any) => Number(p.synchronise) === 0).sort((a: any, b: any) => (a.horodatage < b.horodatage ? 1 : -1));
-      }
-      return positions.slice().sort((a: any, b: any) => (a.horodatage < b.horodatage ? 1 : -1));
+      return positions.length > 0 ? { total: positions.length } : { total: 0 };
     }
-
-    return [];
+    return null;
   },
+
+  getAllAsync: async (sql?: string, params?: any[]) => {
+    if (!sql || !sql.includes('FROM positions')) return [];
+    let positions = readStore(POSITIONS_KEY);
+    if (sql.includes('WHERE synchronise = 0')) {
+      positions = positions.filter((p: any) => Number(p.synchronise) === 0);
+    }
+    positions = positions
+      .slice()
+      .sort((a: any, b: any) => (a.horodatage < b.horodatage ? 1 : -1));
+    if (sql.includes('LIMIT') && params && params.length > 0) {
+      positions = positions.slice(0, Number(params[params.length - 1]));
+    }
+    return positions;
+  },
+
+  withTransactionAsync: async (fn: () => Promise<void>) => fn(),
   closeAsync: async () => {},
 });
 
 export async function getDatabase(): Promise<any> {
-  if (Platform.OS === 'web') {
-    return createMockDatabase();
-  }
-  
+  if (Platform.OS === 'web') return createMockDatabase();
   if (dbInstance) return dbInstance;
   dbInstance = await SQLite.openDatabaseAsync(CONFIG.DB.NAME);
   return dbInstance;
 }
 
+/**
+ * Supprime les vestiges de la version « ventes » sur les terminaux déjà
+ * déployés. Best-effort : un échec ici ne doit jamais empêcher l'app de
+ * démarrer.
+ */
+async function nettoyerAncienSchema(db: any): Promise<void> {
+  try {
+    if (Platform.OS === 'web') {
+      for (const cle of CLES_OBSOLETES) localStorage.removeItem(cle);
+      return;
+    }
+    await db.execAsync('DROP TABLE IF EXISTS ventes;');
+  } catch (error) {
+    console.warn('[database] Nettoyage de l\'ancien schéma ignoré:', error);
+  }
+}
+
 export async function initDatabase(): Promise<any> {
   const db = await getDatabase();
-
-  await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS ventes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      produit TEXT NOT NULL,
-      nom_concessionnaire TEXT,
-      nom_vendeur TEXT,
-      contact_vendeur TEXT,
-      montant REAL DEFAULT 0,
-      latitude REAL NOT NULL,
-      longitude REAL NOT NULL,
-      horodatage TEXT NOT NULL,
-      statut TEXT DEFAULT 'en_attente',
-      synchronise INTEGER DEFAULT 0,
-      pdv_id INTEGER,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
 
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS positions (
@@ -183,51 +155,36 @@ export async function initDatabase(): Promise<any> {
     );
   `);
 
+  await nettoyerAncienSchema(db);
   return db;
 }
 
 export async function clearAllData(): Promise<void> {
   if (Platform.OS === 'web') {
     try {
-      localStorage.removeItem(VENTES_KEY);
       localStorage.removeItem(POSITIONS_KEY);
-      // reset ids
-      try {
-        localStorage.setItem(IDS_KEY, JSON.stringify({ ventes: 0, positions: 0 }));
-      } catch {
-        // ignore
+      for (const cle of CLES_OBSOLETES) localStorage.removeItem(cle);
+      localStorage.setItem(IDS_KEY, JSON.stringify({ positions: 0 }));
+
+      const prefixe = 'secure_store_mock_';
+      const aSupprimer: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const cle = localStorage.key(i);
+        if (cle && cle.startsWith(prefixe)) aSupprimer.push(cle);
       }
-      // Remove legacy secure keys and any prefixed secure_store_mock_ keys
-      try {
-        const legacyKeys = ['pdvId', 'msisdn', 'isOnboarded', 'initialLat', 'initialLng'];
-        for (const k of legacyKeys) {
-          localStorage.removeItem(k);
-        }
-        // also remove any keys created by secureStoreMock (prefix safe)
-        const prefix = 'secure_store_mock_';
-        const toRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (!key) continue;
-          if (key.startsWith(prefix)) toRemove.push(key);
-        }
-        for (const k of toRemove) localStorage.removeItem(k);
-      } catch {
-        // ignore
-      }
-    } catch (e) {
-      console.warn('[database] clearAllData web failed:', e);
+      for (const cle of aSupprimer) localStorage.removeItem(cle);
+    } catch (error) {
+      console.warn('[database] clearAllData web a échoué:', error);
     }
     return;
   }
 
   try {
     const db = await getDatabase();
-    await db.execAsync('DELETE FROM ventes;');
     await db.execAsync('DELETE FROM positions;');
     await db.execAsync('DELETE FROM metadata;');
-  } catch (e) {
-    console.warn('[database] clearAllData failed:', e);
+  } catch (error) {
+    console.warn('[database] clearAllData a échoué:', error);
   }
 }
 

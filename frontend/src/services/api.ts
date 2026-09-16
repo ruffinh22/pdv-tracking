@@ -27,7 +27,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Emit a global event instead of forcing a full-page reload.
+      // The app can listen to `api:unauthorized` and perform a
+      // client-side navigation (`useNavigate`) to `/login`.
+      window.dispatchEvent(new CustomEvent('api:unauthorized'));
     }
     return Promise.reject(error);
   }

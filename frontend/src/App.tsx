@@ -1,9 +1,11 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import { enregistrerPurgeSession } from './contexts/authContext';
 
 // Chargement paresseux par route : chaque page (et ses dépendances lourdes comme
 // Leaflet ou Recharts) n'est téléchargée que lorsqu'on y navigue, au lieu d'alourdir
@@ -43,35 +45,135 @@ const queryClient = new QueryClient({
   },
 });
 
+// Vide tout le cache de requêtes à chaque connexion et à chaque déconnexion,
+// pour qu'aucune donnée d'un compte ne soit visible par le suivant.
+enregistrerPurgeSession(() => {
+  queryClient.clear();
+});
+
 function App() {
+  // Handler component to perform SPA navigation on global API events.
+  function AuthRedirectHandler() {
+    const navigate = useNavigate();
+    useEffect(() => {
+      const handler = () => navigate('/login');
+      window.addEventListener('api:unauthorized', handler as EventListener);
+      return () => window.removeEventListener('api:unauthorized', handler as EventListener);
+    }, [navigate]);
+    return null;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
+        <AuthRedirectHandler />
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <Login />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
             <Route
-              path="/"
+              index
               element={
-                <ProtectedRoute>
-                  <Layout />
-                </ProtectedRoute>
+                <Suspense fallback={<RouteFallback />}>
+                  <Dashboard />
+                </Suspense>
               }
-            >
-              <Route index element={<Dashboard />} />
-              <Route path="pdv" element={<PDVList />} />
-              <Route path="pdv/:id" element={<PDVDetail />} />
-              <Route path="geofence" element={<GeofenceZones />} />
-              <Route path="alertes" element={<Alertes />} />
-              <Route path="users" element={<Users />} />
-              <Route path="tracking" element={<Tracking />} />
-              <Route path="reporting" element={<Reporting />} />
-              <Route path="produits" element={<Produits />} />
-              <Route path="agences" element={<Agences />} />
-              <Route path="pdv-attributs" element={<PdvAttributs />} />
-            </Route>
-          </Routes>
-        </Suspense>
+            />
+            <Route
+              path="pdv"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <PDVList />
+                </Suspense>
+              }
+            />
+            <Route
+              path="pdv/:id"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <PDVDetail />
+                </Suspense>
+              }
+            />
+            <Route
+              path="geofence"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <GeofenceZones />
+                </Suspense>
+              }
+            />
+            <Route
+              path="alertes"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <Alertes />
+                </Suspense>
+              }
+            />
+            <Route
+              path="users"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <Users />
+                </Suspense>
+              }
+            />
+            <Route
+              path="tracking"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <Tracking />
+                </Suspense>
+              }
+            />
+            <Route
+              path="reporting"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <Reporting />
+                </Suspense>
+              }
+            />
+            <Route
+              path="produits"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <Produits />
+                </Suspense>
+              }
+            />
+            <Route
+              path="agences"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <Agences />
+                </Suspense>
+              }
+            />
+            <Route
+              path="pdv-attributs"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <PdvAttributs />
+                </Suspense>
+              }
+            />
+          </Route>
+        </Routes>
       </BrowserRouter>
       <Toaster position="top-right" />
     </QueryClientProvider>

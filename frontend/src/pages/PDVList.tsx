@@ -1,11 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, MapPin, Phone, Search, X, ChevronDown, Tag, Filter, FileEdit, Download } from 'lucide-react';
 import { pdvService, PDV } from '../services/pdvService';
 import { agenceService } from '../services/agenceService';
 import { userService } from '../services/userService';
 import { produitService } from '../services/produitService';
-import { useMemo, useState } from 'react';
+import { pdvChampFixeService, PdvChampFixe } from '../services/pdvChampFixeService';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import Pagination from '../components/Pagination';
 import { useAuthStore } from '../contexts/authContext';
@@ -71,6 +72,10 @@ const PDVList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
+  // Recherche débattue : la clé de requête ne doit pas changer à chaque
+  // frappe, sinon on déclenche un appel réseau (et un re-rendu de la table)
+  // par caractère saisi.
+  const [rechercheDebattue, setRechercheDebattue] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'actif' | 'inactif' | 'suspendu'>('all');
   // File de travail de l'agent commercial : les dossiers enrôlés depuis le
   // mobile qui attendent d'être complétés.
@@ -106,6 +111,40 @@ const PDVList = () => {
     queryFn: produitService.getAllProduitsFull,
   });
 
+  // Configuration des champs fixes, administrée depuis Paramètres > Champs PDV.
+  // Le formulaire de création la respecte désormais comme le fait déjà la fiche
+  // de complétion : un champ masqué par l'admin ne doit pas réapparaître ici,
+  // sinon les deux écrans se contredisent. `staleTime: 0` + `refetchOnMount`
+  // parce que le défaut global (5 min) laissait les agents sur une version
+  // périmée du formulaire après un changement côté admin.
+  const { data: champsFixes = [] } = useQuery({
+    queryKey: ['pdv-champs-fixes'],
+    queryFn: pdvChampFixeService.getAll,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
+  const champsFixesParCode = useMemo(
+    () => new Map(champsFixes.map((c) => [c.code, c] as [string, PdvChampFixe])),
+    [champsFixes]
+  );
+  // Repli permissif tant que la configuration n'est pas chargée : mieux vaut
+  // afficher un champ de trop une fraction de seconde que de faire clignoter
+  // le formulaire.
+  const champVisible = (code: string) => champsFixesParCode.get(code)?.visible !== false;
+  const champObligatoire = (code: string) => champsFixesParCode.get(code)?.obligatoire === true;
+  const champLibelle = (code: string, defaut: string) =>
+    champsFixesParCode.get(code)?.libelle || defaut;
+  const etoile = (code: string) => (champObligatoire(code) ? ' *' : '');
+
+  useEffect(() => {
+    const minuteur = setTimeout(() => {
+      setRechercheDebattue(searchTerm.trim());
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(minuteur);
+  }, [searchTerm]);
+
   const filters = useMemo(() => ({
     ...(statusFilter !== 'all' ? { statut: statusFilter } : {}),
     ...(dossierFilter !== 'all' ? { statut_dossier: dossierFilter } : {}),
@@ -114,12 +153,18 @@ const PDVList = () => {
     ...(superviseurFilter ? { superviseur_id: superviseurFilter } : {}),
     ...(chefZoneFilter ? { chef_zone_id: chefZoneFilter } : {}),
     ...(produitFilter ? { produit_id: produitFilter } : {}),
-    ...(searchTerm ? { search: searchTerm } : {}),
-  }), [statusFilter, dossierFilter, agenceFilter, commercialFilter, superviseurFilter, chefZoneFilter, produitFilter, searchTerm]);
+    ...(rechercheDebattue ? { search: rechercheDebattue } : {}),
+  }), [statusFilter, dossierFilter, agenceFilter, commercialFilter, superviseurFilter, chefZoneFilter, produitFilter, rechercheDebattue]);
 
-  const { data: pdvsResponse, isLoading } = useQuery({
+  const { data: pdvsResponse, isLoading, isFetching } = useQuery({
     queryKey: ['pdvs', currentPage, itemsPerPage, filters],
     queryFn: () => pdvService.getAllPDVs(currentPage, itemsPerPage, filters),
+    // La clé de requête contient la page et les filtres : sans
+    // `keepPreviousData`, chaque clic sur "page suivante", sur un onglet ou
+    // sur un filtre repassait la table entière en "Chargement…" avant de la
+    // reconstruire — d'où l'impression que toute la page se rechargeait.
+    // Ici les lignes précédentes restent à l'écran pendant la requête.
+    placeholderData: keepPreviousData,
   });
 
   const pdvs: PDV[] = pdvsResponse?.data || [];
@@ -346,7 +391,7 @@ const PDVList = () => {
               type="text"
               placeholder="Rechercher un PDV, un numéro, un ID terminal..."
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="input pl-9"
             />
           </div>
@@ -392,6 +437,7 @@ const PDVList = () => {
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMoreFilters ? 'rotate-180' : ''}`} />
           </button>
           <span className="ml-auto text-xs text-ink-400">
+            {isFetching && !isLoading ? 'Mise à jour… · ' : ''}
             {pagination.total} résultat{pagination.total > 1 ? 's' : ''}
           </span>
         </div>
@@ -616,28 +662,35 @@ const PDVList = () => {
                         placeholder="Optionnel"
                       />
                     </div>
-                    <div>
-                      <label className="label">Nom du PDV</label>
-                      <input
-                        type="text"
-                        value={formData.nom_pdv}
-                        onChange={(e) => setFormData({ ...formData, nom_pdv: e.target.value })}
-                        className="input"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="label">MSISDN Responsable</label>
-                      <input
-                        type="text"
-                        value={formData.msisdn_responsable}
-                        onChange={(e) => setFormData({ ...formData, msisdn_responsable: e.target.value })}
-                        className="input"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Statut</label>
+                    {champVisible('nom_pdv') && (
+                      <div>
+                        <label className="label">{champLibelle('nom_pdv', 'Nom du PDV')}{etoile('nom_pdv')}</label>
+                        <input
+                          type="text"
+                          value={formData.nom_pdv}
+                          onChange={(e) => setFormData({ ...formData, nom_pdv: e.target.value })}
+                          className="input"
+                          required={champObligatoire('nom_pdv')}
+                        />
+                      </div>
+                    )}
+                    {champVisible('msisdn_responsable') && (
+                      <div>
+                        <label className="label">
+                          {champLibelle('msisdn_responsable', 'MSISDN Responsable')}{etoile('msisdn_responsable')}
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.msisdn_responsable}
+                          onChange={(e) => setFormData({ ...formData, msisdn_responsable: e.target.value })}
+                          className="input"
+                          required={champObligatoire('msisdn_responsable')}
+                        />
+                      </div>
+                    )}
+                    {champVisible('statut') && (
+                      <div>
+                      <label className="label">{champLibelle('statut', 'Statut')}</label>
                       <select
                         value={formData.statut}
                         onChange={(e) => setFormData({ ...formData, statut: e.target.value as any })}
@@ -647,7 +700,8 @@ const PDVList = () => {
                         <option value="inactif">Inactif</option>
                         <option value="suspendu">Suspendu</option>
                       </select>
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -655,40 +709,51 @@ const PDVList = () => {
                 <div>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">Tagging (Concessionnaire / Vendeur)</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">Nom du concessionnaire</label>
-                      <input
-                        type="text"
-                        value={formData.concessionnaire_nom}
-                        onChange={(e) => setFormData({ ...formData, concessionnaire_nom: e.target.value })}
-                        className="input"
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Nom du vendeur</label>
-                      <input
-                        type="text"
-                        value={formData.vendeur_nom}
-                        onChange={(e) => setFormData({ ...formData, vendeur_nom: e.target.value })}
-                        className="input"
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Contact du vendeur</label>
-                      <input
-                        type="text"
-                        value={formData.contact_vendeur}
-                        onChange={(e) => setFormData({ ...formData, contact_vendeur: e.target.value })}
-                        className="input"
-                      />
-                    </div>
+                    {champVisible('concessionnaire_nom') && (
+                      <div>
+                        <label className="label">{champLibelle('concessionnaire_nom', 'Nom du concessionnaire')}{etoile('concessionnaire_nom')}</label>
+                        <input
+                          type="text"
+                          value={formData.concessionnaire_nom}
+                          onChange={(e) => setFormData({ ...formData, concessionnaire_nom: e.target.value })}
+                          className="input"
+                          required={champObligatoire('concessionnaire_nom')}
+                        />
+                      </div>
+                    )}
+                    {champVisible('vendeur_nom') && (
+                      <div>
+                        <label className="label">{champLibelle('vendeur_nom', 'Nom du vendeur')}{etoile('vendeur_nom')}</label>
+                        <input
+                          type="text"
+                          value={formData.vendeur_nom}
+                          onChange={(e) => setFormData({ ...formData, vendeur_nom: e.target.value })}
+                          className="input"
+                          required={champObligatoire('vendeur_nom')}
+                        />
+                      </div>
+                    )}
+                    {champVisible('contact_vendeur') && (
+                      <div>
+                        <label className="label">{champLibelle('contact_vendeur', 'Contact du vendeur')}{etoile('contact_vendeur')}</label>
+                        <input
+                          type="text"
+                          value={formData.contact_vendeur}
+                          onChange={(e) => setFormData({ ...formData, contact_vendeur: e.target.value })}
+                          className="input"
+                          required={champObligatoire('contact_vendeur')}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Produits (choix multiples) */}
+                {champVisible('produits') && (
                 <div>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5 flex items-center gap-1.5">
-                    <Tag className="w-3.5 h-3.5" /> Type(s) de produit vendu
+                    <Tag className="w-3.5 h-3.5" />
+                    {champLibelle('produits', 'Type(s) de produit vendu')}{etoile('produits')}
                   </h3>
                   {produits.length === 0 ? (
                     <p className="text-sm text-ink-400">Aucun produit référencé. Ajoutez-en depuis la page Produits.</p>
@@ -714,13 +779,15 @@ const PDVList = () => {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Hiérarchie commerciale */}
                 <div>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">Hiérarchie commerciale</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">Agence</label>
+                    {champVisible('agence_id') && (
+                      <div>
+                      <label className="label">{champLibelle('agence_id', 'Agence')}{etoile('agence_id')}</label>
                       <select
                         value={formData.agence_id}
                         onChange={(e) => setFormData({ ...formData, agence_id: e.target.value ? Number(e.target.value) : '' })}
@@ -729,7 +796,8 @@ const PDVList = () => {
                         <option value="">Sélectionner une agence</option>
                         {agences.map((a) => <option key={a.id} value={a.id}>{a.nom_agence}</option>)}
                       </select>
-                    </div>
+                      </div>
+                    )}
                     <div>
                       <label className="label">Commercial</label>
                       {estCommercial ? (
@@ -754,8 +822,9 @@ const PDVList = () => {
                         </select>
                       )}
                     </div>
-                    <div>
-                      <label className="label">Superviseur</label>
+                    {champVisible('superviseur_id') && (
+                      <div>
+                      <label className="label">{champLibelle('superviseur_id', 'Superviseur')}{etoile('superviseur_id')}</label>
                       <select
                         value={formData.superviseur_id}
                         onChange={(e) => setFormData({ ...formData, superviseur_id: e.target.value ? Number(e.target.value) : '' })}
@@ -764,9 +833,11 @@ const PDVList = () => {
                         <option value="">Sélectionner un superviseur</option>
                         {superviseurs.map((u) => <option key={u.id} value={u.id}>{nomComplet(u)}</option>)}
                       </select>
-                    </div>
-                    <div>
-                      <label className="label">Chef de zone</label>
+                      </div>
+                    )}
+                    {champVisible('chef_zone_id') && (
+                      <div>
+                      <label className="label">{champLibelle('chef_zone_id', 'Chef de zone')}{etoile('chef_zone_id')}</label>
                       <select
                         value={formData.chef_zone_id}
                         onChange={(e) => setFormData({ ...formData, chef_zone_id: e.target.value ? Number(e.target.value) : '' })}
@@ -775,7 +846,8 @@ const PDVList = () => {
                         <option value="">Sélectionner un chef de zone</option>
                         {chefsZone.map((u) => <option key={u.id} value={u.id}>{nomComplet(u)}</option>)}
                       </select>
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -783,22 +855,54 @@ const PDVList = () => {
                 <div>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">Localisation</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="label">Pays</label>
-                      <input type="text" value={formData.pays} onChange={(e) => setFormData({ ...formData, pays: e.target.value })} className="input" />
-                    </div>
-                    <div>
-                      <label className="label">Ville</label>
-                      <input type="text" value={formData.ville} onChange={(e) => setFormData({ ...formData, ville: e.target.value })} className="input" />
-                    </div>
-                    <div>
-                      <label className="label">Commune</label>
-                      <input type="text" value={formData.commune} onChange={(e) => setFormData({ ...formData, commune: e.target.value })} className="input" />
-                    </div>
-                    <div>
-                      <label className="label">Quartier</label>
-                      <input type="text" value={formData.quartier} onChange={(e) => setFormData({ ...formData, quartier: e.target.value })} className="input" />
-                    </div>
+                    {champVisible('pays') && (
+                      <div>
+                        <label className="label">{champLibelle('pays', 'Pays')}{etoile('pays')}</label>
+                        <input
+                          type="text"
+                          value={formData.pays}
+                          onChange={(e) => setFormData({ ...formData, pays: e.target.value })}
+                          className="input"
+                          required={champObligatoire('pays')}
+                        />
+                      </div>
+                    )}
+                    {champVisible('ville') && (
+                      <div>
+                        <label className="label">{champLibelle('ville', 'Ville')}{etoile('ville')}</label>
+                        <input
+                          type="text"
+                          value={formData.ville}
+                          onChange={(e) => setFormData({ ...formData, ville: e.target.value })}
+                          className="input"
+                          required={champObligatoire('ville')}
+                        />
+                      </div>
+                    )}
+                    {champVisible('commune') && (
+                      <div>
+                        <label className="label">{champLibelle('commune', 'Commune')}{etoile('commune')}</label>
+                        <input
+                          type="text"
+                          value={formData.commune}
+                          onChange={(e) => setFormData({ ...formData, commune: e.target.value })}
+                          className="input"
+                          required={champObligatoire('commune')}
+                        />
+                      </div>
+                    )}
+                    {champVisible('quartier') && (
+                      <div>
+                        <label className="label">{champLibelle('quartier', 'Quartier')}{etoile('quartier')}</label>
+                        <input
+                          type="text"
+                          value={formData.quartier}
+                          onChange={(e) => setFormData({ ...formData, quartier: e.target.value })}
+                          className="input"
+                          required={champObligatoire('quartier')}
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>

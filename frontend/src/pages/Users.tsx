@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit, Trash2, Mail, Phone, Search, ToggleLeft, ToggleRight, X } from 'lucide-react';
 import { userService, User, UserRole } from '../services/userService';
 import { useMemo, useState } from 'react';
@@ -42,7 +42,11 @@ const UsersPage = () => {
 
   const { data: usersResponse, isLoading } = useQuery({
     queryKey: ['users', currentPage, itemsPerPage],
-    queryFn: () => userService.getAllUsers(currentPage, itemsPerPage)
+    queryFn: () => userService.getAllUsers(currentPage, itemsPerPage),
+    // Les données précédentes restent affichées pendant le rechargement :
+    // changer de page ou de filtre ne doit pas vider la table puis la
+    // reconstruire, ce qui donnait l'impression d'un rechargement complet.
+    placeholderData: keepPreviousData,
   });
 
   const users: User[] = usersResponse?.data || [];

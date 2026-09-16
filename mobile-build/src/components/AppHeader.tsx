@@ -16,7 +16,7 @@ import { useApp } from '@/context/AppContext';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type AppHeaderProps = {
-  /** Titre de la page affiché en grand — distingue chaque écran (Accueil, Nouvelle vente, ...) */
+  /** Titre de la page affiché en grand — distingue chaque écran (Suivi, Profil) */
   title: string;
   /** Icône Ionicons illustrant la section, affichée dans un badge coloré */
   icon: keyof typeof Ionicons.glyphMap;
@@ -24,7 +24,9 @@ type AppHeaderProps = {
 };
 
 export default function AppHeader({ title, icon, subtitle }: AppHeaderProps) {
-  const { syncNow, syncStatus, pendingVentes } = useApp();
+  // La file d'attente ne contient plus que des positions GPS : l'app
+  // n'enregistre plus de ventes.
+  const { syncNow, syncStatus, positionsEnAttente } = useApp();
   const insets = useSafeAreaInsets();
 
   const rotation = useSharedValue(0);
@@ -124,8 +126,8 @@ export default function AppHeader({ title, icon, subtitle }: AppHeaderProps) {
                 ? 'Synchronisé'
                 : syncStatus === 'error'
                   ? 'Échec'
-                  : pendingVentes.length > 0
-                    ? `Sync (${pendingVentes.length})`
+                  : positionsEnAttente > 0
+                    ? `Sync (${positionsEnAttente})`
                     : 'Sync'}
           </Text>
         </AnimatedPressable>
