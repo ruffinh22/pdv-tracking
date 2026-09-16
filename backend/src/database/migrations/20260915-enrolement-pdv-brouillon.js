@@ -108,8 +108,10 @@ module.exports = {
         aide: { type: Sequelize.STRING(255), allowNull: true },
         ordre: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
         actif: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
-        createdAt: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW },
-        updatedAt: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW }
+        // Convention du projet : colonnes de dates en français, comme sur
+        // toutes les autres tables — pas les noms par défaut de Sequelize.
+        date_creation: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW },
+        date_modification: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW }
       });
       await queryInterface.addIndex('pdv_attributs', ['actif'], { name: 'pdv_attributs_actif' });
       await queryInterface.addIndex('pdv_attributs', ['ordre'], { name: 'pdv_attributs_ordre' });
@@ -134,8 +136,8 @@ module.exports = {
           onDelete: 'CASCADE'
         },
         valeur: { type: Sequelize.TEXT, allowNull: true },
-        createdAt: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW },
-        updatedAt: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW }
+        date_creation: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW },
+        date_modification: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.NOW }
       });
       await queryInterface.addIndex('pdv_attribut_valeurs', ['pdv_id', 'attribut_id'], {
         name: 'pdv_attribut_valeurs_unique',

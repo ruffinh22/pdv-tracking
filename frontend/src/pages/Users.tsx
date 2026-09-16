@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit, Trash2, Mail, Phone, Search, ToggleLeft, ToggleRight, X } from 'lucide-react';
-import { userService, User } from '../services/userService';
+import { userService, User, UserRole } from '../services/userService';
 import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import Pagination from '../components/Pagination';
@@ -32,7 +32,9 @@ const UsersPage = () => {
     prenom: '',
     email: '',
     mot_de_passe: '',
-    role: 'commercial' as 'admin' | 'superviseur' | 'commercial' | 'chef_zone',
+    // Le type de rôle est celui du service, pas une liste recopiée : sans ça,
+    // éditer un compte "agence" ne compilait plus dès que ce rôle a été ajouté.
+    role: 'commercial' as UserRole,
     telephone: '',
     matricule: '',
     statut: 'actif' as 'actif' | 'inactif'
@@ -416,6 +418,7 @@ const UsersPage = () => {
                     <option value="commercial">Commercial</option>
                     <option value="superviseur">Superviseur</option>
                     <option value="chef_zone">Chef de zone</option>
+                    <option value="agence">Agence</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>

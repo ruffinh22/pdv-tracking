@@ -11,10 +11,12 @@ import {
   Save,
   Route,
   Radio,
+  Crosshair,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { pdvService, PDV } from '../services/pdvService';
+import { pdvService, estNomProvisoire } from '../services/pdvService';
 import { PdvAttributValorise } from '../services/pdvAttributService';
+import { pdvChampFixeService, PdvChampFixe } from '../services/pdvChampFixeService';
 import { agenceService } from '../services/agenceService';
 import { userService } from '../services/userService';
 import { produitService } from '../services/produitService';
@@ -34,6 +36,10 @@ interface FicheState {
   agence_id: number | '';
   superviseur_id: number | '';
   chef_zone_id: number | '';
+  // Champs du mapping standard partenaire (Template_mapping.xlsx)
+  type_terminal: string;
+  sous_zone: string;
+  id_distributeur: string;
   statut: 'actif' | 'inactif' | 'suspendu';
 }
 
@@ -50,6 +56,9 @@ const FICHE_VIDE: FicheState = {
   agence_id: '',
   superviseur_id: '',
   chef_zone_id: '',
+  type_terminal: '',
+  sous_zone: '',
+  id_distributeur: '',
   statut: 'actif',
 };
 
@@ -229,6 +238,24 @@ const PDVDetail = () => {
     queryFn: produitService.getAllProduitsFull,
   });
 
+  // Réglage admin de visibilité / obligation des champs fixes (Paramètres >
+  // Champs PDV). En attendant le chargement, on affiche tout comme avant —
+  // repli permissif plutôt que de faire disparaître des champs le temps d'un
+  // aller-retour réseau.
+  const { data: champsFixes = [] } = useQuery({
+    queryKey: ['pdv-champs-fixes'],
+    queryFn: pdvChampFixeService.getAll,
+  });
+  const champsFixesParCode = useMemo(
+    () => new Map(champsFixes.map((c) => [c.code, c] as [string, PdvChampFixe])),
+    [champsFixes]
+  );
+  const champVisible = (code: string) => champsFixesParCode.get(code)?.visible !== false;
+  const champObligatoire = (code: string) => champsFixesParCode.get(code)?.obligatoire === true;
+  const champLibelle = (code: string, defaut: string) =>
+    champsFixesParCode.get(code)?.libelle || defaut;
+  const etoile = (code: string) => (champObligatoire(code) ? ' *' : '');
+
   // Fenêtre de suivi demandée. Calculée une fois par changement de période pour
   // que la clé de requête reste stable — sinon `new Date()` à chaque rendu
   // relancerait la requête en boucle.
@@ -291,7 +318,10 @@ const PDVDetail = () => {
   useEffect(() => {
     if (!pdv) return;
     setFiche({
-      nom_pdv: pdv.nom_pdv?.startsWith('PDV (brouillon)') ? '' : pdv.nom_pdv || '',
+      // Le nom provisoire posé à l'enrôlement n'est pas une saisie de l'agent :
+      // on présente le champ vide plutôt que de lui faire effacer un libellé
+      // technique avant d'écrire la vraie enseigne.
+      nom_pdv: estNomProvisoire(pdv.nom_pdv) ? '' : pdv.nom_pdv || '',
       msisdn_responsable: pdv.msisdn_responsable || '',
       vendeur_nom: pdv.vendeur_nom || '',
       contact_vendeur: pdv.contact_vendeur || '',
@@ -303,6 +333,9 @@ const PDVDetail = () => {
       agence_id: pdv.agence_id ?? '',
       superviseur_id: pdv.superviseur_id ?? '',
       chef_zone_id: pdv.chef_zone_id ?? '',
+      type_terminal: pdv.type_terminal || '',
+      sous_zone: pdv.sous_zone || '',
+      id_distributeur: pdv.id_distributeur || '',
       statut: pdv.statut || 'actif',
     });
     setProduitsIds((pdv.produits || []).map((p) => p.id));
@@ -324,6 +357,34 @@ const PDVDetail = () => {
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.error || 'Erreur lors de l\'enregistrement');
+    },
+  });
+
+  // Reprise du géocodage inverse. Le remplissage automatique a lieu à
+  // l'enrôlement, mais il dépend d'un service externe : quand il a échoué sur
+  // le terrain, l'agent relance le calcul ici au lieu de ressaisir à la main
+  // une adresse que les coordonnées GPS suffisent à déterminer.
+  const geocodage = useMutation({
+    mutationFn: () => pdvService.regeocoderPDV(pdvId),
+    onSuccess: (data) => {
+      if (!data.champs_remplis || data.champs_remplis.length === 0) {
+        toast('Ces coordonnées ne permettent pas d\'en déduire plus. Complétez à la main.', {
+          icon: 'ℹ️',
+        });
+        return;
+      }
+      setFiche((f) => ({
+        ...f,
+        pays: data.pays || f.pays,
+        ville: data.ville || f.ville,
+        commune: data.commune || f.commune,
+        quartier: data.quartier || f.quartier,
+      }));
+      queryClient.invalidateQueries({ queryKey: ['pdv', pdvId] });
+      toast.success(`Rempli depuis le GPS : ${data.champs_remplis.join(', ')}`);
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Géocodage impossible pour le moment');
     },
   });
 
@@ -374,7 +435,7 @@ const PDVDetail = () => {
         </button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-ink-900">
-            {pdv.nom_pdv}
+            {estNomProvisoire(pdv.nom_pdv) ? 'Dossier à compléter' : pdv.nom_pdv}
           </h1>
           <p className="text-sm text-ink-500 mt-0.5">
             Dossier point de vente #{pdv.id}
@@ -391,12 +452,18 @@ const PDVDetail = () => {
         <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-3">
           Relevé du terrain
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
+          <div>
+            <div className="text-ink-400 text-xs mb-1">ID unique</div>
+            <div className="font-medium text-ink-900">{pdv.id_unique || '—'}</div>
+            <div className="text-xs text-ink-400">Référence pour les échanges externes</div>
+          </div>
           <div>
             <div className="flex items-center gap-1.5 text-ink-400 text-xs mb-1">
               <Smartphone className="w-3.5 h-3.5" /> ID terminal
             </div>
             <div className="font-medium text-ink-900 break-all">{pdv.id_terminal || '—'}</div>
+            <div className="text-xs text-ink-400">{pdv.type_terminal || 'Type non renseigné'}</div>
           </div>
           <div>
             <div className="text-ink-400 text-xs mb-1">Matricule agent</div>
@@ -548,65 +615,75 @@ const PDVDetail = () => {
               Identité du point de vente
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="label">Nom / enseigne du PDV *</label>
-                <input
-                  type="text"
-                  className="input"
-                  value={fiche.nom_pdv}
-                  onChange={(e) => setFiche({ ...fiche, nom_pdv: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="label">Nom et prénom du vendeur *</label>
-                <input
-                  type="text"
-                  className="input"
-                  value={fiche.vendeur_nom}
-                  onChange={(e) => setFiche({ ...fiche, vendeur_nom: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="label">Contact du vendeur</label>
-                <input
-                  type="tel"
-                  className="input"
-                  value={fiche.contact_vendeur}
-                  onChange={(e) => setFiche({ ...fiche, contact_vendeur: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="label">MSISDN responsable</label>
-                <input
-                  type="tel"
-                  className="input"
-                  value={fiche.msisdn_responsable}
-                  onChange={(e) => setFiche({ ...fiche, msisdn_responsable: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="label">Concessionnaire</label>
-                <input
-                  type="text"
-                  className="input"
-                  value={fiche.concessionnaire_nom}
-                  onChange={(e) => setFiche({ ...fiche, concessionnaire_nom: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="label">Statut</label>
-                <select
-                  className="input"
-                  value={fiche.statut}
-                  onChange={(e) => setFiche({ ...fiche, statut: e.target.value as any })}
-                >
-                  <option value="actif">Actif</option>
-                  <option value="inactif">Inactif</option>
-                  <option value="suspendu">Suspendu</option>
-                </select>
-              </div>
+              {champVisible('nom_pdv') && (
+                <div>
+                  <label className="label">{champLibelle('nom_pdv', 'Nom / enseigne du PDV')}{etoile('nom_pdv')}</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={fiche.nom_pdv}
+                    onChange={(e) => setFiche({ ...fiche, nom_pdv: e.target.value })}
+                  />
+                </div>
+              )}
+              {champVisible('vendeur_nom') && (
+                <div>
+                  <label className="label">{champLibelle('vendeur_nom', 'Nom et prénom du vendeur')}{etoile('vendeur_nom')}</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={fiche.vendeur_nom}
+                    onChange={(e) => setFiche({ ...fiche, vendeur_nom: e.target.value })}
+                  />
+                </div>
+              )}
+              {champVisible('contact_vendeur') && (
+                <div>
+                  <label className="label">{champLibelle('contact_vendeur', 'Contact du vendeur')}{etoile('contact_vendeur')}</label>
+                  <input
+                    type="tel"
+                    className="input"
+                    value={fiche.contact_vendeur}
+                    onChange={(e) => setFiche({ ...fiche, contact_vendeur: e.target.value })}
+                  />
+                </div>
+              )}
+              {champVisible('msisdn_responsable') && (
+                <div>
+                  <label className="label">{champLibelle('msisdn_responsable', 'MSISDN responsable')}{etoile('msisdn_responsable')}</label>
+                  <input
+                    type="tel"
+                    className="input"
+                    value={fiche.msisdn_responsable}
+                    onChange={(e) => setFiche({ ...fiche, msisdn_responsable: e.target.value })}
+                  />
+                </div>
+              )}
+              {champVisible('concessionnaire_nom') && (
+                <div>
+                  <label className="label">{champLibelle('concessionnaire_nom', 'Concessionnaire')}{etoile('concessionnaire_nom')}</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={fiche.concessionnaire_nom}
+                    onChange={(e) => setFiche({ ...fiche, concessionnaire_nom: e.target.value })}
+                  />
+                </div>
+              )}
+              {champVisible('statut') && (
+                <div>
+                  <label className="label">{champLibelle('statut', 'Statut')}{etoile('statut')}</label>
+                  <select
+                    className="input"
+                    value={fiche.statut}
+                    onChange={(e) => setFiche({ ...fiche, statut: e.target.value as any })}
+                  >
+                    <option value="actif">Actif</option>
+                    <option value="inactif">Inactif</option>
+                    <option value="suspendu">Suspendu</option>
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 
@@ -615,92 +692,163 @@ const PDVDetail = () => {
               Rattachement commercial
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="label">Agence *</label>
-                <select
-                  className="input"
-                  value={fiche.agence_id}
-                  onChange={(e) =>
-                    setFiche({ ...fiche, agence_id: e.target.value ? Number(e.target.value) : '' })
-                  }
-                  required
-                >
-                  <option value="">— Sélectionner —</option>
-                  {agences.map((a: any) => (
-                    <option key={a.id} value={a.id}>
-                      {a.nom_agence}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label">Superviseur *</label>
-                <select
-                  className="input"
-                  value={fiche.superviseur_id}
-                  onChange={(e) =>
-                    setFiche({
-                      ...fiche,
-                      superviseur_id: e.target.value ? Number(e.target.value) : '',
-                    })
-                  }
-                  required
-                >
-                  <option value="">— Sélectionner —</option>
-                  {superviseurs.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.prenom} {u.nom}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label">Chef de zone</label>
-                <select
-                  className="input"
-                  value={fiche.chef_zone_id}
-                  onChange={(e) =>
-                    setFiche({ ...fiche, chef_zone_id: e.target.value ? Number(e.target.value) : '' })
-                  }
-                >
-                  <option value="">— Sélectionner —</option>
-                  {chefsZone.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.prenom} {u.nom}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">
-              Localisation administrative
-            </h3>
-            <p className="text-xs text-ink-400 mb-2.5">
-              Pré-remplie par géocodage inverse à partir des coordonnées relevées sur le terrain.
-              Corrigez si nécessaire.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              {(['pays', 'ville', 'commune', 'quartier'] as const).map((champ) => (
-                <div key={champ}>
-                  <label className="label capitalize">{champ}</label>
+              {champVisible('agence_id') && (
+                <div>
+                  <label className="label">{champLibelle('agence_id', 'Agence')}{etoile('agence_id')}</label>
+                  <select
+                    className="input"
+                    value={fiche.agence_id}
+                    onChange={(e) =>
+                      setFiche({ ...fiche, agence_id: e.target.value ? Number(e.target.value) : '' })
+                    }
+                  >
+                    <option value="">— Sélectionner —</option>
+                    {agences.map((a: any) => (
+                      <option key={a.id} value={a.id}>
+                        {a.nom_agence}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {champVisible('superviseur_id') && (
+                <div>
+                  <label className="label">{champLibelle('superviseur_id', 'Superviseur')}{etoile('superviseur_id')}</label>
+                  <select
+                    className="input"
+                    value={fiche.superviseur_id}
+                    onChange={(e) =>
+                      setFiche({
+                        ...fiche,
+                        superviseur_id: e.target.value ? Number(e.target.value) : '',
+                      })
+                    }
+                  >
+                    <option value="">— Sélectionner —</option>
+                    {superviseurs.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.prenom} {u.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {champVisible('chef_zone_id') && (
+                <div>
+                  <label className="label">{champLibelle('chef_zone_id', 'Chef de zone')}{etoile('chef_zone_id')}</label>
+                  <select
+                    className="input"
+                    value={fiche.chef_zone_id}
+                    onChange={(e) =>
+                      setFiche({ ...fiche, chef_zone_id: e.target.value ? Number(e.target.value) : '' })
+                    }
+                  >
+                    <option value="">— Sélectionner —</option>
+                    {chefsZone.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.prenom} {u.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {champVisible('sous_zone') && (
+                <div>
+                  <label className="label">{champLibelle('sous_zone', 'Sous-zone')}{etoile('sous_zone')}</label>
                   <input
                     type="text"
                     className="input"
-                    value={fiche[champ]}
-                    onChange={(e) => setFiche({ ...fiche, [champ]: e.target.value })}
+                    value={fiche.sous_zone}
+                    onChange={(e) => setFiche({ ...fiche, sous_zone: e.target.value })}
+                    placeholder="Ex : SOUS_ZONE_1"
                   />
                 </div>
-              ))}
+              )}
+              {champVisible('id_distributeur') && (
+                <div>
+                  <label className="label">{champLibelle('id_distributeur', 'ID Distributeur')}{etoile('id_distributeur')}</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={fiche.id_distributeur}
+                    onChange={(e) => setFiche({ ...fiche, id_distributeur: e.target.value })}
+                    placeholder="Ex : 3499"
+                  />
+                </div>
+              )}
+              {champVisible('type_terminal') && (
+                <div>
+                  <label className="label">{champLibelle('type_terminal', 'Type de terminal')}{etoile('type_terminal')}</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={fiche.type_terminal}
+                    onChange={(e) => setFiche({ ...fiche, type_terminal: e.target.value })}
+                    placeholder="Détecté automatiquement à l'enrôlement"
+                  />
+                  <p className="text-xs text-ink-400 mt-1">
+                    Pré-rempli depuis le téléphone de l'agent ; à corriger si votre agence utilise sa
+                    propre nomenclature de terminaux.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           <div>
+            <div className="flex items-start justify-between gap-3 mb-2.5 flex-wrap">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+                Localisation administrative
+              </h3>
+              <button
+                type="button"
+                onClick={() => geocodage.mutate()}
+                disabled={geocodage.isPending}
+                className="btn btn-secondary !py-1 !px-2.5 !text-xs"
+                title="Déduire pays, ville, commune et quartier des coordonnées relevées à l'installation"
+              >
+                <Crosshair className="w-3.5 h-3.5 mr-1" />
+                {geocodage.isPending ? 'Calcul…' : 'Remplir depuis le GPS'}
+              </button>
+            </div>
+            <p className="text-xs text-ink-400 mb-2.5">
+              Pré-remplie automatiquement à partir des coordonnées relevées sur le terrain.
+              Si le service de géolocalisation était indisponible au moment de la pose du terminal,
+              relancez le calcul — les champs déjà saisis ne sont pas écrasés.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              {(['pays', 'ville', 'commune', 'quartier'] as const)
+                .filter((champ) => champVisible(champ))
+                .map((champ) => (
+                  <div key={champ}>
+                    <label className="label">
+                      {champLibelle(
+                        champ,
+                        champ.charAt(0).toUpperCase() + champ.slice(1)
+                      )}
+                      {etoile(champ)}
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={fiche[champ]}
+                      onChange={(e) => setFiche({ ...fiche, [champ]: e.target.value })}
+                    />
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          {champVisible('produits') && (
+          <div>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">
-              Produits vendus
+              {champLibelle('produits', 'Produits vendus')}{etoile('produits')}
             </h3>
+            <p className="text-xs text-ink-400 mb-2.5">
+              {champObligatoire('produits')
+                ? "Au moins un produit est requis : c'est la colonne « Produit_vendu » du mapping standard. Seule la gamme est demandée ici, jamais les prix."
+                : "Seule la gamme est demandée ici, jamais les prix."}
+            </p>
             <div className="flex flex-wrap gap-2">
               {produits.map((p: any) => {
                 const actif = produitsIds.includes(p.id);
@@ -721,6 +869,7 @@ const PDVDetail = () => {
               })}
             </div>
           </div>
+          )}
         </div>
 
         {/* Champs pilotés par l'admin depuis Paramètres > Attributs PDV */}
@@ -752,7 +901,8 @@ const PDVDetail = () => {
 
         <div className="flex items-center justify-end gap-3">
           <p className="text-xs text-ink-400 mr-auto">
-            Un dossier incomplet reste enregistré en brouillon : rien n'est perdu.
+            Les champs marqués d'une étoile sont obligatoires (réglable dans Paramètres &gt; Champs PDV). Un dossier incomplet
+            s'enregistre quand même et reste en brouillon : rien n'est perdu.
           </p>
           <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
             Annuler

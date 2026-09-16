@@ -1,5 +1,16 @@
 import api from './api';
 
+/**
+ * Préfixe du nom provisoire posé par le serveur à l'enrôlement mobile. Le
+ * back-office ne l'affiche jamais comme une saisie de l'agent : tant qu'il est
+ * présent, le dossier compte comme « nom non renseigné ». Doit rester aligné
+ * avec `PREFIXE_NOM_BROUILLON` du contrôleur backend.
+ */
+export const PREFIXE_NOM_BROUILLON = 'PDV (brouillon)';
+
+export const estNomProvisoire = (nom?: string | null): boolean =>
+  !nom || nom.trim() === '' || nom.startsWith(PREFIXE_NOM_BROUILLON);
+
 export interface Agence {
   id: number;
   nom_agence: string;
@@ -22,7 +33,13 @@ import type { PdvAttributValorise } from './pdvAttributService';
 
 export interface PDV {
   id: number;
+  // Code métier lisible (ex: "PDV-000123"), généré côté serveur. Colonne
+  // ID_unique du mapping standard partenaire.
+  id_unique?: string;
   id_terminal?: string;
+  // Colonne Type_Terminal du mapping ; pré-rempli à l'enrôlement mobile,
+  // modifiable depuis le web.
+  type_terminal?: string;
   nom_pdv: string;
   msisdn_responsable?: string;
   latitude_creation: number;
@@ -59,6 +76,9 @@ export interface PDV {
   commercial_id?: number;
   superviseur_id?: number;
   chef_zone_id?: number;
+  // Colonnes sous-zone et ID_Distrib du mapping standard.
+  sous_zone?: string;
+  id_distributeur?: string;
   agence?: Agence;
   commercial?: PersonneRef;
   superviseur?: PersonneRef;
@@ -216,5 +236,49 @@ export const pdvService = {
   getPDVAlertes: async (id: number): Promise<any[]> => {
     const response = await api.get(`/pdv/${id}/alertes`);
     return response.data;
+  },
+
+  /**
+   * Déclenche le téléchargement de l'export CSV au format du mapping
+   * standard partenaire (colonnes ID_unique, Pays, Ville... voir
+   * Template_mapping.xlsx). Respecte le périmètre de données de l'utilisateur
+   * connecté, comme la liste des PDV.
+   */
+  /**
+   * Rejoue le géocodage inverse d'un dossier à partir de ses coordonnées
+   * d'enrôlement. Utilisé quand le remplissage automatique a échoué sur le
+   * terrain (service externe indisponible au moment de la pose).
+   */
+  regeocoderPDV: async (
+    id: number,
+    options: { force?: boolean } = {}
+  ): Promise<PDV & { champs_remplis: string[]; message?: string }> => {
+    const { data } = await api.post(`/pdv/${id}/geocoder`, { force: options.force === true });
+    return data;
+  },
+
+  /**
+   * Export CSV au format du mapping standard. Par défaut, seuls les dossiers
+   * complets partent : un brouillon donnerait une ligne à trous une fois le
+   * fichier sorti de la plateforme. Les colonnes sont désormais dynamiques
+   * (champs fixes masqués retirés, attributs personnalisés actifs ajoutés) :
+   * ce client n'a rien à savoir de la liste, il télécharge simplement ce que
+   * le serveur a généré.
+   */
+  exportMapping: async (
+    options: { statut_dossier?: 'complet' | 'tous' } = {}
+  ): Promise<void> => {
+    const response = await api.get('/pdv/export/mapping', {
+      responseType: 'blob',
+      params: { statut_dossier: options.statut_dossier || 'complet' },
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const lien = document.createElement('a');
+    lien.href = url;
+    lien.download = `export-pdv-mapping-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(lien);
+    lien.click();
+    lien.remove();
+    window.URL.revokeObjectURL(url);
   }
 };

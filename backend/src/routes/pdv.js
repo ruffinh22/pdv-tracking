@@ -35,11 +35,16 @@ router.post('/mobile/login', pdvController.mobileLogin);
 // --- Routes protégées (back-office) -------------------------------------
 router.post('/', authMiddleware, createPDVValidation, pdvController.createPDV);
 router.get('/', authMiddleware, pdvController.getAllPDVs);
+// Placée avant '/:id' : sinon Express interpréterait "export" comme un id de PDV.
+router.get('/export/mapping', authMiddleware, pdvController.exportMapping);
 router.get('/:id', authMiddleware, pdvController.getPDVById);
 router.put('/:id', authMiddleware, pdvController.updatePDV);
 // Complétion d'un dossier enrôlé depuis le mobile (agent commercial)
 router.put('/:id/completer', authMiddleware, pdvController.completerPDV);
 router.put('/:id/produits', authMiddleware, pdvController.updatePDVProduits);
+// Rejoue le géocodage inverse depuis les coordonnées d'enrôlement, quand le
+// remplissage automatique a échoué au moment de la pose du terminal.
+router.post('/:id/geocoder', authMiddleware, pdvController.regeocoderPDV);
 router.delete('/:id', authMiddleware, pdvController.deletePDV);
 router.get('/:id/positions', authMiddleware, pdvController.getPDVPositions);
 // Synthèse du déplacement du terminal sur une période (distance, eloignement)

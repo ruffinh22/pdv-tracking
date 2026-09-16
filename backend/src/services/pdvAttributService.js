@@ -132,11 +132,62 @@ async function chargerPourPDV(pdvId) {
   }));
 }
 
+/**
+ * Rend une valeur déjà désérialisée sous forme de texte lisible pour l'export
+ * CSV — pas le même besoin que le formulaire web, qui veut des types natifs.
+ */
+function formaterPourExport(type, valeur) {
+  if (valeur === null || valeur === undefined) return '';
+  if (type === 'liste_multiple') return Array.isArray(valeur) ? valeur.join('; ') : '';
+  if (type === 'booleen') return valeur ? 'Oui' : 'Non';
+  return String(valeur);
+}
+
+/**
+ * Attributs actifs, dans l'ordre d'affichage du formulaire. Utilisé par
+ * l'export CSV pour dériver une colonne par attribut sans toucher au
+ * contrôleur à chaque nouvel attribut créé par l'admin.
+ */
+async function getActifsOrdonnes() {
+  return PdvAttribut.findAll({ where: { actif: true }, order: [['ordre', 'ASC'], ['id', 'ASC']] });
+}
+
+/**
+ * Valeurs de tous les attributs `definitions` pour l'ensemble des PDV
+ * `pdvIds`, déjà formatées en texte, sous forme
+ * Map<pdv_id, Map<code_attribut, texte>> — une seule requête plutôt qu'une
+ * par PDV, pour ne pas plomber un export de plusieurs milliers de lignes.
+ */
+async function valeursPourExport(pdvIds, definitions) {
+  const parPdv = new Map(pdvIds.map((id) => [id, new Map()]));
+  if (pdvIds.length === 0 || definitions.length === 0) return parPdv;
+
+  const parId = new Map(definitions.map((d) => [d.id, d]));
+  const valeurs = await PdvAttributValeur.findAll({
+    where: {
+      pdv_id: pdvIds,
+      attribut_id: definitions.map((d) => d.id)
+    }
+  });
+
+  for (const v of valeurs) {
+    const def = parId.get(v.attribut_id);
+    if (!def) continue;
+    const texte = formaterPourExport(def.type, deserialiser(def.type, v.valeur));
+    parPdv.get(v.pdv_id)?.set(def.code, texte);
+  }
+
+  return parPdv;
+}
+
 module.exports = {
   serialiser,
   deserialiser,
   estRenseignee,
+  formaterPourExport,
   enregistrerValeurs,
   manquants,
-  chargerPourPDV
+  chargerPourPDV,
+  getActifsOrdonnes,
+  valeursPourExport
 };

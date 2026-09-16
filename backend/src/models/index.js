@@ -10,6 +10,7 @@ const Agence = require('./Agence');
 const PDVProduit = require('./PDVProduit');
 const PdvAttribut = require('./PdvAttribut');
 const PdvAttributValeur = require('./PdvAttributValeur');
+const PdvChampFixe = require('./PdvChampFixe');
 
 // Définition des relations
 User.hasMany(PDV, { foreignKey: 'cree_par', as: 'pdvsCrees' });
@@ -87,5 +88,6 @@ module.exports = {
   Agence,
   PDVProduit,
   PdvAttribut,
-  PdvAttributValeur
+  PdvAttributValeur,
+  PdvChampFixe
 };

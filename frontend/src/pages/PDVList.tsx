@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, MapPin, Phone, Search, X, ChevronDown, Tag, Filter, FileEdit } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, Phone, Search, X, ChevronDown, Tag, Filter, FileEdit, Download } from 'lucide-react';
 import { pdvService, PDV } from '../services/pdvService';
 import { agenceService } from '../services/agenceService';
 import { userService } from '../services/userService';
@@ -8,6 +8,7 @@ import { produitService } from '../services/produitService';
 import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import Pagination from '../components/Pagination';
+import { useAuthStore } from '../contexts/authContext';
 
 const STATUS_BADGE: Record<string, string> = {
   actif: 'badge badge-success',
@@ -60,6 +61,11 @@ const EMPTY_FORM: FormState = {
 const PDVList = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  // Un commercial ne peut taguer/modifier que ses propres PDV (voir
+  // utils/scope.js côté API) : le champ "Commercial" du formulaire n'a donc
+  // pas de sens à lui laisser en libre choix, c'est toujours lui-même.
+  const { user } = useAuthStore();
+  const estCommercial = user?.role === 'commercial';
   const [showModal, setShowModal] = useState(false);
   const [editingPDV, setEditingPDV] = useState<PDV | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -69,6 +75,7 @@ const PDVList = () => {
   // File de travail de l'agent commercial : les dossiers enrôlés depuis le
   // mobile qui attendent d'être complétés.
   const [dossierFilter, setDossierFilter] = useState<'all' | 'brouillon' | 'complet'>('all');
+  const [exportEnCours, setExportEnCours] = useState(false);
   const [agenceFilter, setAgenceFilter] = useState<number | ''>('');
   const [commercialFilter, setCommercialFilter] = useState<number | ''>('');
   const [superviseurFilter, setSuperviseurFilter] = useState<number | ''>('');
@@ -200,7 +207,7 @@ const PDVList = () => {
     setFormData({
       id_terminal: pdv.id_terminal || '',
       nom_pdv: pdv.nom_pdv,
-      msisdn_responsable: pdv.msisdn_responsable,
+      msisdn_responsable: pdv.msisdn_responsable || '',
       latitude_creation: pdv.latitude_creation,
       longitude_creation: pdv.longitude_creation,
       statut: pdv.statut,
@@ -212,7 +219,10 @@ const PDVList = () => {
       commune: pdv.commune || '',
       quartier: pdv.quartier || '',
       agence_id: pdv.agence_id ?? pdv.agence?.id ?? '',
-      commercial_id: pdv.commercial_id ?? pdv.commercial?.id ?? '',
+      // Un commercial édite forcément l'un de ses propres PDV (portée API) :
+      // on reverrouille sur lui-même par cohérence, même si `pdv.commercial_id`
+      // devrait déjà être le sien.
+      commercial_id: estCommercial && user ? user.id : pdv.commercial_id ?? pdv.commercial?.id ?? '',
       superviseur_id: pdv.superviseur_id ?? pdv.superviseur?.id ?? '',
       chef_zone_id: pdv.chef_zone_id ?? pdv.chefZone?.id ?? '',
       produits_ids: (pdv.produits || []).map((p) => p.id),
@@ -227,7 +237,9 @@ const PDVList = () => {
   };
 
   const resetForm = () => {
-    setFormData(EMPTY_FORM);
+    // Pour un commercial, le champ est verrouillé sur lui-même dès
+    // l'ouverture du formulaire plutôt que laissé vide — voir estCommercial.
+    setFormData({ ...EMPTY_FORM, commercial_id: estCommercial && user ? user.id : '' });
     setEditingPDV(null);
   };
 
@@ -270,6 +282,21 @@ const PDVList = () => {
 
   const nomComplet = (u?: { nom: string; prenom: string }) => u ? `${u.prenom} ${u.nom}` : '';
 
+  // Par défaut on n'exporte que les dossiers validés : une ligne issue d'un
+  // brouillon arrive chez le partenaire avec des colonnes vides qu'il ne peut
+  // pas distinguer d'une information réellement absente. L'export exhaustif
+  // reste accessible pour un contrôle interne.
+  const handleExport = async (statut_dossier: 'complet' | 'tous' = 'complet') => {
+    setExportEnCours(true);
+    try {
+      await pdvService.exportMapping({ statut_dossier });
+    } catch {
+      toast.error('Erreur lors de l\'export');
+    } finally {
+      setExportEnCours(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -277,16 +304,37 @@ const PDVList = () => {
           <h1 className="text-2xl font-bold text-ink-900">Points de Vente</h1>
           <p className="text-sm text-ink-500 mt-0.5">{pagination.total} point{pagination.total > 1 ? 's' : ''} de vente tagué{pagination.total > 1 ? 's' : ''}</p>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
-          className="btn btn-primary"
-        >
-          <Plus className="w-4 h-4" />
-          Nouveau PDV
-        </button>
+        <div className="flex gap-2">
+          <div className="flex rounded-lg border border-ink-200 overflow-hidden">
+            <button
+              onClick={() => handleExport('complet')}
+              disabled={exportEnCours}
+              className="btn btn-secondary !border-0 !rounded-none"
+              title="Exporter les dossiers complets au format du mapping standard (sans les prix)"
+            >
+              <Download className="w-4 h-4" />
+              {exportEnCours ? 'Export…' : 'Exporter'}
+            </button>
+            <button
+              onClick={() => handleExport('tous')}
+              disabled={exportEnCours}
+              className="px-2.5 text-xs font-medium text-ink-500 hover:bg-ink-50 border-l border-ink-200 disabled:opacity-50"
+              title="Inclure aussi les brouillons — pour un contrôle interne, pas pour un envoi partenaire"
+            >
+              + brouillons
+            </button>
+          </div>
+          <button
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+            className="btn btn-primary"
+          >
+            <Plus className="w-4 h-4" />
+            Nouveau PDV
+          </button>
+        </div>
       </div>
 
       <div className="panel">
@@ -684,14 +732,27 @@ const PDVList = () => {
                     </div>
                     <div>
                       <label className="label">Commercial</label>
-                      <select
-                        value={formData.commercial_id}
-                        onChange={(e) => setFormData({ ...formData, commercial_id: e.target.value ? Number(e.target.value) : '' })}
-                        className="input"
-                      >
-                        <option value="">Sélectionner un commercial</option>
-                        {commerciaux.map((u) => <option key={u.id} value={u.id}>{nomComplet(u)}</option>)}
-                      </select>
+                      {estCommercial ? (
+                        // Toujours lui-même : verrouillé plutôt qu'un select à
+                        // une seule option utile, cohérent avec la fiche PDV
+                        // (PDVDetail) qui l'affiche déjà en lecture seule.
+                        <input
+                          type="text"
+                          className="input bg-ink-50 text-ink-500"
+                          value={user ? nomComplet(user) : ''}
+                          disabled
+                          title="Un commercial ne peut taguer que ses propres PDV"
+                        />
+                      ) : (
+                        <select
+                          value={formData.commercial_id}
+                          onChange={(e) => setFormData({ ...formData, commercial_id: e.target.value ? Number(e.target.value) : '' })}
+                          className="input"
+                        >
+                          <option value="">Sélectionner un commercial</option>
+                          {commerciaux.map((u) => <option key={u.id} value={u.id}>{nomComplet(u)}</option>)}
+                        </select>
+                      )}
                     </div>
                     <div>
                       <label className="label">Superviseur</label>

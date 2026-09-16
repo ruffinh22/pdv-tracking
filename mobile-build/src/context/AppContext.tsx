@@ -163,6 +163,27 @@ async function pullHistoryFromServer(pdvId: string): Promise<void> {
   }
 }
 
+/**
+ * Décrit le terminal (marque + modèle) pour la colonne "Type_Terminal" du
+ * mapping standard. `expo-device` est optionnel : s'il n'est pas dans le build,
+ * on renvoie un objet vide et le serveur retombe sur la plateforme seule. Rien
+ * n'est bloquant — il s'agit d'un pré-remplissage, corrigeable depuis le web.
+ */
+function decrireAppareil(): { marque?: string; modele?: string; os_version?: string } {
+  if (Platform.OS === 'web') return {};
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Device = require('expo-device');
+    return {
+      marque: Device.brand || Device.manufacturer || undefined,
+      modele: Device.modelName || undefined,
+      os_version: Device.osVersion || undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState(false);
@@ -390,6 +411,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             device_info: {
               platform: Platform.OS,
               version: '2.0.0',
+              // Modèle réel de l'appareil : c'est lui qui alimente la colonne
+              // "Type_Terminal" du mapping standard, qui attend une référence
+              // matériel (TS10, Z100…) et non une famille d'OS.
+              ...decrireAppareil(),
               accuracy: point.accuracy ?? null,
               timestamp: new Date().toISOString(),
             },

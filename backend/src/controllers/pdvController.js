@@ -3,35 +3,85 @@ const { Op } = require('sequelize');
 const logger = require('../utils/logger');
 const geocodingService = require('../services/geocodingService');
 const pdvAttributService = require('../services/pdvAttributService');
+const pdvChampFixeService = require('../services/pdvChampFixeService');
 const { distanceEnMetres } = require('../utils/geoUtils');
 const { pdvScope, withScope, peutAccederAuPDV } = require('../utils/scope');
 
-// Champs de la fiche PDV qui doivent être renseignés pour qu'un dossier
-// quitte l'état "brouillon". L'enrôlement mobile ne fournit que le terminal et
-// le GPS ; tout le reste est complété par l'agent commercial depuis le web.
-const CHAMPS_OBLIGATOIRES_COMPLETION = [
-  { champ: 'nom_pdv', libelle: 'Nom du PDV' },
-  { champ: 'vendeur_nom', libelle: 'Nom du vendeur' },
-  { champ: 'agence_id', libelle: 'Agence' },
-  { champ: 'superviseur_id', libelle: 'Superviseur' }
-];
+// Préfixe du nom provisoire attribué au dossier lors de l'enrôlement mobile,
+// en attendant que l'agent saisisse la vraie enseigne depuis le web. Exporté
+// pour que le contrôle de complétude et le front s'appuient sur la même règle
+// plutôt que sur deux chaînes recopiées.
+const PREFIXE_NOM_BROUILLON = 'PDV (brouillon)';
+
+const estNomProvisoire = (nom) =>
+  !nom || String(nom).trim() === '' || String(nom).startsWith(PREFIXE_NOM_BROUILLON);
 
 /**
- * Liste les informations manquantes d'un dossier PDV (champs fixes de la fiche
- * + attributs personnalisés obligatoires définis par l'admin). Un dossier ne
- * passe en "complet" que si cette liste est vide — le calcul est fait côté
- * serveur pour rester la source de vérité, quel que soit le client.
+ * Liste les informations manquantes d'un dossier PDV : champs fixes de la
+ * fiche, produits vendus, puis attributs personnalisés obligatoires définis
+ * par l'admin. Un dossier ne passe en "complet" que si cette liste est vide —
+ * le calcul est fait côté serveur pour rester la source de vérité, quel que
+ * soit le client.
+ *
+ * La liste des champs fixes à vérifier n'est plus câblée en dur : elle vient
+ * de `pdv_champs_fixes`, administrable depuis Paramètres > Champs PDV. Un
+ * admin peut donc décider qu'un champ du mapping standard (Vendeur, Sous-zone,
+ * Pays…) n'est plus obligatoire, voire le masquer complètement du formulaire —
+ * au prix, assumé, de lignes incomplètes dans l'export CSV partenaire.
  */
 async function informationsManquantes(pdv) {
-  const manquants = CHAMPS_OBLIGATOIRES_COMPLETION
-    .filter(({ champ }) => {
-      const valeur = pdv[champ];
-      return valeur === null || valeur === undefined || valeur === '';
-    })
-    .map(({ libelle }) => libelle);
+  const champsFixes = await pdvChampFixeService.getObligatoiresVisibles();
+  const manquants = [];
+
+  for (const { code, libelle } of champsFixes) {
+    // "nom_pdv" et "produits" ne se lisent pas comme une simple colonne vide :
+    // le premier a toujours une valeur (le nom provisoire posé à
+    // l'enrôlement), le second est une relation, pas une colonne.
+    if (code === 'nom_pdv') {
+      if (estNomProvisoire(pdv.nom_pdv)) manquants.push(libelle);
+      continue;
+    }
+    if (code === 'produits') {
+      const nbProduits = await pdv.countProduits();
+      if (nbProduits === 0) manquants.push(libelle);
+      continue;
+    }
+    const valeur = pdv[code];
+    if (valeur === null || valeur === undefined || String(valeur).trim() === '') {
+      manquants.push(libelle);
+    }
+  }
 
   const attributsManquants = await pdvAttributService.manquants(pdv.id);
   return [...manquants, ...attributsManquants];
+}
+
+/**
+ * Dérive la colonne "Type_Terminal" du mapping standard à partir des
+ * informations d'appareil remontées par l'app mobile.
+ *
+ * Le fichier de mapping attend un modèle d'appareil (« TS10 », « Z100 »), pas
+ * une famille : on privilégie donc le modèle réel remonté par le téléphone
+ * (« SM-A135F », « iPhone 12 »), et on ne retombe sur le système
+ * d'exploitation que si le modèle est indisponible — cas des anciennes
+ * versions de l'app, qui n'envoient que la plateforme. Reste modifiable depuis
+ * le web si l'agence utilise sa propre nomenclature.
+ */
+function deriverTypeTerminal(deviceInfo) {
+  const modele = String(deviceInfo?.modele || deviceInfo?.model || '').trim();
+  if (modele) {
+    const marque = String(deviceInfo?.marque || deviceInfo?.brand || '').trim();
+    // « Samsung SM-A135F » plutôt que « SM-A135F » seul, sauf quand le modèle
+    // porte déjà la marque (« iPhone 12 » chez Apple).
+    return marque && !modele.toLowerCase().startsWith(marque.toLowerCase())
+      ? `${marque} ${modele}`.slice(0, 50)
+      : modele.slice(0, 50);
+  }
+
+  const plateforme = String(deviceInfo?.platform || '').toLowerCase();
+  if (plateforme === 'android') return 'Smartphone Android';
+  if (plateforme === 'ios') return 'Smartphone iOS';
+  return null;
 }
 
 /**
@@ -79,6 +129,13 @@ async function synchroniserProduits(pdv, produitsIds) {
 /**
  * Complète automatiquement pays/ville/commune/quartier par géocodage inverse
  * lorsque ces champs ne sont pas fournis explicitement.
+ *
+ * Le géocodage dépend d'un service externe : il peut échouer au moment précis
+ * de l'enrôlement (réseau, quota, coordonnées en pleine brousse). L'échec n'est
+ * jamais bloquant — le dossier est créé quand même — mais les champs
+ * géographiques restent alors vides. C'est la raison d'être de
+ * `regeocoderPDV` : rejouer l'opération depuis le back-office sans avoir à
+ * renvoyer quelqu'un sur le terrain.
  */
 async function completerLocalisation(payload) {
   if (payload.pays || payload.ville) {
@@ -179,9 +236,15 @@ const pdvController = {
 
       const payload = await completerLocalisation({
         // Nom provisoire, lisible dans la liste des brouillons du back-office
-        // en attendant que l'agent saisisse le vrai nom de l'enseigne.
-        nom_pdv: nom_pdv || `PDV (brouillon) ${String(terminal_id).slice(0, 8).toUpperCase()}`,
+        // en attendant que l'agent saisisse le vrai nom de l'enseigne. Le
+        // préfixe est reconnu par `estNomProvisoire` : tant qu'il est là, le
+        // dossier ne peut pas basculer en "complet".
+        nom_pdv: nom_pdv || `${PREFIXE_NOM_BROUILLON} ${String(terminal_id).slice(0, 8).toUpperCase()}`,
         id_terminal: terminal_id,
+        // Colonne "Type_Terminal" du mapping standard : dérivée du système
+        // d'exploitation remonté par l'app, faute d'une nomenclature métier
+        // encore définie. Reste modifiable depuis le web si besoin.
+        type_terminal: deriverTypeTerminal(device_info),
         matricule_agent: agent.matricule,
         commercial_id: agent.id,
         // L'agence de rattachement de l'agent sert de valeur par défaut quand
@@ -195,7 +258,29 @@ const pdvController = {
         ...positionDuJour
       });
 
-      const pdv = await PDV.create(payload);
+      let pdv;
+      try {
+        pdv = await PDV.create(payload);
+      } catch (error) {
+        // Deux requêtes d'enrôlement parties en parallèle (double appui sur
+        // "Se connecter", rejeu après un timeout réseau) passent toutes les
+        // deux le test d'existence ci-dessus avant qu'aucune n'ait écrit.
+        // L'index unique sur `id_terminal` tranche : le perdant récupère le
+        // dossier du gagnant au lieu de renvoyer une erreur 500 à l'agent.
+        if (error?.name === 'SequelizeUniqueConstraintError') {
+          const concurrent = await PDV.findOne({ where: { id_terminal: terminal_id } });
+          if (concurrent) {
+            await concurrent.update(positionDuJour);
+            return res.json({
+              ...concurrent.toJSON(),
+              _existing: true,
+              agent: { id: agent.id, nom: agent.nom, prenom: agent.prenom, matricule: agent.matricule }
+            });
+          }
+        }
+        throw error;
+      }
+
       logger.info(
         `PDV enrôlé en brouillon depuis le mobile: terminal ${terminal_id} par ${agent.matricule}`
       );
@@ -385,7 +470,7 @@ const pdvController = {
       const {
         statut, statut_dossier, ville, commune, quartier, pays,
         agence_id, commercial_id, superviseur_id, chef_zone_id, produit_id,
-        search
+        sous_zone, search
       } = req.query;
 
       const where = {};
@@ -402,12 +487,21 @@ const pdvController = {
       if (commercial_id) where.commercial_id = commercial_id;
       if (superviseur_id) where.superviseur_id = superviseur_id;
       if (chef_zone_id) where.chef_zone_id = chef_zone_id;
+      if (sous_zone) where.sous_zone = sous_zone;
       if (search) {
+        // La recherche couvre aussi les identifiants du mapping standard :
+        // c'est par l'ID unique ou l'ID distributeur qu'un partenaire désigne
+        // un point de vente quand il revient vers nous sur un dossier.
         where[Op.or] = [
           { nom_pdv: { [Op.like]: `%${search}%` } },
+          { id_unique: { [Op.like]: `%${search}%` } },
           { msisdn_responsable: { [Op.like]: `%${search}%` } },
           { id_terminal: { [Op.like]: `%${search}%` } },
-          { matricule_agent: { [Op.like]: `%${search}%` } }
+          { matricule_agent: { [Op.like]: `%${search}%` } },
+          { vendeur_nom: { [Op.like]: `%${search}%` } },
+          { contact_vendeur: { [Op.like]: `%${search}%` } },
+          { sous_zone: { [Op.like]: `%${search}%` } },
+          { id_distributeur: { [Op.like]: `%${search}%` } }
         ];
       }
 
@@ -486,7 +580,11 @@ const pdvController = {
       }
 
       const { produits_ids, attributs, statut_dossier, ...pdvData } = req.body;
-      await pdv.update(pdvData);
+      // Même verrou qu'à la création (voir appliquerProprietaire) : sans ça,
+      // un commercial qui modifie un de ses PDV pourrait — via le payload
+      // brut envoyé par le client — se retrouver avec un commercial_id
+      // différent du sien, ou pire, réassigner le dossier à quelqu'un d'autre.
+      await pdv.update(appliquerProprietaire(req.user, pdvData));
 
       if (produits_ids) {
         await synchroniserProduits(pdv, produits_ids);
@@ -550,7 +648,11 @@ const pdvController = {
 
       // `id_terminal` est volontairement ignoré : il identifie l'appareil posé
       // sur le terrain et ne doit pas pouvoir être réécrit depuis le web.
-      await pdv.update(pdvData);
+      // Même verrou qu'à la création : un commercial qui complète son dossier
+      // reste rattaché à lui-même, quoi qu'envoie le client — c'est ce qui
+      // garantit que le dossier réapparaît bien dans "mes PDV" une fois
+      // enregistré, même s'il avait été créé sans commercial_id.
+      await pdv.update(appliquerProprietaire(req.user, pdvData));
 
       if (produits_ids) {
         await synchroniserProduits(pdv, produits_ids);
@@ -583,6 +685,93 @@ const pdvController = {
       });
     } catch (error) {
       logger.error('Erreur lors de la complétion du dossier PDV:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
+  /**
+   * Rejoue le géocodage inverse d'un dossier à partir des coordonnées relevées
+   * à l'enrôlement, et renvoie les valeurs trouvées.
+   *
+   * L'enrôlement mobile tente déjà ce remplissage automatique, mais il dépend
+   * d'un service externe qui peut être indisponible à cet instant précis. Sans
+   * cette reprise, un dossier géocodé en échec obligeait l'agent à ressaisir
+   * pays/ville/commune/quartier à la main alors que la position exacte du point
+   * de vente est connue.
+   *
+   * Le résultat n'écrase jamais une saisie manuelle : les champs déjà
+   * renseignés sont conservés, sauf demande explicite (`force: true`).
+   */
+  async regeocoderPDV(req, res) {
+    try {
+      const pdv = await PDV.findByPk(req.params.id);
+      if (!pdv) {
+        return res.status(404).json({ error: 'PDV non trouvé' });
+      }
+      if (!peutAccederAuPDV(req.user, pdv)) {
+        return res.status(403).json({ error: 'Ce PDV ne fait pas partie de votre périmètre' });
+      }
+      if (pdv.latitude_creation === null || pdv.longitude_creation === null) {
+        return res.status(400).json({
+          error: "Ce dossier n'a pas de coordonnées GPS d'enrôlement."
+        });
+      }
+
+      let info;
+      try {
+        info = await geocodingService.reverseGeocode(
+          pdv.latitude_creation,
+          pdv.longitude_creation
+        );
+      } catch (error) {
+        logger.error('Re-géocodage impossible pour le PDV %s:', pdv.id, error);
+        return res.status(502).json({
+          error: 'Le service de géolocalisation est momentanément indisponible. Réessayez ou saisissez les champs à la main.'
+        });
+      }
+
+      const force = req.body?.force === true;
+      const aRemplir = {};
+      for (const champ of ['pays', 'ville', 'commune', 'quartier']) {
+        const trouve = info?.[champ];
+        if (!trouve) continue;
+        const actuel = pdv[champ];
+        if (force || actuel === null || actuel === undefined || String(actuel).trim() === '') {
+          aRemplir[champ] = trouve;
+        }
+      }
+
+      if (Object.keys(aRemplir).length === 0) {
+        return res.json({
+          ...pdv.toJSON(),
+          champs_remplis: [],
+          message: 'Aucun champ géographique supplémentaire n\'a pu être déduit de ces coordonnées.'
+        });
+      }
+
+      await pdv.update(aRemplir);
+      await pdv.reload();
+
+      // La localisation fait partie des informations requises : remplir
+      // pays/ville peut suffire à valider le dossier, on recalcule donc l'état.
+      const manquants = await informationsManquantes(pdv);
+      const nouvelEtat = manquants.length === 0 ? 'complet' : 'brouillon';
+      if (nouvelEtat !== pdv.statut_dossier) {
+        await pdv.update({
+          statut_dossier: nouvelEtat,
+          ...(nouvelEtat === 'complet'
+            ? { date_completion: new Date(), complete_par: req.user?.userId || null }
+            : { date_completion: null })
+        });
+      }
+
+      res.json({
+        ...pdv.toJSON(),
+        champs_remplis: Object.keys(aRemplir),
+        informations_manquantes: manquants
+      });
+    } catch (error) {
+      logger.error('Erreur lors du re-géocodage du PDV:', error);
       res.status(500).json({ error: 'Erreur serveur' });
     }
   },
@@ -812,7 +1001,146 @@ const pdvController = {
       logger.error('Erreur lors de la récupération des alertes:', error);
       res.status(500).json({ error: 'Erreur serveur' });
     }
+  },
+
+  /**
+   * Export CSV au format du mapping standard partenaire (Template_mapping) :
+   * ID_unique, Pays, Ville, Commune, Quartier, ID_Terminal, Type_Terminal,
+   * Vendeur, Contact_vendeur, Produit_vendu, sous-zone, ID_Distrib,
+   * Commercial, Agence, Superviseur, Chef_zone — dans cet ordre quand tout est
+   * visible, sans colonne de prix.
+   *
+   * Les colonnes ne sont plus câblées en dur : chacune de celles listées
+   * ci-dessus (sauf ID_unique, ID_Terminal et Commercial, qui ne correspondent
+   * à aucun champ pilotable) est reliée à un `code` de `pdv_champs_fixes` et
+   * disparaît de l'export si l'admin masque ce champ dans Paramètres > Champs
+   * PDV — au lieu de partir vide comme avant. Ensuite, une colonne est ajoutée
+   * automatiquement pour chaque attribut personnalisé actif, dans son ordre
+   * d'affichage du formulaire : plus besoin de toucher ce fichier quand
+   * l'admin crée, renomme ou désactive un attribut.
+   *
+   * Un PDV qui vend plusieurs produits donne une ligne par produit (même
+   * logique que le fichier modèle) ; un PDV sans produit renseigné donne une
+   * seule ligne avec la colonne Produit_vendu vide, pour ne pas le faire
+   * disparaître de l'export.
+   */
+  async exportMapping(req, res) {
+    try {
+      // Par défaut, seuls les dossiers validés partent au partenaire : un
+      // brouillon produirait une ligne à moitié vide, difficile à distinguer
+      // d'une donnée réellement absente une fois le fichier sorti de la
+      // plateforme. `?statut_dossier=tous` permet l'export exhaustif pour un
+      // contrôle interne.
+      const statutDemande = req.query.statut_dossier || 'complet';
+      const where = withScope({}, pdvScope(req.user));
+      if (statutDemande !== 'tous') {
+        where.statut_dossier = statutDemande;
+      }
+      // Mêmes filtres que la liste, pour qu'un export corresponde à ce que
+      // l'utilisateur a sous les yeux au moment où il clique.
+      for (const champ of ['ville', 'commune', 'agence_id', 'commercial_id', 'superviseur_id', 'chef_zone_id', 'sous_zone']) {
+        if (req.query[champ]) where[champ] = req.query[champ];
+      }
+
+      const pdvs = await PDV.findAll({
+        where,
+        include: [
+          { model: Agence, as: 'agence', attributes: ['nom_agence'] },
+          { model: User, as: 'commercial', attributes: ['nom', 'prenom'] },
+          { model: User, as: 'superviseur', attributes: ['nom', 'prenom'] },
+          { model: User, as: 'chefZone', attributes: ['nom', 'prenom'] },
+          { model: Produit, as: 'produits', attributes: ['nom_produit'], through: { attributes: [] } }
+        ],
+        order: [['id', 'ASC']]
+      });
+
+      const nomComplet = (personne) => (personne ? `${personne.prenom} ${personne.nom}` : '');
+
+      // Colonnes du mapping standard, chacune reliée à son `code` dans
+      // pdv_champs_fixes — `code: null` pour les trois qui n'y figurent pas
+      // (aucun réglage possible, toujours présentes). `valeur` lit le PDV déjà
+      // chargé ; Produit_vendu est traité à part car il varie par ligne.
+      const COLONNES_MAPPING = [
+        { entete: 'ID_unique', code: null, valeur: (pdv) => pdv.id_unique || '' },
+        { entete: 'Pays', code: 'pays', valeur: (pdv) => pdv.pays || '' },
+        { entete: 'Ville', code: 'ville', valeur: (pdv) => pdv.ville || '' },
+        { entete: 'Commune', code: 'commune', valeur: (pdv) => pdv.commune || '' },
+        { entete: 'Quartier', code: 'quartier', valeur: (pdv) => pdv.quartier || '' },
+        { entete: 'ID_Terminal', code: null, valeur: (pdv) => pdv.id_terminal || '' },
+        { entete: 'Type_Terminal', code: 'type_terminal', valeur: (pdv) => pdv.type_terminal || '' },
+        { entete: 'Vendeur', code: 'vendeur_nom', valeur: (pdv) => pdv.vendeur_nom || '' },
+        { entete: 'Contact_vendeur', code: 'contact_vendeur', valeur: (pdv) => pdv.contact_vendeur || '' },
+        { entete: 'Produit_vendu', code: 'produits', valeur: () => '' }, // complété par produit plus bas
+        { entete: 'sous-zone', code: 'sous_zone', valeur: (pdv) => pdv.sous_zone || '' },
+        { entete: 'ID_Distrib', code: 'id_distributeur', valeur: (pdv) => pdv.id_distributeur || '' },
+        { entete: 'Commercial', code: null, valeur: (pdv) => nomComplet(pdv.commercial) },
+        { entete: 'Agence', code: 'agence_id', valeur: (pdv) => pdv.agence?.nom_agence || '' },
+        { entete: 'Superviseur', code: 'superviseur_id', valeur: (pdv) => nomComplet(pdv.superviseur) },
+        { entete: 'Chef_zone', code: 'chef_zone_id', valeur: (pdv) => nomComplet(pdv.chefZone) }
+      ];
+
+      const champsFixes = await pdvChampFixeService.getAll();
+      const champsVisibles = new Set(champsFixes.filter((c) => c.visible).map((c) => c.code));
+      const colonnesMappingActives = COLONNES_MAPPING.filter(
+        (c) => c.code === null || champsVisibles.has(c.code)
+      );
+      const indexProduitVendu = colonnesMappingActives.findIndex((c) => c.entete === 'Produit_vendu');
+
+      // Une colonne par attribut personnalisé actif, dans l'ordre du
+      // formulaire — c'est ce qui rend l'export auto-adaptatif : créer,
+      // renommer ou désactiver un attribut dans Paramètres > Attributs
+      // change l'export au prochain clic, sans toucher à ce contrôleur.
+      const attributsActifs = await pdvAttributService.getActifsOrdonnes();
+      const valeursAttributsParPdv = await pdvAttributService.valeursPourExport(
+        pdvs.map((pdv) => pdv.id),
+        attributsActifs
+      );
+
+      const ENTETES = [
+        ...colonnesMappingActives.map((c) => c.entete),
+        ...attributsActifs.map((a) => a.libelle)
+      ];
+
+      // Un champ contenant une virgule, un guillemet ou un retour à la ligne
+      // doit être entre guillemets pour rester valide en CSV.
+      const echapper = (valeur) => {
+        const texte = valeur === null || valeur === undefined ? '' : String(valeur);
+        return /[",\n;]/.test(texte) ? `"${texte.replace(/"/g, '""')}"` : texte;
+      };
+
+      const lignes = [ENTETES.map(echapper).join(',')];
+
+      for (const pdv of pdvs) {
+        const valeursAttributs = valeursAttributsParPdv.get(pdv.id) || new Map();
+        const base = [
+          ...colonnesMappingActives.map((c) => c.valeur(pdv)),
+          ...attributsActifs.map((a) => valeursAttributs.get(a.code) || '')
+        ];
+
+        const produits = pdv.produits && pdv.produits.length > 0 ? pdv.produits : [null];
+        for (const produit of produits) {
+          const ligne = [...base];
+          if (indexProduitVendu !== -1) {
+            ligne[indexProduitVendu] = produit?.nom_produit || '';
+          }
+          lignes.push(ligne.map(echapper).join(','));
+        }
+      }
+
+      const csv = '\uFEFF' + lignes.join('\r\n'); // BOM pour l'ouverture directe dans Excel
+      const nomFichier = `export-pdv-mapping-${new Date().toISOString().slice(0, 10)}.csv`;
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${nomFichier}"`);
+      res.send(csv);
+    } catch (error) {
+      logger.error('Erreur lors de l\'export mapping des PDV:', error);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
   }
 };
 
 module.exports = pdvController;
+// Exposé pour les tests et pour tout autre module qui aurait besoin de la même
+// règle (un import de masse, par exemple) sans la redéfinir de son côté.
+module.exports.PREFIXE_NOM_BROUILLON = PREFIXE_NOM_BROUILLON;

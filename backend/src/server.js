@@ -29,6 +29,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const produitRoutes = require('./routes/produit');
 const agenceRoutes = require('./routes/agence');
 const pdvAttributRoutes = require('./routes/pdvAttribut');
+const pdvChampFixeRoutes = require('./routes/pdvChampFixe');
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = process.env.PORT || 3000;
@@ -124,6 +125,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/produits', produitRoutes);
 app.use('/api/agences', agenceRoutes);
 app.use('/api/pdv-attributs', pdvAttributRoutes);
+app.use('/api/pdv-champs-fixes', pdvChampFixeRoutes);
 
 // Routes de santé (déclarées avant le fallback statique pour ne jamais être masquées par lui)
 app.get(['/health', '/api/health'], (req, res) => {

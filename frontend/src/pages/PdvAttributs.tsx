@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Edit, Trash2, X, Eye, EyeOff, ArrowUp, ArrowDown, ListChecks } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Eye, EyeOff, ArrowUp, ArrowDown, ListChecks, Lock, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
   pdvAttributService,
@@ -8,6 +8,7 @@ import {
   PdvAttributType,
   TYPE_LABELS,
 } from '../services/pdvAttributService';
+import { pdvChampFixeService, PdvChampFixe } from '../services/pdvChampFixeService';
 
 const TYPES_AVEC_OPTIONS: PdvAttributType[] = ['liste', 'liste_multiple'];
 
@@ -41,6 +42,43 @@ const PdvAttributs = () => {
     queryKey: ['pdv-attributs'],
     queryFn: () => pdvAttributService.getAll(false),
   });
+
+  const { data: champsFixes = [], isLoading: chargementChampsFixes } = useQuery({
+    queryKey: ['pdv-champs-fixes'],
+    queryFn: pdvChampFixeService.getAll,
+  });
+
+  const champFixeMutation = useMutation({
+    mutationFn: ({ code, data }: { code: string; data: Partial<PdvChampFixe> }) =>
+      pdvChampFixeService.update(code, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pdv-champs-fixes'] });
+      // Les fiches PDV ouvertes doivent immédiatement refléter la nouvelle
+      // visibilité / obligation d'un champ.
+      queryClient.invalidateQueries({ queryKey: ['pdv'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Erreur lors de la mise à jour'),
+  });
+
+  /**
+   * Masquer/démasquer un champ fixe. Masquer un champ obligatoire le rend
+   * aussi facultatif côté serveur (un agent ne peut pas remplir un champ
+   * qu'il ne voit pas) : on le redemande explicitement ici pour que
+   * l'affichage optimiste du tableau suive tout de suite, sans attendre la
+   * réponse serveur.
+   */
+  const basculerVisibiliteChampFixe = (champ: PdvChampFixe) => {
+    const visible = !champ.visible;
+    champFixeMutation.mutate({
+      code: champ.code,
+      data: visible ? { visible } : { visible, obligatoire: false },
+    });
+  };
+
+  const basculerObligatoireChampFixe = (champ: PdvChampFixe) => {
+    if (!champ.visible) return; // Bouton désactivé dans ce cas, filet de sécurité.
+    champFixeMutation.mutate({ code: champ.code, data: { obligatoire: !champ.obligatoire } });
+  };
 
   const invalider = () => {
     queryClient.invalidateQueries({ queryKey: ['pdv-attributs'] });
@@ -183,6 +221,122 @@ const PdvAttributs = () => {
           <Plus className="w-4 h-4 mr-1.5" />
           Nouvel attribut
         </button>
+      </div>
+
+      {/* ---- Champs standards : vraies colonnes de la fiche PDV --------------
+          Contrairement aux attributs ci-dessous, ceux-ci ne peuvent pas être
+          créés ni supprimés — seulement masqués ou rendus facultatifs. */}
+      <div>
+        <h2 className="text-lg font-bold text-ink-900 mb-1">Champs standards</h2>
+        <p className="text-sm text-ink-500 mb-3">
+          Champs déjà présents sur la fiche PDV (identité, rattachement commercial, localisation,
+          produits vendus). Vous pouvez les masquer ou les rendre facultatifs, mais pas les
+          renommer en profondeur, les supprimer ou changer leur nature.
+        </p>
+
+        <div className="card !p-4 !bg-warning-50 !border-warning-200 mb-3">
+          <div className="flex gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-warning-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-ink-700 leading-relaxed">
+              <strong>Plusieurs de ces champs alimentent l'export CSV du mapping standard</strong>{' '}
+              envoyé au partenaire (Vendeur, Contact, Pays, Ville, Agence, Superviseur, Chef de
+              zone, Sous-zone, ID Distributeur, Produits vendus). L'export s'adapte maintenant
+              automatiquement : masquer l'un de ces champs retire directement sa colonne du fichier
+              (plutôt que de la laisser vide) ; le rendre facultatif ne change rien à l'export tant
+              qu'il reste visible. C'est un choix assumé, pas une erreur, mais mieux vaut le savoir
+              avant de cliquer — le partenaire peut ne pas s'attendre à recevoir un fichier avec
+              moins de colonnes.
+            </p>
+          </div>
+        </div>
+
+        <div className="card !p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Libellé</th>
+                  <th>Champ</th>
+                  <th>Obligatoire</th>
+                  <th>État</th>
+                  <th className="text-right pr-6">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {chargementChampsFixes ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-6 text-ink-400">
+                      Chargement…
+                    </td>
+                  </tr>
+                ) : (
+                  champsFixes.map((champ) => (
+                    <tr key={champ.code} className={champ.visible ? '' : 'opacity-50'}>
+                      <td>
+                        <div className="font-medium text-ink-900 flex items-center gap-1.5">
+                          <Lock className="w-3 h-3 text-ink-300" />
+                          {champ.libelle}
+                        </div>
+                      </td>
+                      <td>
+                        <code className="text-xs text-ink-500">{champ.code}</code>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => basculerObligatoireChampFixe(champ)}
+                          disabled={!champ.visible || champFixeMutation.isPending}
+                          className={
+                            champ.obligatoire
+                              ? 'badge badge-warning cursor-pointer disabled:cursor-not-allowed'
+                              : 'badge badge-neutral cursor-pointer disabled:cursor-not-allowed'
+                          }
+                          title={
+                            !champ.visible
+                              ? 'Un champ masqué ne peut pas être obligatoire'
+                              : champ.obligatoire
+                              ? 'Cliquer pour rendre facultatif'
+                              : 'Cliquer pour rendre obligatoire'
+                          }
+                        >
+                          {champ.obligatoire ? 'Obligatoire' : 'Facultatif'}
+                        </button>
+                      </td>
+                      <td>
+                        <span className={champ.visible ? 'badge badge-success' : 'badge badge-neutral'}>
+                          {champ.visible ? 'Affiché' : 'Masqué'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="flex justify-end gap-1">
+                          <button
+                            onClick={() => basculerVisibiliteChampFixe(champ)}
+                            disabled={champFixeMutation.isPending}
+                            className="btn-icon hover:text-primary-600 hover:bg-primary-50"
+                            title={champ.visible ? 'Masquer du formulaire' : 'Afficher dans le formulaire'}
+                          >
+                            {champ.visible ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-bold text-ink-900 mb-1">Attributs personnalisés</h2>
+        <p className="text-sm text-ink-500 mb-3">
+          Champs ajoutés par l'administrateur, en plus des champs standards ci-dessus.
+        </p>
       </div>
 
       <div className="card !p-4 !bg-primary-50 !border-primary-100">
