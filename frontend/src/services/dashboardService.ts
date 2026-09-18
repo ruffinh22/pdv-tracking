@@ -101,6 +101,7 @@ export interface ReportingSynthese {
   };
   conformite: {
     total_alertes: number;
+    /** Alertes de type "sortie de zone" / "déplacement anormal" (intrus). */
     instrus: number;
     pdv_concernes: number;
     taux_instrus: number;
@@ -119,16 +120,24 @@ export interface ReportingSynthese {
   detail_tronque: boolean;
 }
 
-/** Bornes envoyées au backend : soit une période nommée, soit un intervalle explicite. */
+/**
+ * Bornes envoyées au backend : soit une période nommée, soit un intervalle
+ * explicite, plus les filtres transverses optionnels (agent commercial,
+ * chef de zone, superviseur, agence) applicables au dashboard et au reporting.
+ */
 export interface FiltrePeriode {
   periode?: Periode;
   debut?: string;
   fin?: string;
+  commercial_id?: number;
+  superviseur_id?: number;
+  chef_zone_id?: number;
+  agence_id?: number;
 }
 
 export const dashboardService = {
-  getKPIs: async (): Promise<KPIs> => {
-    const response = await api.get('/dashboard/kpi');
+  getKPIs: async (filtre: FiltrePeriode = {}): Promise<KPIs> => {
+    const response = await api.get('/dashboard/kpi', { params: filtre });
     return response.data;
   },
 
@@ -138,25 +147,30 @@ export const dashboardService = {
     return response.data;
   },
 
-  getPDVStats: async (periode: Periode = 'jour'): Promise<PDVStats> => {
-    const response = await api.get('/dashboard/pdv-stats', { params: { periode } });
+  getPDVStats: async (periode: Periode = 'jour', filtre: FiltrePeriode = {}): Promise<PDVStats> => {
+    const response = await api.get('/dashboard/pdv-stats', { params: { ...filtre, periode } });
     return response.data;
   },
 
-  getPDVParProduit: async (periode: Periode = 'all') => {
-    const response = await api.get('/dashboard/pdv-par-produit', { params: { periode } });
+  getPDVParProduit: async (periode: Periode = 'all', filtre: FiltrePeriode = {}) => {
+    const response = await api.get('/dashboard/pdv-par-produit', { params: { ...filtre, periode } });
     return response.data;
   },
 
   getRatioProduits: async (
-    periode: Periode = 'all'
+    periode: Periode = 'all',
+    filtre: FiltrePeriode = {}
   ): Promise<{ total_pdv_tagues: number; produits: RatioProduit[] }> => {
-    const response = await api.get('/dashboard/ratio-produits', { params: { periode } });
+    const response = await api.get('/dashboard/ratio-produits', { params: { ...filtre, periode } });
     return response.data;
   },
 
-  getAnalyses: async (dimension: Dimension, periode: Periode = 'all'): Promise<AnalyseResponse> => {
-    const response = await api.get('/dashboard/analyses', { params: { dimension, periode } });
+  getAnalyses: async (
+    dimension: Dimension,
+    periode: Periode = 'all',
+    filtre: FiltrePeriode = {}
+  ): Promise<AnalyseResponse> => {
+    const response = await api.get('/dashboard/analyses', { params: { ...filtre, dimension, periode } });
     return response.data;
   },
 

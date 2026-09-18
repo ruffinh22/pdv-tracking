@@ -13,6 +13,13 @@ const { pdvScope, withScope, peutAccederAuPDV } = require('../utils/scope');
 // plutôt que sur deux chaînes recopiées.
 const PREFIXE_NOM_BROUILLON = 'PDV (brouillon)';
 
+// Distance au-delà de laquelle une reconnexion d'un terminal déjà enrôlé est
+// considérée comme suspecte (terminal réutilisé sur un autre PDV) plutôt que
+// comme une simple dérive GPS normale sur place. Alignée sur le rayon de
+// geofencing par défaut (500 m) : un écart plus grand ne peut pas être une
+// simple imprécision GPS.
+const SEUIL_REAFFECTATION_SUSPECTE_M = 500;
+
 const estNomProvisoire = (nom) =>
   !nom || String(nom).trim() === '' || String(nom).startsWith(PREFIXE_NOM_BROUILLON);
 
@@ -223,9 +230,77 @@ const pdvController = {
 
       // Terminal déjà enrôlé : on rafraîchit sa position et on renvoie le
       // dossier existant, sans jamais écraser les informations déjà saisies
-      // par l'agent depuis le web.
+      // par l'agent depuis le web. SAUF si la nouvelle position est loin du
+      // point d'ancrage d'origine (latitude_creation/longitude_creation) :
+      // dans ce cas le terminal a très probablement été réutilisé sur un
+      // AUTRE PDV physique (matériel réaffecté sans réinitialisation), et un
+      // simple rafraîchissement de position ferait dériver silencieusement
+      // le PDV d'origine vers ce nouvel emplacement. On bloque et on demande
+      // une confirmation explicite plutôt que d'écraser.
       const existant = await PDV.findOne({ where: { id_terminal: terminal_id } });
       if (existant) {
+        const ancrageLat = Number(existant.latitude_creation);
+        const ancrageLng = Number(existant.longitude_creation);
+        const ecart =
+          Number.isFinite(ancrageLat) && Number.isFinite(ancrageLng)
+            ? distanceEnMetres(ancrageLat, ancrageLng, latitude, longitude)
+            : 0;
+
+        const reaffectationSuspecte = ecart > SEUIL_REAFFECTATION_SUSPECTE_M;
+        const reaffectationConfirmee = req.body.reaffectation_confirmee === true;
+
+        if (reaffectationSuspecte && !reaffectationConfirmee) {
+          logger.warn(
+            `Tentative d'enrôlement du terminal ${terminal_id} à ${Math.round(ecart)} m ` +
+              `de son PDV d'origine #${existant.id} (${existant.nom_pdv}) — bloqué, confirmation requise.`
+          );
+          return res.status(409).json({
+            error:
+              `Ce terminal est déjà associé au PDV "${existant.nom_pdv}", à ` +
+              `${Math.round(ecart)} m d'ici. Confirmez la réaffectation si ce terminal ` +
+              `a bien été déplacé vers un nouveau point de vente.`,
+            code: 'TERMINAL_DEJA_ENROLE_AILLEURS',
+            distance_m: Math.round(ecart),
+            pdv_existant: {
+              id: existant.id,
+              nom_pdv: existant.nom_pdv,
+              matricule_agent: existant.matricule_agent,
+              latitude_creation: ancrageLat,
+              longitude_creation: ancrageLng
+            }
+          });
+        }
+
+        if (reaffectationSuspecte && reaffectationConfirmee) {
+          // Réaffectation explicitement confirmée par l'agent depuis l'app :
+          // le terminal change bel et bien de PDV. On re-tague le point
+          // d'ancrage (sinon le geofencing continuerait de surveiller
+          // l'ancienne adresse) et on repasse le dossier en brouillon, car
+          // les informations de l'ancien PDV (nom, attributs) ne
+          // correspondent plus au nouveau site.
+          await existant.update({
+            ...positionDuJour,
+            latitude_creation: latitude,
+            longitude_creation: longitude,
+            nom_pdv: `${PREFIXE_NOM_BROUILLON} ${String(terminal_id).slice(0, 8).toUpperCase()}`,
+            matricule_agent: agent.matricule,
+            commercial_id: agent.id,
+            statut_dossier: 'brouillon'
+          });
+          logger.warn(
+            `Terminal ${terminal_id} réaffecté par ${agent.matricule} : PDV #${existant.id} ` +
+              `déplacé de ${Math.round(ecart)} m (ancien: "${existant.nom_pdv}").`
+          );
+          return res.json({
+            ...existant.toJSON(),
+            _existing: true,
+            _reassigned: true,
+            agent: { id: agent.id, nom: agent.nom, prenom: agent.prenom, matricule: agent.matricule }
+          });
+        }
+
+        // Écart normal (dérive GPS sur place, ou pas d'ancrage connu) :
+        // comportement d'origine, on rafraîchit juste la position courante.
         await existant.update(positionDuJour);
         return res.json({
           ...existant.toJSON(),

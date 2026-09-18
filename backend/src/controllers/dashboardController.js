@@ -11,7 +11,7 @@ const { pdvScope, withScope } = require('../utils/scope');
  *   - l'enrôlement (combien de PDV tagués, par qui, où, quand),
  *   - la qualité des dossiers (brouillon vs complet),
  *   - l'activité GPS (PDV qui remontent encore des positions, PDV muets),
- *   - la conformité (sorties de zone = "instrus").
+ *   - la conformité (sorties de zone = "intrus").
  */
 
 /** Inclusion PDV scopée, prête à l'emploi pour les requêtes Alerte/Position du dashboard. */
@@ -91,6 +91,32 @@ function grouperPar(lignes, accesseur, libelleVide = 'Non renseigné') {
     .sort((a, b) => b.total - a.total);
 }
 
+/**
+ * Filtres additionnels optionnels, communs au dashboard et au reporting :
+ * permettent de restreindre l'analyse à un commercial, un chef de zone, un
+ * superviseur ou une agence précis — en plus du périmètre de rôle (pdvScope)
+ * qui, lui, reste TOUJOURS appliqué. Un chef de zone qui filtre sur un
+ * commercial hors de sa zone obtient donc simplement un résultat vide plutôt
+ * que de voir des données hors de son périmètre.
+ * GET ?commercial_id=&superviseur_id=&chef_zone_id=&agence_id=
+ */
+function filtresSupplementaires(query) {
+  const filtre = {};
+  if (query.commercial_id) filtre.commercial_id = parseInt(query.commercial_id, 10);
+  if (query.superviseur_id) filtre.superviseur_id = parseInt(query.superviseur_id, 10);
+  if (query.chef_zone_id) filtre.chef_zone_id = parseInt(query.chef_zone_id, 10);
+  if (query.agence_id) filtre.agence_id = parseInt(query.agence_id, 10);
+  return filtre;
+}
+
+/** Combine plusieurs conditions Sequelize (`where`) en un seul AND, en ignorant celles qui sont vides. */
+function combinerWhere(...wheres) {
+  const valides = wheres.filter(w => w && Object.keys(w).length > 0);
+  if (valides.length === 0) return {};
+  if (valides.length === 1) return valides[0];
+  return { [Op.and]: valides };
+}
+
 // Dimensions autorisées pour les analyses transverses du dashboard
 const DIMENSIONS = {
   ville: { champ: 'ville', libelle: 'Ville' },
@@ -111,19 +137,27 @@ const dashboardController = {
   async getKPIs(req, res) {
     try {
       const scope = pdvScope(req.user);
+      const filtres = filtresSupplementaires(req.query);
+      const scopeEtFiltres = combinerWhere(scope, filtres);
       const minuit = new Date(new Date().setHours(0, 0, 0, 0));
       const seuilMuet = new Date(Date.now() - SEUIL_INACTIVITE_HEURES * 3600 * 1000);
 
       const [totalPdv, pdvActifs, taguesAujourdhui, dossiersBrouillon, alertesActives, pdvVus24h] =
         await Promise.all([
-          PDV.count({ where: withScope({}, scope) }),
-          PDV.count({ where: withScope({ statut: 'actif' }, scope) }),
-          PDV.count({ where: withScope({ date_installation_app: { [Op.gte]: minuit } }, scope) }),
-          PDV.count({ where: withScope({ statut_dossier: 'brouillon' }, scope) }),
-          Alerte.count({ where: { statut: 'non_traitee' }, include: [pdvScopedInclude(req.user)] }),
+          PDV.count({ where: withScope(filtres, scope) }),
+          PDV.count({ where: withScope({ statut: 'actif', ...filtres }, scope) }),
+          PDV.count({ where: withScope({ date_installation_app: { [Op.gte]: minuit }, ...filtres }, scope) }),
+          PDV.count({ where: withScope({ statut_dossier: 'brouillon', ...filtres }, scope) }),
+          Alerte.count({
+            where: { statut: 'non_traitee' },
+            include: [pdvScopedInclude(req.user, {
+              where: Object.keys(scopeEtFiltres).length > 0 ? scopeEtFiltres : undefined,
+              required: Object.keys(scopeEtFiltres).length > 0
+            })]
+          }),
           PDV.count({
             where: withScope(
-              { derniere_position_date: { [Op.gte]: new Date(Date.now() - 24 * 3600 * 1000) } },
+              { derniere_position_date: { [Op.gte]: new Date(Date.now() - 24 * 3600 * 1000) }, ...filtres },
               scope
             )
           })
@@ -132,6 +166,7 @@ const dashboardController = {
       const pdvMuets = await PDV.count({
         where: withScope(
           {
+            ...filtres,
             [Op.or]: [
               { derniere_position_date: null },
               { derniere_position_date: { [Op.lt]: seuilMuet } }
@@ -167,7 +202,10 @@ const dashboardController = {
       const periode = req.query.periode || 'jour';
       const debut = debutPeriode(periode);
       const scope = pdvScope(req.user);
-      const base = debut ? { date_installation_app: { [Op.gte]: debut } } : {};
+      const base = combinerWhere(
+        debut ? { date_installation_app: { [Op.gte]: debut } } : {},
+        filtresSupplementaires(req.query)
+      );
 
       const [tagues, actifs, inactifs, suspendus, complets, brouillons] = await Promise.all([
         PDV.count({ where: withScope(base, scope) }),
@@ -195,7 +233,11 @@ const dashboardController = {
       const periode = req.query.periode || 'all';
       const debut = debutPeriode(periode);
       const scope = pdvScope(req.user);
-      const wherePdv = withScope(debut ? { date_installation_app: { [Op.gte]: debut } } : {}, scope);
+      const filtres = filtresSupplementaires(req.query);
+      const wherePdv = withScope(
+        combinerWhere(debut ? { date_installation_app: { [Op.gte]: debut } } : {}, filtres),
+        scope
+      );
 
       const produits = await Produit.findAll({
         where: { statut: 'actif' },
@@ -205,7 +247,7 @@ const dashboardController = {
           attributes: [],
           through: { attributes: [] },
           where: Object.keys(wherePdv).length > 0 ? wherePdv : undefined,
-          required: Object.keys(scope).length > 0
+          required: Object.keys(scope).length > 0 || Object.keys(filtres).length > 0
         }],
         attributes: [
           'id',
@@ -237,7 +279,11 @@ const dashboardController = {
       const periode = req.query.periode || 'all';
       const debut = debutPeriode(periode);
       const scope = pdvScope(req.user);
-      const wherePdv = withScope(debut ? { date_installation_app: { [Op.gte]: debut } } : {}, scope);
+      const filtres = filtresSupplementaires(req.query);
+      const wherePdv = withScope(
+        combinerWhere(debut ? { date_installation_app: { [Op.gte]: debut } } : {}, filtres),
+        scope
+      );
 
       const totalPdvTagues = await PDV.count({ where: wherePdv });
 
@@ -249,7 +295,7 @@ const dashboardController = {
           attributes: [],
           through: { attributes: [] },
           where: Object.keys(wherePdv).length > 0 ? wherePdv : undefined,
-          required: Object.keys(scope).length > 0
+          required: Object.keys(scope).length > 0 || Object.keys(filtres).length > 0
         }],
         attributes: [
           'id',
@@ -294,7 +340,13 @@ const dashboardController = {
       const periode = req.query.periode || 'all';
       const debut = debutPeriode(periode);
       const scope = pdvScope(req.user);
-      const where = withScope(debut ? { date_installation_app: { [Op.gte]: debut } } : {}, scope);
+      const where = withScope(
+        combinerWhere(
+          debut ? { date_installation_app: { [Op.gte]: debut } } : {},
+          filtresSupplementaires(req.query)
+        ),
+        scope
+      );
 
       const lignes = await PDV.findAll({
         where,
@@ -362,9 +414,11 @@ const dashboardController = {
       const maintenant = Date.now();
       const seuilMuet = new Date(maintenant - SEUIL_INACTIVITE_HEURES * 3600 * 1000);
 
-      const whereIntervalle = debut
-        ? { date_installation_app: { [Op.between]: [debut, fin] } }
-        : {};
+      const filtres = filtresSupplementaires(req.query);
+      const whereIntervalle = combinerWhere(
+        debut ? { date_installation_app: { [Op.between]: [debut, fin] } } : {},
+        filtres
+      );
 
       // --- Cohorte taguée sur l'intervalle ---------------------------------
       const cohorte = await PDV.findAll({
@@ -384,8 +438,9 @@ const dashboardController = {
         order: [['date_installation_app', 'DESC']]
       });
 
-      // --- Base totale (hors intervalle) pour mettre la cohorte en contexte --
-      const baseTotale = await PDV.count({ where: withScope({}, scope) });
+      // --- Base totale (hors intervalle, mais avec les mêmes filtres
+      // commercial/agence/etc.) pour mettre la cohorte en contexte ----------
+      const baseTotale = await PDV.count({ where: withScope(filtres, scope) });
 
       // --- Courbe de tagging jour par jour ---------------------------------
       const parJour = new Map();
@@ -419,6 +474,8 @@ const dashboardController = {
 
       // --- Alertes de l'intervalle, ventilées -------------------------------
       const whereAlertes = debut ? { horodatage: { [Op.between]: [debut, fin] } } : {};
+      const wherePdvAlertes = combinerWhere(scope, filtres);
+      const requisPdvAlertes = Object.keys(wherePdvAlertes).length > 0;
       const alertes = await Alerte.findAll({
         where: whereAlertes,
         attributes: ['id', 'type_alerte', 'statut', 'distance_metres', 'horodatage', 'pdv_id'],
@@ -426,8 +483,8 @@ const dashboardController = {
           model: PDV,
           as: 'pdv',
           attributes: ['id', 'nom_pdv', 'id_terminal', 'ville', 'commune'],
-          where: Object.keys(scope).length > 0 ? scope : undefined,
-          required: Object.keys(scope).length > 0
+          where: requisPdvAlertes ? wherePdvAlertes : undefined,
+          required: requisPdvAlertes
         }],
         order: [['horodatage', 'DESC']]
       });
@@ -604,7 +661,7 @@ const dashboardController = {
   },
 
   /**
-   * Instrus : PDV ayant quitté leur zone/position initiale (alerte
+   * Intrus : PDV ayant quitté leur zone/position initiale (alerte
    * sortie_zone ou déplacement > rayon autorisé).
    * GET /api/dashboard/instrus?statut=non_traitee|traitee|en_cours (optionnel)
    */
@@ -620,7 +677,8 @@ const dashboardController = {
       }
 
       const scope = pdvScope(req.user);
-      const scoped = Object.keys(scope).length > 0;
+      const wherePdv = combinerWhere(scope, filtresSupplementaires(req.query));
+      const scoped = Object.keys(wherePdv).length > 0;
 
       const instrus = await Alerte.findAll({
         where,
@@ -632,9 +690,9 @@ const dashboardController = {
               'id', 'nom_pdv', 'msisdn_responsable', 'id_terminal',
               'latitude_creation', 'longitude_creation', 'ville', 'commune', 'quartier'
             ],
-            // Les instrus étaient jusqu'ici renvoyés sans filtre de périmètre :
+            // Les intrus étaient jusqu'ici renvoyés sans filtre de périmètre :
             // un commercial voyait les sorties de zone de toute la base.
-            where: scoped ? scope : undefined,
+            where: scoped ? wherePdv : undefined,
             required: scoped
           },
           'zone'
@@ -665,12 +723,13 @@ const dashboardController = {
       }
 
       const scope = pdvScope(req.user);
-      const scoped = Object.keys(scope).length > 0;
+      const wherePdv = combinerWhere(scope, filtresSupplementaires(req.query));
+      const scoped = Object.keys(wherePdv).length > 0;
 
       const instrus = await Alerte.findAll({
         where,
         include: [
-          { model: PDV, as: 'pdv', where: scoped ? scope : undefined, required: scoped },
+          { model: PDV, as: 'pdv', where: scoped ? wherePdv : undefined, required: scoped },
           'zone'
         ],
         order: [['horodatage', 'DESC']]
@@ -680,7 +739,7 @@ const dashboardController = {
       workbook.creator = 'Tracking PDV';
       workbook.created = new Date();
 
-      const feuille = workbook.addWorksheet('Instrus');
+      const feuille = workbook.addWorksheet('Intrus');
       feuille.columns = [
         { header: 'ID Terminal', key: 'id_terminal', width: 18 },
         { header: 'PDV', key: 'pdv', width: 22 },
@@ -729,18 +788,21 @@ const dashboardController = {
 
   /**
    * Export Excel du reporting : 3 feuilles — Synthèse (les indicateurs de la
-   * page), PDV tagués (le détail de la cohorte), Instrus (la conformité).
+   * page), PDV tagués (le détail de la cohorte), Intrus (la conformité).
    * Aucune colonne de montant : le produit ne mesure pas de ventes.
    */
   async exportExcel(req, res) {
     try {
       const { debut, fin, periode } = resoudreIntervalle(req.query);
       const scope = pdvScope(req.user);
-      const scoped = Object.keys(scope).length > 0;
+      const filtres = filtresSupplementaires(req.query);
       const maintenant = Date.now();
       const seuilMuet = new Date(maintenant - SEUIL_INACTIVITE_HEURES * 3600 * 1000);
 
-      const wherePdv = debut ? { date_installation_app: { [Op.between]: [debut, fin] } } : {};
+      const wherePdv = combinerWhere(
+        debut ? { date_installation_app: { [Op.between]: [debut, fin] } } : {},
+        filtres
+      );
 
       const pdvs = await PDV.findAll({
         where: withScope(wherePdv, scope),
@@ -755,10 +817,12 @@ const dashboardController = {
       });
 
       const whereAlertes = debut ? { horodatage: { [Op.between]: [debut, fin] } } : {};
+      const wherePdvAlertes = combinerWhere(scope, filtres);
+      const scopedAlertes = Object.keys(wherePdvAlertes).length > 0;
       const alertes = await Alerte.findAll({
         where: { ...whereAlertes, type_alerte: { [Op.in]: TYPES_ALERTES_INSTRUS } },
         include: [
-          { model: PDV, as: 'pdv', where: scoped ? scope : undefined, required: scoped },
+          { model: PDV, as: 'pdv', where: scopedAlertes ? wherePdvAlertes : undefined, required: scopedAlertes },
           'zone'
         ],
         order: [['horodatage', 'DESC']]
@@ -795,9 +859,9 @@ const dashboardController = {
         ['Taux de complétion des dossiers (%)', pdvs.length ? Number(((complets / pdvs.length) * 100).toFixed(1)) : 0],
         [`PDV sans remontée GPS depuis ${SEUIL_INACTIVITE_HEURES}h`, muets],
         ['Taux de couverture terrain (%)', pdvs.length ? Number((((pdvs.length - muets) / pdvs.length) * 100).toFixed(1)) : 0],
-        ['Alertes de sortie de zone (instrus)', alertes.length],
+        ['Alertes de sortie de zone (intrus)', alertes.length],
         ['PDV concernés par une sortie de zone', pdvInstrus.size],
-        ['Instrus non traitées', alertes.filter(a => a.statut === 'non_traitee').length]
+        ['Intrus non traitées', alertes.filter(a => a.statut === 'non_traitee').length]
       ].forEach(([indicateur, valeur]) => synthese.addRow({ indicateur, valeur }));
       enTete(synthese, 'FFE06E00');
 
@@ -851,8 +915,8 @@ const dashboardController = {
       });
       enTete(feuillePdv, 'FFE06E00');
 
-      // --- Feuille 3 : Instrus ---------------------------------------------
-      const feuilleInstrus = workbook.addWorksheet('Instrus');
+      // --- Feuille 3 : Intrus ------------------------------------------------
+      const feuilleInstrus = workbook.addWorksheet('Intrus');
       feuilleInstrus.columns = [
         { header: 'ID Terminal', key: 'id_terminal', width: 18 },
         { header: 'PDV', key: 'pdv', width: 22 },

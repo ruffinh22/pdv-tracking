@@ -95,7 +95,17 @@ interface AppContextValue {
   derniereSynchro: string | null;
   syncStatus: SyncStatus;
   lastSyncedCount: number | null;
-  register: (matricule: string) => Promise<{ ok: boolean; message?: string }>;
+  register: (
+    matricule: string,
+    options?: { confirmerReaffectation?: boolean }
+  ) => Promise<{
+    ok: boolean;
+    message?: string;
+    conflitReaffectation?: {
+      nomPdvExistant: string;
+      distanceM: number;
+    };
+  }>;
   refreshLocation: () => Promise<GPSPoint | null>;
   refreshQueue: () => Promise<void>;
   syncNow: () => Promise<void>;
@@ -318,7 +328,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isOnboarded]);
 
   const register = useCallback(
-    async (matriculeSaisi: string): Promise<{ ok: boolean; message?: string }> => {
+    async (
+      matriculeSaisi: string,
+      options?: { confirmerReaffectation?: boolean }
+    ): Promise<{
+      ok: boolean;
+      message?: string;
+      conflitReaffectation?: { nomPdvExistant: string; distanceM: number };
+    }> => {
       const matriculeNormalise = String(matriculeSaisi || '').trim().toUpperCase();
       if (!matriculeNormalise) {
         return { ok: false, message: 'Saisissez votre numéro matricule.' };
@@ -347,6 +364,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             terminal_id: deviceTerminalId,
             latitude: point.latitude,
             longitude: point.longitude,
+            reaffectation_confirmee: options?.confirmerReaffectation === true,
             device_info: {
               platform: Platform.OS,
               version: '2.0.0',
@@ -388,6 +406,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         beginTracking().catch(() => {});
         return { ok: true };
       } catch (error: any) {
+        // Terminal déjà enrôlé ailleurs, loin de sa position d'origine : le
+        // serveur refuse la réaffectation silencieuse et demande une
+        // confirmation explicite. On remonte un objet dédié plutôt qu'un
+        // simple message, pour que l'écran d'onboarding affiche une boîte de
+        // dialogue de confirmation au lieu d'une simple erreur.
+        if (error?.response?.status === 409 && error?.response?.data?.code === 'TERMINAL_DEJA_ENROLE_AILLEURS') {
+          const details = error.response.data;
+          return {
+            ok: false,
+            message: details.error,
+            conflitReaffectation: {
+              nomPdvExistant: details.pdv_existant?.nom_pdv || 'ce PDV',
+              distanceM: details.distance_m ?? 0,
+            },
+          };
+        }
         const message = error?.response?.data?.error || networkErrorMessage(error);
         return { ok: false, message };
       }

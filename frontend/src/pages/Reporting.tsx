@@ -15,6 +15,7 @@ import {
 } from '../services/dashboardService';
 import { useAuthStore } from '../contexts/authContext';
 import { ROLE_DIMENSIONS, Role } from '../config/permissions';
+import FiltresOrganisation, { ValeursFiltresOrganisation } from '../components/FiltresOrganisation';
 
 /**
  * Le produit tague et suit des points de vente ; il n'enregistre pas de
@@ -23,7 +24,7 @@ import { ROLE_DIMENSIONS, Role } from '../config/permissions';
  *   1. ENRÔLEMENT  — combien de PDV tagués, par qui, où, à quel rythme
  *   2. QUALITÉ     — part de dossiers complétés depuis le back-office
  *   3. COUVERTURE  — quels terminaux remontent encore du GPS, lesquels sont muets
- *   4. CONFORMITÉ  — sorties de zone (instrus), leur traitement, leur ampleur
+ *   4. CONFORMITÉ  — sorties de zone (intrus), leur traitement, leur ampleur
  */
 
 type Onglet = 'enrolement' | 'couverture' | 'conformite' | 'repartition';
@@ -135,6 +136,11 @@ const Reporting = () => {
   const [filtreDetail, setFiltreDetail] = useState<'tous' | 'brouillon' | 'muet' | 'instru'>('tous');
   const [exportEnCours, setExportEnCours] = useState(false);
 
+  // Filtres transverses (par agent commercial, chef de zone, superviseur,
+  // agence) : appliqués à la synthèse ci-dessous, et repris tels quels par
+  // l'export Excel.
+  const [filtresOrg, setFiltresOrg] = useState<ValeursFiltresOrganisation>({});
+
   // Dimensions de répartition restreintes au périmètre du rôle : un commercial
   // n'a rien à ventiler "par commercial", il n'y en a qu'un — lui.
   const dimensionsAutorisees = useMemo(
@@ -151,12 +157,13 @@ const Reporting = () => {
         return {
           debut: new Date(`${intervalle.debut}T00:00:00`).toISOString(),
           fin: new Date(`${intervalle.fin}T23:59:59`).toISOString(),
+          ...filtresOrg,
         };
       }
-      return { periode: 'mois' as Periode };
+      return { periode: 'mois' as Periode, ...filtresOrg };
     }
-    return { periode };
-  }, [periode, intervalle]);
+    return { periode, ...filtresOrg };
+  }, [periode, intervalle, filtresOrg]);
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['reporting', filtre],
@@ -299,6 +306,14 @@ const Reporting = () => {
             <span className="text-xs text-ink-400 ml-auto">Mise à jour…</span>
           ) : null}
         </div>
+
+        {/* Filtres transverses : agent commercial, chef de zone, superviseur, agence */}
+        <FiltresOrganisation
+          role={role}
+          valeurs={filtresOrg}
+          onChange={setFiltresOrg}
+          className="mt-3 pt-3 border-t border-ink-100"
+        />
       </div>
 
       {isLoading || !data ? (
@@ -616,7 +631,7 @@ const Reporting = () => {
 
               <div className="panel-pro">
                 <div className="panel-pro-head">
-                  <h2 className="text-base font-semibold text-ink-900">PDV sortis de leur zone (instrus)</h2>
+                  <h2 className="text-base font-semibold text-ink-900">PDV sortis de leur zone (intrus)</h2>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="table">
@@ -730,7 +745,7 @@ const Reporting = () => {
                     { cle: 'tous', libelle: 'Tous' },
                     { cle: 'brouillon', libelle: 'Brouillons' },
                     { cle: 'muet', libelle: 'Muets' },
-                    { cle: 'instru', libelle: 'Instrus' },
+                    { cle: 'instru', libelle: 'Intrus' },
                   ] as const
                 ).map((f) => (
                   <button

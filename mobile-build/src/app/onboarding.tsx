@@ -88,9 +88,44 @@ export default function OnboardingScreen() {
 
     if (result.ok) {
       router.replace('/(tabs)');
-    } else {
-      Alert.alert('Connexion impossible', result.message || 'Une erreur est survenue.');
+      return;
     }
+
+    // Terminal déjà enrôlé ailleurs, à une distance suspecte : on ne bloque
+    // pas silencieusement, on montre à l'agent où l'app pense qu'il se
+    // trouve et on lui laisse confirmer explicitement la réaffectation.
+    // Ça évite qu'un terminal mal réinitialisé écrase par erreur un PDV
+    // existant, tout en gardant la réaffectation possible quand elle est
+    // volontaire (terminal réellement redéployé sur un autre point de vente).
+    if (result.conflitReaffectation) {
+      const { nomPdvExistant, distanceM } = result.conflitReaffectation;
+      Alert.alert(
+        'Terminal déjà enrôlé ailleurs',
+        `Ce terminal est associé à "${nomPdvExistant}", à environ ${Math.round(
+          distanceM
+        )} m d'ici.\n\nConfirmez uniquement si ce terminal a bien été déplacé vers ce nouveau point de vente. Sinon, vérifiez que vous utilisez le bon terminal.`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Confirmer la réaffectation',
+            style: 'destructive',
+            onPress: async () => {
+              setSubmitting(true);
+              const confirmation = await register(matricule, { confirmerReaffectation: true });
+              setSubmitting(false);
+              if (confirmation.ok) {
+                router.replace('/(tabs)');
+              } else {
+                Alert.alert('Connexion impossible', confirmation.message || 'Une erreur est survenue.');
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    Alert.alert('Connexion impossible', result.message || 'Une erreur est survenue.');
   };
 
   const matriculeValide = matricule.trim().length >= 3;

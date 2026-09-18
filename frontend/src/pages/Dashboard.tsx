@@ -12,6 +12,7 @@ import {
 import { dashboardService, telechargerBlob, Periode, Dimension } from '../services/dashboardService';
 import { pdvService } from '../services/pdvService';
 import LeafletMap from '../components/LeafletMap';
+import FiltresOrganisation, { ValeursFiltresOrganisation } from '../components/FiltresOrganisation';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../contexts/authContext';
 import { ROLE_DASHBOARD_SUBTITLE, ROLE_DIMENSIONS, Role } from '../config/permissions';
@@ -90,9 +91,14 @@ const Dashboard = () => {
   const [dimension, setDimension] = useState<Dimension>('ville');
   const [instrusStatut, setInstrusStatut] = useState<string>('');
 
+  // Filtres transverses (par agent commercial, chef de zone, superviseur,
+  // agence) : appliqués à tous les blocs du dashboard ci-dessous, et repris
+  // tels quels par l'export Excel.
+  const [filtresOrg, setFiltresOrg] = useState<ValeursFiltresOrganisation>({});
+
   const { data: kpis, isLoading } = useQuery({
-    queryKey: ['kpis'],
-    queryFn: dashboardService.getKPIs,
+    queryKey: ['kpis', filtresOrg],
+    queryFn: () => dashboardService.getKPIs(filtresOrg),
   });
 
   const { data: alertesActives } = useQuery({
@@ -110,38 +116,38 @@ const Dashboard = () => {
 
   // Point 5 : PDV tagués / actifs / inactifs sur une période
   const { data: pdvStats } = useQuery({
-    queryKey: ['pdvStats', periode],
-    queryFn: () => dashboardService.getPDVStats(periode),
+    queryKey: ['pdvStats', periode, filtresOrg],
+    queryFn: () => dashboardService.getPDVStats(periode, filtresOrg),
     placeholderData: keepPreviousData,
   });
 
   // Point 5 : nombre de PDV tagués par type de produit
   const { data: pdvParProduit = [] } = useQuery({
-    queryKey: ['pdvParProduit', produitsPeriode],
-    queryFn: () => dashboardService.getPDVParProduit(produitsPeriode),
+    queryKey: ['pdvParProduit', produitsPeriode, filtresOrg],
+    queryFn: () => dashboardService.getPDVParProduit(produitsPeriode, filtresOrg),
     placeholderData: keepPreviousData,
   });
 
   // Point 5 : ratio de chaque produit vs la base totale de PDV tagués
   const { data: ratioProduits } = useQuery({
-    queryKey: ['ratioProduits', produitsPeriode],
-    queryFn: () => dashboardService.getRatioProduits(produitsPeriode),
+    queryKey: ['ratioProduits', produitsPeriode, filtresOrg],
+    queryFn: () => dashboardService.getRatioProduits(produitsPeriode, filtresOrg),
     placeholderData: keepPreviousData,
   });
 
   // Point 3 : analyses transverses par dimension
   const { data: analyses, isLoading: analysesLoading } = useQuery({
-    queryKey: ['analyses', dimension],
-    queryFn: () => dashboardService.getAnalyses(dimension, 'all'),
+    queryKey: ['analyses', dimension, filtresOrg],
+    queryFn: () => dashboardService.getAnalyses(dimension, 'all', filtresOrg),
     // Garde les données précédentes pendant le rechargement : changer de
     // dimension ne doit pas faire clignoter tout le bloc en "Chargement…".
     placeholderData: keepPreviousData,
   });
 
-  // Point 6 : instrus (PDV ayant quitté leur zone/position initiale)
+  // Point 6 : intrus (PDV ayant quitté leur zone/position initiale)
   const { data: instrus = [], isLoading: instrusLoading } = useQuery({
-    queryKey: ['instrus', instrusStatut],
-    queryFn: () => dashboardService.getInstrus(instrusStatut || undefined),
+    queryKey: ['instrus', instrusStatut, filtresOrg],
+    queryFn: () => dashboardService.getInstrus(instrusStatut || undefined, filtresOrg),
     placeholderData: keepPreviousData,
   });
 
@@ -149,7 +155,7 @@ const Dashboard = () => {
 
   const handleExportExcel = async () => {
     try {
-      const blob = await dashboardService.exportExcel();
+      const blob = await dashboardService.exportExcel(filtresOrg);
       telechargerBlob(blob, `tracking_pdv_export_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success('Export Excel réussi');
     } catch (error) {
@@ -157,14 +163,14 @@ const Dashboard = () => {
     }
   };
 
-  // Point 6 : export à tout moment des instrus
+  // Point 6 : export à tout moment des intrus
   const handleExportInstrus = async () => {
     try {
-      const blob = await dashboardService.exportInstrusExcel(instrusStatut || undefined);
-      telechargerBlob(blob, `instrus_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Export des instrus réussi');
+      const blob = await dashboardService.exportInstrusExcel(instrusStatut || undefined, filtresOrg);
+      telechargerBlob(blob, `intrus_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('Export des intrus réussi');
     } catch (error) {
-      toast.error('Erreur lors de l\'export des instrus');
+      toast.error('Erreur lors de l\'export des intrus');
     }
   };
 
@@ -193,7 +199,7 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 pb-4 border-b border-ink-200">
+      <div className="flex items-center justify-between gap-4 pb-4 border-b border-ink-200 flex-wrap">
         <div>
           <p className="text-sm font-medium text-ink-700">{ROLE_DASHBOARD_SUBTITLE[role]}</p>
           <p className="text-sm text-ink-500">
@@ -205,6 +211,9 @@ const Dashboard = () => {
           Export Excel
         </button>
       </div>
+
+      {/* Filtres transverses : agent commercial, chef de zone, superviseur, agence */}
+      <FiltresOrganisation role={role} valeurs={filtresOrg} onChange={setFiltresOrg} />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -427,12 +436,12 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Point 1 & 6 : Instrus (PDV ayant quitté leur zone initiale) */}
+      {/* Point 1 & 6 : Intrus (PDV ayant quitté leur zone initiale) */}
       <div className="panel-pro">
         <div className="panel-pro-head">
           <div>
             <h2 className="text-base font-semibold text-ink-900 flex items-center gap-2">
-              <Navigation className="w-4 h-4 text-danger-500" /> Instrus — activité suspecte
+              <Navigation className="w-4 h-4 text-danger-500" /> Intrus — activité suspecte
             </h2>
             <p className="text-xs text-ink-400 mt-0.5">PDV ayant quitté leur zone ou leur position initiale (&gt; 500m)</p>
           </div>
@@ -469,7 +478,7 @@ const Dashboard = () => {
               {instrusLoading ? (
                 <tr><td colSpan={6} className="text-center py-8 text-ink-400">Chargement...</td></tr>
               ) : instrus.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-8 text-ink-400">Aucun instrus détecté</td></tr>
+                <tr><td colSpan={6} className="text-center py-8 text-ink-400">Aucun intrus détecté</td></tr>
               ) : (
                 instrus.slice(0, 20).map((alerte: any) => (
                   <tr key={alerte.id}>
