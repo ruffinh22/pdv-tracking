@@ -30,7 +30,7 @@ const Login = () => {
   return (
     <div className="min-h-screen flex bg-ink-50">
       {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-primary-700 flex-col">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-brand-900 flex-col">
         <div className="flag-stripe"><span /><span /><span /></div>
         <div
           className="absolute inset-0 opacity-[0.07]"
@@ -40,6 +40,10 @@ const Login = () => {
             backgroundSize: '28px 28px',
           }}
         />
+        {/* Touche rouge, en écho au volatile du logo LONACI */}
+        <div className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-danger-600/20 blur-3xl" />
+        <div className="absolute -left-16 bottom-24 w-56 h-56 rounded-full bg-primary-500/10 blur-3xl" />
+
         <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full flex-1">
           <div className="flex items-center gap-3">
             <div className="bg-white rounded-md px-2 py-1.5 shadow-sm flex items-center justify-center">
@@ -49,16 +53,20 @@ const Login = () => {
           </div>
 
           <div className="max-w-md">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-danger-500/15 text-danger-300 text-xs font-semibold ring-1 ring-inset ring-danger-500/30 mb-4">
+              <span className="w-1.5 h-1.5 rounded-full bg-danger-400" />
+              Réseau national LONACI
+            </span>
             <h2 className="text-3xl font-bold leading-snug mb-4">
               Pilotez votre réseau de points de vente en temps réel.
             </h2>
-            <p className="text-primary-100 text-sm leading-relaxed">
+            <p className="text-brand-100 text-sm leading-relaxed">
               Suivi terrain, alertes géographiques, reporting des ventes et gestion
               d'équipe réunis dans un seul tableau de bord.
             </p>
           </div>
 
-          <p className="text-xs text-primary-200">© {new Date().getFullYear()} Tracking PDV. Tous droits réservés.</p>
+          <p className="text-xs text-brand-200">© {new Date().getFullYear()} Tracking PDV. Tous droits réservés.</p>
         </div>
       </div>
 
@@ -66,7 +74,7 @@ const Login = () => {
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="bg-primary-600 rounded-md px-2 py-1.5 shadow-sm flex items-center justify-center">
+            <div className="bg-brand-900 rounded-md px-2 py-1.5 shadow-sm flex items-center justify-center">
               <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-8 w-auto" />
             </div>
             <span className="text-lg font-bold text-ink-900">Tracking PDV</span>
@@ -127,7 +135,7 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-8 p-4 bg-white rounded-lg border border-ink-200">
+          <div className="mt-8 p-4 bg-white rounded-lg border border-ink-200 border-l-2 border-l-success-600">
             <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Comptes de test</p>
             <div className="space-y-1 text-sm text-ink-600">
               <p><span className="text-ink-400">Admin —</span> admin@trackingpdv.com / admin123</p>

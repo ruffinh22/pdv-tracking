@@ -160,7 +160,7 @@ const Layout = () => {
     <div className="min-h-screen bg-ink-50">
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden shadow-2xl bg-ink-950 ${
+        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden shadow-2xl bg-brand-900 ${
           isSidebarOpen ? 'w-64' : 'w-0'
         }`}
       >
@@ -247,7 +247,7 @@ const Layout = () => {
               <button
                 onClick={logout}
                 title="Déconnexion"
-                className="inline-flex items-center justify-center w-8 h-8 rounded-md text-ink-400 hover:bg-white/10 hover:text-white transition-colors"
+                className="inline-flex items-center justify-center w-8 h-8 rounded-md text-ink-400 hover:bg-danger-600/20 hover:text-danger-300 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
               </button>

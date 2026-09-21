@@ -169,7 +169,7 @@ const Tracking = () => {
     polylinesRef.current.clear();
 
     const createIcon = (statut: string, isSelected: boolean) => {
-      const color = statut === 'actif' ? '#009a44' : statut === 'inactif' ? '#8f8f9c' : '#d64545';
+      const color = statut === 'actif' ? '#009a44' : statut === 'inactif' ? '#8f8f9c' : '#cc2b26';
       const size = isSelected ? 40 : 32;
       const borderSize = isSelected ? 4 : 3;
       return L.divIcon({
@@ -294,12 +294,12 @@ const Tracking = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] w-full bg-ink-950 flex flex-col">
+    <div className="h-[calc(100vh-4rem)] w-full bg-brand-950 flex flex-col">
       {/* Barre de contrôle principale */}
-      <div className="bg-ink-900 text-white px-6 py-4 flex items-center justify-between shadow-lg border-b border-ink-800" style={{ position: 'relative', zIndex: 100 }}>
+      <div className="bg-brand-900 text-white px-6 py-4 flex items-center justify-between shadow-lg border-b border-brand-800" style={{ position: 'relative', zIndex: 100 }}>
         <div className="flex items-center space-x-6">
           <h1 className="text-lg font-bold tracking-tight">Suivi en temps réel</h1>
-          <div className="h-6 w-px bg-ink-700"></div>
+          <div className="h-6 w-px bg-brand-700"></div>
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-2">
               <span className="text-ink-400">PDV actifs:</span>
@@ -315,7 +315,7 @@ const Tracking = () => {
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setIsTracking(!isTracking)}
-            className={`p-2 rounded-lg transition-all ${isTracking ? 'bg-success-600 hover:bg-success-700' : 'bg-ink-700 hover:bg-ink-600'}`}
+            className={`p-2 rounded-lg transition-all ${isTracking ? 'bg-success-600 hover:bg-success-700' : 'bg-brand-700 hover:bg-brand-600'}`}
             title={isTracking ? 'Pause' : 'Reprendre'}
           >
             {isTracking ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
@@ -323,7 +323,7 @@ const Tracking = () => {
           
           <button
             onClick={refreshMap}
-            className="p-2 bg-ink-700 rounded-lg hover:bg-ink-600 transition-all"
+            className="p-2 bg-brand-700 rounded-lg hover:bg-brand-600 transition-all"
             title="Rafraîchir"
           >
             <RefreshCw className="w-5 h-5" />
@@ -331,7 +331,7 @@ const Tracking = () => {
           
           <button
             onClick={toggleFullscreen}
-            className="p-2 bg-ink-700 rounded-lg hover:bg-ink-600 transition-all"
+            className="p-2 bg-brand-700 rounded-lg hover:bg-brand-600 transition-all"
             title="Plein écran"
           >
             {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
@@ -349,18 +349,18 @@ const Tracking = () => {
       </div>
 
       {/* Barre de filtres incorporée */}
-      <div className="bg-ink-900/60 px-6 py-3 flex items-center space-x-6 border-b border-ink-800" style={{ position: 'relative', zIndex: 90 }}>
+      <div className="bg-brand-900/60 px-6 py-3 flex items-center space-x-6 border-b border-brand-800" style={{ position: 'relative', zIndex: 90 }}>
         <div className="flex items-center space-x-2">
-          <Filter className="w-4 h-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-300">Filtres:</span>
+          <Filter className="w-4 h-4 text-ink-400" />
+          <span className="text-sm font-medium text-ink-300">Filtres:</span>
         </div>
         
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <label className="text-xs text-gray-400">Statut:</label>
+            <label className="text-xs text-ink-400">Statut:</label>
             <select 
               value={statutFilter}
-              className="bg-ink-800 text-white text-sm px-3 py-1.5 rounded border border-ink-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="bg-brand-800 text-white text-sm px-3 py-1.5 rounded border border-brand-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               onChange={(e) => setStatutFilter(e.target.value)}
             >
               <option value="all">Tous</option>
@@ -371,10 +371,10 @@ const Tracking = () => {
           </div>
           
           <div className="flex items-center space-x-2">
-            <label className="text-xs text-gray-400">Zone:</label>
+            <label className="text-xs text-ink-400">Zone:</label>
             <select 
               value={zoneFilter}
-              className="bg-ink-800 text-white text-sm px-3 py-1.5 rounded border border-ink-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="bg-brand-800 text-white text-sm px-3 py-1.5 rounded border border-brand-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               onChange={(e) => setZoneFilter(e.target.value)}
             >
               <option value="all">Toutes les zones</option>
@@ -389,17 +389,17 @@ const Tracking = () => {
           </span>
         )}
 
-        <div className="flex items-center space-x-4 text-xs text-gray-400">
+        <div className="flex items-center space-x-4 text-xs text-ink-400">
           <div className="flex items-center">
-            <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+            <div className="w-2 h-2 bg-success-500 rounded-full mr-1"></div>
             <span>Actif</span>
           </div>
           <div className="flex items-center">
-            <div className="w-2 h-2 bg-gray-500 rounded-full mr-1"></div>
+            <div className="w-2 h-2 bg-ink-400 rounded-full mr-1"></div>
             <span>Inactif</span>
           </div>
           <div className="flex items-center">
-            <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
+            <div className="w-2 h-2 bg-danger-500 rounded-full mr-1"></div>
             <span>Suspendu</span>
           </div>
           <div className="flex items-center">
@@ -412,7 +412,7 @@ const Tracking = () => {
       {/* Carte en plein écran */}
       <div 
         ref={mapContainerRef} 
-        className="flex-1 bg-ink-100 relative z-0"
+        className="flex-1 bg-brand-50 relative z-0"
       />
       
       {/* Indicateur de connexion */}

@@ -9,7 +9,8 @@
     "debug": "nodemon --watch src --ext js --exec \"node --inspect=9229 src/server.js\"",
     "test": "jest",
     "seed": "node src/database/seed.js",
-    "seed-tracking": "node src/database/seed-tracking.js"
+    "seed-tracking": "node src/database/seed-tracking.js",
+    "seed:reset": "node src/database/seed-reset.js"
   },
   "keywords": [
     "tracking",

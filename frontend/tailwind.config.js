@@ -36,17 +36,18 @@ export default {
           800: '#005024',
           900: '#00391a',
         },
+        /* Rouge — recalé sur le rouge du volatile du logo LONACI (#cd2b26) */
         danger: {
-          50: '#fdf1f1',
-          100: '#fbdcdc',
-          200: '#f5b8b8',
-          300: '#ea8e8e',
-          400: '#df6a6a',
-          500: '#d64545',
-          600: '#b93333',
-          700: '#932828',
-          800: '#711e1e',
-          900: '#521515',
+          50: '#fdecec',
+          100: '#f9d2d1',
+          200: '#f2a6a4',
+          300: '#e87874',
+          400: '#dd4f49',
+          500: '#cc2b26',
+          600: '#ad211d',
+          700: '#8a1a17',
+          800: '#671412',
+          900: '#450d0c',
         },
         /* Jaune doré — attention, distinct de l'orange primaire */
         warning: {
@@ -79,6 +80,22 @@ export default {
           orange: '#ff8200',
           white: '#ffffff',
           green: '#009a44',
+        },
+        /* Vert profond du wordmark LONACI — remplace le noir/anthracite générique
+           sur les surfaces "sombres" (sidebar, barres de la carte de suivi) pour
+           que ces zones restent dans l'identité de marque plutôt qu'un noir neutre. */
+        brand: {
+          50: '#e7f3ec',
+          100: '#c6e3d3',
+          200: '#8fc7a9',
+          300: '#4fa377',
+          400: '#1f8656',
+          500: '#0f6b40',
+          600: '#0b5734',
+          700: '#0a4429',
+          800: '#08331f',
+          900: '#062316',
+          950: '#041710',
         },
       },
       boxShadow: {
