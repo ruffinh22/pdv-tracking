@@ -134,3 +134,4 @@ mobile/google-services.json
 docs/_build/
 
 backend/yarn.lock
+*.zip
