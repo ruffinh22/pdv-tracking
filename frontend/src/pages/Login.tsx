@@ -72,7 +72,7 @@ const Login = () => {
             </motion.span>
             <motion.h2
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.6 }}
-              className="font-display text-5xl xl:text-6xl font-extrabold leading-[1.05] text-white mb-6"
+              className="font-display text-5xl xl:text-[3.4rem] font-extrabold leading-[1.05] text-white mb-6"
             >
               Pilotez vos points de vente en temps réel.
             </motion.h2>

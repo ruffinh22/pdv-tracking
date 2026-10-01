@@ -484,10 +484,10 @@ const PDVDetail = () => {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-ink-900">
+          <h1 className="page-title">
             {estNomProvisoire(pdv.nom_pdv) ? 'Dossier à compléter' : pdv.nom_pdv}
           </h1>
-          <p className="text-sm text-ink-500 mt-0.5">
+          <p className="page-subtitle">
             Dossier point de vente #{pdv.id}
           </p>
         </div>
@@ -499,7 +499,7 @@ const PDVDetail = () => {
       {/* Ce que le terminal a remonté du terrain : non modifiable ici, c'est la
           trace de l'enrôlement. */}
       <div className="card">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-3">
+        <h2 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-3">
           Relevé du terrain
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
@@ -542,7 +542,7 @@ const PDVDetail = () => {
         <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <Route className="w-4 h-4 text-ink-400" />
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-ink-500">
               Suivi du terminal
             </h2>
             {positionLive ? (
@@ -661,7 +661,7 @@ const PDVDetail = () => {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="card space-y-5">
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">
               Identité du point de vente
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -738,7 +738,7 @@ const PDVDetail = () => {
           </div>
 
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">
               Rattachement commercial
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -847,7 +847,7 @@ const PDVDetail = () => {
 
           <div>
             <div className="flex items-start justify-between gap-3 mb-2.5 flex-wrap">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500">
                 Localisation administrative
               </h3>
               <button
@@ -891,7 +891,7 @@ const PDVDetail = () => {
 
           {champVisible('produits') && (
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">
               {champLibelle('produits', 'Produits vendus')}{etoile('produits')}
             </h3>
             <p className="text-xs text-ink-400 mb-2.5">
@@ -928,7 +928,7 @@ const PDVDetail = () => {
         {/* Champs pilotés par l'admin depuis Paramètres > Attributs PDV */}
         {groupes.map(([groupe, champs]) => (
           <div className="card" key={groupe}>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-3">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-3">
               {groupe}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

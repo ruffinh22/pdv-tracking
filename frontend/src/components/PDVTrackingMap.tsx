@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { BRAND } from '../lib/theme';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PositionPDV } from '../services/pdvService';
@@ -15,9 +16,9 @@ interface Props {
   hauteur?: number;
 }
 
-const COULEUR_ANCRAGE = '#ff8200';
-const COULEUR_TRACE = '#009a44';
-const COULEUR_HORS_ZONE = '#d64545';
+const COULEUR_ANCRAGE = BRAND.orange;
+const COULEUR_TRACE = BRAND.green;
+const COULEUR_HORS_ZONE = BRAND.red;
 
 /** Distance en mètres entre deux points (Haversine), pour colorer le marqueur
  *  courant selon qu'il est dans la géofence ou non. */

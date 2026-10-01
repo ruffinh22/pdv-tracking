@@ -5,41 +5,36 @@
 @layer base {
   html {
     @apply antialiased;
-    font-size: 106.25%; /* texte globalement plus grand et plus lisible (17px) */
-    font-feature-settings: 'kern', 'liga';
+    font-size: 106.25%; /* 17px : lisibilité */
+    font-feature-settings: 'kern', 'liga', 'ss01';
     text-rendering: optimizeLegibility;
   }
 
-  h1, h2, h3, h4 {
-    @apply font-display tracking-tight text-ink-950;
-  }
+  h1, h2, h3, h4 { @apply font-display tracking-tight text-ink-950; }
+  h1 { @apply text-2xl font-extrabold; }
+  h2 { @apply text-lg font-extrabold; }
+  h3 { @apply text-base font-bold; }
 
   body {
-    @apply text-ink-900 font-sans font-medium;
-    background-color: theme('colors.ink.50');
-    background-image:
-      radial-gradient(900px 420px at 100% -10%, rgba(255, 130, 0, 0.10), transparent 60%),
-      radial-gradient(800px 420px at 0% 0%, rgba(0, 136, 64, 0.09), transparent 60%);
+    @apply text-ink-900 font-sans font-medium bg-ink-50;
+    font-variant-numeric: tabular-nums;
+    /* Une seule lueur discrète en haut : sobre, sans bruit visuel */
+    background-image: radial-gradient(1100px 380px at 100% -8%, rgba(255, 130, 0, 0.07), transparent 65%);
     background-attachment: fixed;
   }
 
-  ::selection {
-    @apply bg-primary-200 text-primary-900;
-  }
+  ::selection { @apply bg-primary-200 text-primary-900; }
 
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: theme('colors.success.300') transparent;
-  }
+  * { scrollbar-width: thin; scrollbar-color: theme('colors.ink.300') transparent; }
   *::-webkit-scrollbar { width: 9px; height: 9px; }
-  *::-webkit-scrollbar-thumb { background-color: theme('colors.success.300'); border-radius: 6px; }
+  *::-webkit-scrollbar-thumb { background-color: theme('colors.ink.300'); border-radius: 6px; }
   *::-webkit-scrollbar-thumb:hover { background-color: theme('colors.success.500'); }
   *::-webkit-scrollbar-track { background: transparent; }
 }
 
 @layer utilities {
   /* Liseré tricolore — signature de marque (drapeau CI) */
-  .flag-stripe { @apply flex h-1.5 w-full shrink-0 overflow-hidden; }
+  .flag-stripe { @apply flex h-1 w-full shrink-0 overflow-hidden; }
   .flag-stripe > span { @apply flex-1; }
   .flag-stripe > span:nth-child(1) { background-color: theme('colors.flag.orange'); }
   .flag-stripe > span:nth-child(2) { background-color: theme('colors.flag.white'); }
@@ -51,92 +46,106 @@
     background-clip: text;
     color: transparent;
   }
+  .num { font-variant-numeric: tabular-nums; }
 }
 
 @layer components {
+  /* ---------- Titre de page (remplace les h1 « text-2xl font-bold ») ---------- */
+  .page-title {
+    @apply font-display text-[1.7rem] leading-tight font-extrabold text-ink-950 tracking-tight;
+  }
+  .page-title::after {
+    content: '';
+    display: block;
+    margin-top: 0.45rem;
+    height: 4px;
+    width: 3.25rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ff8200 0 55%, #009a44 55% 100%);
+  }
+  .page-subtitle { @apply text-[0.95rem] font-medium text-ink-600 mt-2; }
+
   /* ---------- Boutons ---------- */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm
-           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
-           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.97];
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm leading-5
+           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98];
   }
   .btn-primary {
-    @apply text-white shadow-glow hover:-translate-y-0.5 hover:brightness-105 focus-visible:ring-primary-500;
-    background-image: linear-gradient(135deg, #ff9533 0%, #ee7000 55%, #c85d00 100%);
+    @apply text-white bg-primary-500 hover:bg-primary-600 shadow-[0_1px_0_rgba(255,255,255,.25)_inset,0_6px_14px_-6px_rgba(255,130,0,.7)]
+           hover:shadow-glow focus-visible:ring-primary-500;
   }
   .btn-secondary {
-    @apply bg-white text-ink-800 border-2 border-ink-200 shadow-sm hover:border-success-600 hover:text-success-700
+    @apply bg-white text-ink-800 border border-ink-300 shadow-sm hover:border-success-600 hover:text-success-700
            hover:bg-success-50 focus-visible:ring-success-500;
   }
   .btn-danger {
-    @apply bg-danger-500 text-white shadow-sm hover:bg-danger-600 hover:-translate-y-0.5 focus-visible:ring-danger-500;
+    @apply bg-danger-500 text-white shadow-sm hover:bg-danger-600 focus-visible:ring-danger-500;
   }
   .btn-success {
-    @apply text-white shadow-glow-green hover:-translate-y-0.5 hover:brightness-110 focus-visible:ring-success-500;
-    background-image: linear-gradient(135deg, #24ab62 0%, #008840 60%, #006d34 100%);
+    @apply text-white bg-success-600 hover:bg-success-700 shadow-[0_1px_0_rgba(255,255,255,.2)_inset,0_6px_14px_-6px_rgba(0,136,64,.7)]
+           focus-visible:ring-success-500;
   }
   .btn-ghost { @apply text-ink-700 hover:bg-ink-100 hover:text-ink-950 focus-visible:ring-ink-300; }
   .btn-icon {
-    @apply inline-flex items-center justify-center w-10 h-10 rounded-xl text-ink-600
+    @apply inline-flex items-center justify-center w-9 h-9 rounded-lg text-ink-500
            hover:bg-primary-50 hover:text-primary-700 transition-all duration-150 active:scale-95
            focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500;
   }
 
   /* ---------- Surfaces ---------- */
-  .card { @apply bg-white rounded-2xl border border-ink-200 shadow-card p-6; }
+  .card { @apply bg-white rounded-2xl border border-ink-200/80 shadow-card p-6; }
+  .panel { @apply bg-white rounded-2xl border border-ink-200/80 shadow-card overflow-hidden; }
 
-  .panel {
-    @apply bg-white rounded-2xl border border-ink-200 shadow-card overflow-hidden
-           transition-all duration-200 hover:shadow-lift;
-  }
-
-  .panel-pro {
-    @apply relative bg-white rounded-2xl border border-ink-200 shadow-card overflow-hidden
-           transition-all duration-200 hover:shadow-lift;
-  }
-  /* Filet tricolore en tête de chaque panneau */
-  .panel-pro::before {
-    content: '';
-    @apply absolute inset-x-0 top-0 h-1 bg-flag-gradient z-10;
-  }
+  .panel-pro { @apply relative bg-white rounded-2xl border border-ink-200/80 shadow-card overflow-hidden; }
   .panel-pro-head {
-    @apply flex items-center justify-between px-6 py-5 border-b border-ink-100 bg-gradient-to-b from-white to-ink-50/60;
+    @apply flex items-center justify-between gap-3 px-6 py-4 border-b border-ink-100 bg-white;
   }
-  .panel-pro-head h2, .panel-pro-head h3 { @apply text-lg font-extrabold; }
-  .panel-pro .table thead th { @apply border-b-2 border-primary-500; }
+  .panel-pro-head h2, .panel-pro-head h3 {
+    @apply text-[1.05rem] font-extrabold text-ink-950 flex items-center gap-2.5;
+  }
+  /* Petite barre orange devant chaque titre de panneau */
+  .panel-pro-head h2::before, .panel-pro-head h3::before {
+    content: '';
+    @apply inline-block w-1 h-5 rounded-full bg-primary-500;
+  }
 
   /* ---------- Champs ---------- */
   .input {
-    @apply w-full px-4 py-3 bg-white border-2 border-ink-200 rounded-xl text-[0.95rem] font-medium text-ink-950
+    @apply w-full px-4 py-2.5 bg-white border border-ink-300 rounded-xl text-[0.95rem] font-medium text-ink-950
            placeholder:text-ink-400 placeholder:font-normal transition-all duration-150
-           hover:border-ink-300
-           focus:outline-none focus:ring-4 focus:ring-success-500/15 focus:border-success-600;
+           hover:border-ink-400
+           focus:outline-none focus:shadow-ring focus:border-success-600;
   }
-  .label { @apply block text-sm font-bold text-ink-900 mb-1.5; }
+  .label { @apply block text-[13px] font-extrabold uppercase tracking-wide text-ink-700 mb-1.5; }
 
   /* ---------- Tableaux ---------- */
   .table { @apply w-full border-collapse text-sm; }
   .table thead th {
-    @apply px-4 py-4 text-left text-xs font-extrabold uppercase tracking-wider text-white bg-brand-800 border-b-[3px] border-primary-500;
+    @apply px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-100 bg-brand-900 whitespace-nowrap;
+    box-shadow: inset 0 -2px 0 theme('colors.primary.500');
   }
   .table thead th:first-child { @apply pl-6; }
-  .table tbody td { @apply px-4 py-4 text-[0.95rem] font-medium text-ink-800 border-b border-ink-100; }
+  .table thead th:last-child { @apply pr-6; }
+  .table tbody td { @apply px-4 py-3.5 text-[0.93rem] font-medium text-ink-800 border-b border-ink-100; }
   .table tbody td:first-child { @apply pl-6; }
+  .table tbody td:last-child { @apply pr-6; }
   .table tbody tr { @apply transition-colors duration-100; }
-  .table tbody tr:nth-child(even) { @apply bg-ink-50/70; }
-  .table tbody tr:hover { @apply bg-primary-50; box-shadow: inset 4px 0 0 theme('colors.primary.500'); }
+  .table tbody tr:hover { @apply bg-primary-50/70; box-shadow: inset 3px 0 0 theme('colors.primary.500'); }
   .table tbody tr:last-child td { @apply border-b-0; }
 
   /* ---------- Badges / pastilles ---------- */
   .badge {
-    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ring-1 ring-inset;
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ring-1 ring-inset;
   }
-  .badge::before { content: ''; @apply w-2 h-2 rounded-full shrink-0; background: currentColor; }
+  .badge::before { content: ''; @apply w-1.5 h-1.5 rounded-full shrink-0; background: currentColor; }
   .badge-success { @apply bg-success-50 text-success-700 ring-success-200; }
   .badge-danger { @apply bg-danger-50 text-danger-700 ring-danger-200; }
   .badge-warning { @apply bg-warning-50 text-warning-700 ring-warning-200; }
   .badge-neutral { @apply bg-ink-100 text-ink-700 ring-ink-200; }
   .badge-primary { @apply bg-primary-50 text-primary-700 ring-primary-200; }
+  .badge-dark { @apply bg-brand-800 text-white ring-transparent; }
+  .badge-dark::before { @apply bg-primary-400; }
   .badge-solid-primary { @apply bg-primary-600 text-white ring-transparent; }
   .badge-solid-primary::before { @apply bg-white/80; }
   .badge-solid-amber { @apply bg-warning-500 text-white ring-transparent; }
@@ -149,15 +158,15 @@
   .chip--active { @apply bg-primary-600 text-white ring-0 shadow-glow; }
 
   /* ---------- Barre d'outils ---------- */
-  .toolbar { @apply flex flex-wrap items-center gap-3 px-6 py-4 border-b border-ink-100 bg-white; }
+  .toolbar { @apply flex flex-wrap items-center gap-3 px-6 py-3.5 border-b border-ink-100 bg-ink-50/60; }
   .toolbar-select {
-    @apply px-3.5 py-2.5 text-sm font-semibold border-2 border-ink-200 rounded-xl bg-white text-ink-800
-           transition-all duration-150 hover:border-ink-300
-           focus:outline-none focus:ring-4 focus:ring-success-500/15 focus:border-success-600;
+    @apply px-3.5 py-2 text-sm font-semibold border border-ink-300 rounded-xl bg-white text-ink-800
+           transition-all duration-150 hover:border-ink-400
+           focus:outline-none focus:shadow-ring focus:border-success-600;
   }
 
   .section-title {
-    @apply font-display text-xl font-extrabold text-ink-950 tracking-tight pl-3 border-l-[5px] border-primary-500;
+    @apply font-display text-xl font-extrabold text-ink-950 tracking-tight pl-3 border-l-4 border-primary-500;
   }
 
   .empty-state { @apply flex flex-col items-center justify-center gap-2 py-16 text-center; }
@@ -168,12 +177,12 @@
 
   /* ---------- Cartes KPI ---------- */
   .kpi-card {
-    @apply relative overflow-hidden bg-white border border-ink-200 shadow-card rounded-2xl
-           transition-all duration-300 hover:-translate-y-1 hover:shadow-lift;
+    @apply relative overflow-hidden bg-white border border-ink-200/80 shadow-card rounded-2xl
+           transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lift;
   }
   .kpi-card::after {
     content: '';
-    @apply absolute -right-8 -bottom-8 w-28 h-28 rounded-full opacity-[0.07] bg-current pointer-events-none;
+    @apply absolute -right-10 -bottom-10 w-32 h-32 rounded-full opacity-[0.06] bg-current pointer-events-none;
   }
 }
 
@@ -188,13 +197,14 @@
 }
 
 .leaflet-popup-content-wrapper {
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(14, 14, 18, 0.16);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px -8px rgba(10, 12, 11, 0.28);
+  border: 1px solid #dcdfdd;
 }
 
 .leaflet-popup-content {
   margin: 12px;
-  font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans Variable', system-ui, -apple-system, sans-serif;
 }
 
 /* Leaflet container height fix */
@@ -250,11 +260,11 @@
     gap: 14px;
     padding-bottom: 10px;
     margin-bottom: 16px;
-    border-bottom: 3px solid #062316;
+    border-bottom: 3px solid #ff8200;
   }
   .print-header img { height: 40px; width: auto; }
   .print-header div { display: flex; flex-direction: column; font-size: 11px; color: #333; }
-  .print-header strong { font-size: 14px; color: #062316; }
+  .print-header strong { font-size: 14px; color: #0d1210; }
 
   /* Évite de couper une carte ou une ligne de tableau entre deux pages */
   .kpi-card, tr, canvas, svg, .recharts-wrapper { break-inside: avoid; page-break-inside: avoid; }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { BRAND, CHART, CHART_SERIES, tooltipProps } from '../lib/theme';
 import { Inbox } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -57,7 +58,7 @@ const DIMENSIONS_REPARTITION = [
 
 type CleRepartition = (typeof DIMENSIONS_REPARTITION)[number]['cle'];
 
-const COULEURS = ['#e06e00', '#009a44', '#3B82F6', '#c98a00', '#d64545', '#8f4500', '#14B8A6', '#6b6b78'];
+const COULEURS = CHART_SERIES;
 
 const LIBELLE_TYPE_ALERTE: Record<string, string> = {
   sortie_zone: 'Sortie de zone',
@@ -91,7 +92,7 @@ function Indicateur({
   const tons = {
     neutre: { barre: 'bg-primary-500', fond: 'bg-primary-50', texte: 'text-primary-600' },
     succes: { barre: 'bg-success-500', fond: 'bg-success-50', texte: 'text-success-600' },
-    alerte: { barre: 'bg-amber-500', fond: 'bg-amber-50', texte: 'text-amber-600' },
+    alerte: { barre: 'bg-warning-500', fond: 'bg-warning-50', texte: 'text-warning-600' },
     danger: { barre: 'bg-danger-500', fond: 'bg-danger-50', texte: 'text-danger-600' },
   }[ton];
 
@@ -115,7 +116,7 @@ function Indicateur({
 
 /** Barre de progression simple, pour les taux qui se lisent mieux qu'en chiffre brut. */
 function Jauge({ valeur, ton }: { valeur: number; ton: 'succes' | 'alerte' | 'danger' }) {
-  const couleur = { succes: 'bg-success-500', alerte: 'bg-amber-500', danger: 'bg-danger-500' }[ton];
+  const couleur = { succes: 'bg-success-500', alerte: 'bg-warning-500', danger: 'bg-danger-500' }[ton];
   return (
     <div className="h-1.5 w-full rounded-full bg-ink-100 overflow-hidden">
       <div className={`h-full rounded-full ${couleur}`} style={{ width: `${Math.min(100, Math.max(0, valeur))}%` }} />
@@ -256,8 +257,8 @@ const Reporting = () => {
       {/* En-tête */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">Reporting</h1>
-          <p className="text-sm text-ink-500 mt-0.5">
+          <h1 className="page-title">Reporting</h1>
+          <p className="page-subtitle">
             Enrôlement, couverture terrain et conformité des points de vente tagués
           </p>
         </div>
@@ -386,7 +387,7 @@ const Reporting = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="panel-pro lg:col-span-2">
                 <div className="panel-pro-head">
-                  <h2 className="text-base font-semibold text-ink-900">Rythme de tagging</h2>
+                  <h2>Rythme de tagging</h2>
                   <span className="text-xs text-ink-400">Nombre de PDV enrôlés par jour</span>
                 </div>
                 <div className="h-72 p-4">
@@ -395,15 +396,15 @@ const Reporting = () => {
                       <AreaChart data={courbe}>
                         <defs>
                           <linearGradient id="gradTagging" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#e06e00" stopOpacity={0.35} />
-                            <stop offset="95%" stopColor="#e06e00" stopOpacity={0} />
+                            <stop offset="5%" stopColor={BRAND.orange} stopOpacity={0.35} />
+                            <stop offset="95%" stopColor={BRAND.orange} stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#eeeef2" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} />
                         <XAxis dataKey="jour" tick={{ fontSize: 11 }} />
                         <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                        <Tooltip />
-                        <Area type="monotone" dataKey="PDV" stroke="#e06e00" strokeWidth={2} fill="url(#gradTagging)" />
+                        <Tooltip {...tooltipProps} />
+                        <Area type="monotone" dataKey="PDV" stroke={BRAND.orange} strokeWidth={2} fill="url(#gradTagging)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   ) : (
@@ -414,7 +415,7 @@ const Reporting = () => {
 
               <div className="panel-pro">
                 <div className="panel-pro-head">
-                  <h2 className="text-base font-semibold text-ink-900">Statut des PDV</h2>
+                  <h2>Statut des PDV</h2>
                 </div>
                 <div className="h-72 p-4">
                   {statutData.length > 0 ? (
@@ -425,7 +426,7 @@ const Reporting = () => {
                             <Cell key={i} fill={COULEURS[i % COULEURS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip />
+                        <Tooltip {...tooltipProps} />
                         <Legend />
                       </PieChart>
                     </ResponsiveContainer>
@@ -529,7 +530,7 @@ const Reporting = () => {
 
               <div className="panel-pro">
                 <div className="panel-pro-head">
-                  <h2 className="text-base font-semibold text-ink-900">PDV sans remontée récente</h2>
+                  <h2>PDV sans remontée récente</h2>
                   <span className="text-xs text-ink-400">
                     {detail.filter((l) => l.muet).length} terminal(aux) concerné(s)
                   </span>
@@ -621,17 +622,17 @@ const Reporting = () => {
 
               <div className="panel-pro">
                 <div className="panel-pro-head">
-                  <h2 className="text-base font-semibold text-ink-900">Alertes par type</h2>
+                  <h2>Alertes par type</h2>
                 </div>
                 <div className="h-64 p-4">
                   {alertesParType.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={alertesParType} layout="vertical" margin={{ left: 40 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#eeeef2" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} />
                         <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
                         <YAxis type="category" dataKey="type" tick={{ fontSize: 11 }} width={140} />
-                        <Tooltip />
-                        <Bar dataKey="total" fill="#d64545" radius={[0, 4, 4, 0]} name="Alertes" />
+                        <Tooltip {...tooltipProps} />
+                        <Bar dataKey="total" fill={BRAND.red} radius={[0, 4, 4, 0]} name="Alertes" />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -642,7 +643,7 @@ const Reporting = () => {
 
               <div className="panel-pro">
                 <div className="panel-pro-head">
-                  <h2 className="text-base font-semibold text-ink-900">PDV sortis de leur zone (intrus)</h2>
+                  <h2>PDV sortis de leur zone (intrus)</h2>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="table">
@@ -708,7 +709,7 @@ const Reporting = () => {
 
               <div className="panel-pro">
                 <div className="panel-pro-head">
-                  <h2 className="text-base font-semibold text-ink-900">
+                  <h2>
                     PDV tagués par {DIMENSIONS_REPARTITION.find((d) => d.cle === dimension)?.libelle.toLowerCase()}
                   </h2>
                   <span className="text-xs text-ink-400">Top 12</span>
@@ -717,7 +718,7 @@ const Reporting = () => {
                   {repartition.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={repartition} margin={{ bottom: 40 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#eeeef2" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} />
                         <XAxis
                           dataKey="label"
                           tick={{ fontSize: 11 }}
@@ -727,7 +728,7 @@ const Reporting = () => {
                           height={60}
                         />
                         <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                        <Tooltip />
+                        <Tooltip {...tooltipProps} />
                         <Bar dataKey="total" name="PDV tagués" radius={[4, 4, 0, 0]}>
                           {repartition.map((_, i) => (
                             <Cell key={i} fill={COULEURS[i % COULEURS.length]} />
@@ -748,7 +749,7 @@ const Reporting = () => {
             <div className="panel-pro-head flex-wrap gap-3">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-ink-400" />
-                <h2 className="text-base font-semibold text-ink-900">Détail des PDV tagués</h2>
+                <h2>Détail des PDV tagués</h2>
               </div>
               <div className="flex gap-1.5 bg-ink-50 p-1 rounded-lg">
                 {(

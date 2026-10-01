@@ -57,8 +57,8 @@ const Alertes = () => {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">Alertes</h1>
-          <p className="text-sm text-ink-500 mt-0.5">
+          <h1 className="page-title">Alertes</h1>
+          <p className="page-subtitle">
             {nonTraiteesCount > 0
               ? `${nonTraiteesCount} alerte${nonTraiteesCount > 1 ? 's' : ''} en attente de traitement`
               : 'Toutes les alertes sont traitées'}

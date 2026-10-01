@@ -91,8 +91,8 @@ const Agences = () => {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">Agences</h1>
-          <p className="text-sm text-ink-500 mt-0.5">Référentiel utilisé pour le tagging des points de vente</p>
+          <h1 className="page-title">Agences</h1>
+          <p className="page-subtitle">Référentiel utilisé pour le tagging des points de vente</p>
         </div>
         <button
           onClick={() => { resetForm(); setEditingAgence(null); setShowModal(true); }}
@@ -183,7 +183,7 @@ const Agences = () => {
         <div className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
           <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-ink-900">
+              <h2>
                 {editingAgence ? 'Modifier l\'agence' : 'Nouvelle agence'}
               </h2>
               <button onClick={() => { setShowModal(false); resetForm(); setEditingAgence(null); }} className="btn-icon">

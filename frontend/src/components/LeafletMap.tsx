@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { couleurStatut } from '../lib/theme';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -41,7 +42,7 @@ const LeafletMap = ({ pdvs }: LeafletMapProps) => {
 
     // Créer des icônes de tablette personnalisées selon le statut
     const createIcon = (statut: string) => {
-      const color = statut === 'actif' ? '#009a44' : statut === 'inactif' ? '#8f8f9c' : '#d64545';
+      const color = couleurStatut(statut);
       return L.divIcon({
         className: 'custom-marker',
         html: `<div style="

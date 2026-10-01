@@ -182,8 +182,8 @@ const GeofenceZones = () => {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">Zones Geofence</h1>
-          <p className="text-sm text-ink-500 mt-0.5">Gestion des zones géographiques et assignation des PDV</p>
+          <h1 className="page-title">Zones Geofence</h1>
+          <p className="page-subtitle">Gestion des zones géographiques et assignation des PDV</p>
         </div>
         <button
           onClick={() => {
@@ -300,7 +300,7 @@ const GeofenceZones = () => {
         <div className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
           <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-ink-900">
+              <h2>
                 {editingZone ? 'Modifier la zone' : 'Nouvelle zone'}
               </h2>
               <button onClick={() => { setShowModal(false); resetForm(); }} className="btn-icon">
@@ -383,7 +383,7 @@ const GeofenceZones = () => {
         <div className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
           <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-ink-900">
+              <h2>
                 Assigner un PDV à {selectedZoneForAssign.nom_zone}
               </h2>
               <button

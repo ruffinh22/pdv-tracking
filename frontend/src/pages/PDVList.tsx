@@ -346,8 +346,8 @@ const PDVList = () => {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">Points de Vente</h1>
-          <p className="text-sm text-ink-500 mt-0.5">{pagination.total} point{pagination.total > 1 ? 's' : ''} de vente tagué{pagination.total > 1 ? 's' : ''}</p>
+          <h1 className="page-title">Points de Vente</h1>
+          <p className="page-subtitle">{pagination.total} point{pagination.total > 1 ? 's' : ''} de vente tagué{pagination.total > 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2">
           <div className="flex rounded-lg border border-ink-200 overflow-hidden">
@@ -639,7 +639,7 @@ const PDVList = () => {
         <div className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
           <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-ink-900">
+              <h2>
                 {editingPDV ? 'Modifier le PDV' : 'Nouveau PDV'}
               </h2>
               <button onClick={() => { setShowModal(false); resetForm(); }} className="btn-icon">
@@ -650,7 +650,7 @@ const PDVList = () => {
               <div className="space-y-5">
                 {/* Identification */}
                 <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">Identification</h3>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">Identification</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="label">ID Terminal</label>
@@ -707,7 +707,7 @@ const PDVList = () => {
 
                 {/* Tagging */}
                 <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">Tagging (Concessionnaire / Vendeur)</h3>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">Tagging (Concessionnaire / Vendeur)</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {champVisible('concessionnaire_nom') && (
                       <div>
@@ -751,7 +751,7 @@ const PDVList = () => {
                 {/* Produits (choix multiples) */}
                 {champVisible('produits') && (
                 <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5 flex items-center gap-1.5">
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5 flex items-center gap-1.5">
                     <Tag className="w-3.5 h-3.5" />
                     {champLibelle('produits', 'Type(s) de produit vendu')}{etoile('produits')}
                   </h3>
@@ -783,7 +783,7 @@ const PDVList = () => {
 
                 {/* Hiérarchie commerciale */}
                 <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">Hiérarchie commerciale</h3>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">Hiérarchie commerciale</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {champVisible('agence_id') && (
                       <div>
@@ -853,7 +853,7 @@ const PDVList = () => {
 
                 {/* Localisation */}
                 <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-400 mb-2.5">Localisation</h3>
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">Localisation</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     {champVisible('pays') && (
                       <div>

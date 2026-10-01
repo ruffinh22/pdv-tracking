@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect } from 'react';
+import { BRAND } from './lib/theme';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -180,8 +181,8 @@ function App() {
         toastOptions={{
           duration: 4000,
           style: { borderRadius: '14px', fontWeight: 700, fontSize: '0.95rem', padding: '14px 18px', boxShadow: '0 16px 40px -8px rgba(10,12,11,.28)' },
-          success: { iconTheme: { primary: '#008840', secondary: '#fff' }, style: { borderLeft: '6px solid #008840' } },
-          error: { iconTheme: { primary: '#c82828', secondary: '#fff' }, style: { borderLeft: '6px solid #c82828' } },
+          success: { iconTheme: { primary: BRAND.green, secondary: '#fff' }, style: { borderLeft: `6px solid ${BRAND.green}` } },
+          error: { iconTheme: { primary: BRAND.red, secondary: '#fff' }, style: { borderLeft: `6px solid ${BRAND.red}` } },
         }}
       />
     </QueryClientProvider>

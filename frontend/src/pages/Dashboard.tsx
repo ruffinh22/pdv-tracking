@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { BRAND, CHART, CHART_SERIES, axisProps, tooltipProps } from '../lib/theme';
+import CountUp from '../components/CountUp';
 import { Link } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { BarChart3, BellOff, Inbox } from 'lucide-react';
@@ -26,9 +28,8 @@ const KPI_CARDS = [
     label: 'PDV Actifs',
     caption: 'Points de vente en activité',
     icon: MapPin,
-    accentBar: 'bg-gradient-to-b from-success-400 to-success-700',
-    iconBg: 'bg-gradient-to-br from-success-400 to-success-700 shadow-glow-green',
-    iconColor: 'text-white',
+    iconBg: 'bg-success-50 ring-1 ring-success-200',
+    iconColor: 'text-success-600',
     tone: 'text-success-600',
   },
   {
@@ -36,9 +37,8 @@ const KPI_CARDS = [
     label: "Tagués aujourd'hui",
     caption: 'Nouveaux PDV enrôlés',
     icon: Navigation,
-    accentBar: 'bg-gradient-to-b from-primary-300 to-primary-600',
-    iconBg: 'bg-gradient-to-br from-primary-400 to-primary-600 shadow-glow',
-    iconColor: 'text-white',
+    iconBg: 'bg-primary-50 ring-1 ring-primary-200',
+    iconColor: 'text-primary-600',
     tone: 'text-primary-600',
   },
   {
@@ -46,9 +46,8 @@ const KPI_CARDS = [
     label: 'Alertes Actives',
     caption: 'Nécessitent une action',
     icon: AlertTriangle,
-    accentBar: 'bg-gradient-to-b from-danger-400 to-danger-700',
-    iconBg: 'bg-gradient-to-br from-danger-400 to-danger-700',
-    iconColor: 'text-white',
+    iconBg: 'bg-danger-50 ring-1 ring-danger-200',
+    iconColor: 'text-danger-600',
     tone: 'text-danger-500',
   },
   {
@@ -56,9 +55,8 @@ const KPI_CARDS = [
     label: 'Terminaux muets',
     caption: 'Sans remontée GPS récente',
     icon: Activity,
-    accentBar: 'bg-gradient-to-b from-brand-400 to-brand-800',
-    iconBg: 'bg-gradient-to-br from-brand-500 to-brand-800',
-    iconColor: 'text-white',
+    iconBg: 'bg-ink-100 ring-1 ring-ink-200',
+    iconColor: 'text-brand-700',
     tone: 'text-brand-600',
   },
 ];
@@ -80,7 +78,7 @@ const ALL_DIMENSION_OPTIONS: { value: Dimension; label: string }[] = [
   { value: 'chef_zone', label: 'Chef de zone' },
 ];
 
-const PIE_COLORS = ['#ff8200', '#008840', '#c82828', '#141816', '#f5be16', '#24ab62', '#c85d00', '#646b67', '#006d34', '#ea7b78'];
+const PIE_COLORS = CHART_SERIES;
 
 const Dashboard = () => {
   const { user } = useAuthStore();
@@ -206,11 +204,12 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 pb-4 border-b border-ink-200 flex-wrap">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-sm font-medium text-ink-700">{ROLE_DASHBOARD_SUBTITLE[role]}</p>
-          <p className="text-sm text-ink-500">
-            Situation au {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+          <h1 className="page-title">Tableau de bord</h1>
+          <p className="page-subtitle">
+            {ROLE_DASHBOARD_SUBTITLE[role]} · Situation au{' '}
+            {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
         <button onClick={handleExportExcel} className="btn btn-primary shrink-0">
@@ -224,17 +223,19 @@ const Dashboard = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {KPI_CARDS.map(({ key, label, caption, icon: Icon, accentBar, iconBg, iconColor, tone }) => (
-          <div key={key} className={`group relative flex items-center gap-4 p-5 kpi-card ${tone}`}>
-            <div className={`absolute top-0 left-0 bottom-0 w-1.5 ${accentBar}`} />
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 ${iconBg}`}>
-              <Icon className={`w-6 h-6 ${iconColor}`} />
+        {KPI_CARDS.map(({ key, label, caption, icon: Icon, iconBg, iconColor, tone }) => (
+          <div key={key} className={`group relative p-5 kpi-card ${tone}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-ink-500">{label}</p>
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105 ${iconBg}`}>
+                <Icon className={`w-5 h-5 ${iconColor}`} />
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="font-display text-3xl font-extrabold text-ink-950 leading-none tracking-tight">{values[key]}</p>
-              <p className="text-sm font-bold text-ink-800 truncate mt-1.5">{label}</p>
-              <p className="text-xs font-medium text-ink-500 truncate">{caption}</p>
-            </div>
+            <p className="font-display text-[2.6rem] font-extrabold text-ink-950 leading-none tracking-tight mt-3 num">
+              <CountUp value={values[key]} />
+            </p>
+            <p className="text-sm font-medium text-ink-500 mt-2 truncate">{caption}</p>
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-current opacity-90" />
           </div>
         ))}
       </div>
@@ -243,8 +244,8 @@ const Dashboard = () => {
       <div className="panel-pro">
         <div className="panel-pro-head">
           <div>
-            <h2 className="text-base font-semibold text-ink-900">Base PDV taguée</h2>
-            <p className="text-xs text-ink-400 mt-0.5">{PERIODE_LABEL[periode]}</p>
+            <h2>Base PDV taguée</h2>
+            <p className="text-xs font-semibold text-ink-500 mt-0.5 pl-3.5">{PERIODE_LABEL[periode]}</p>
           </div>
           <div className="flex items-center gap-1 bg-ink-50 rounded-lg p-1">
             {(['jour', 'semaine', 'mois', 'all'] as Periode[]).map((p) => (
@@ -266,7 +267,7 @@ const Dashboard = () => {
               <Users2 className="w-5 h-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-2xl font-bold text-ink-900 leading-none">{pdvStats?.tagues ?? 0}</p>
+              <p className="text-2xl font-bold text-ink-900 leading-none"><CountUp value={pdvStats?.tagues ?? 0} /></p>
               <p className="text-xs text-ink-500 mt-1.5 truncate">PDV tagués</p>
             </div>
           </div>
@@ -275,7 +276,7 @@ const Dashboard = () => {
               <Activity className="w-5 h-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-2xl font-bold text-ink-900 leading-none">{pdvStats?.actifs ?? 0}</p>
+              <p className="text-2xl font-bold text-ink-900 leading-none"><CountUp value={pdvStats?.actifs ?? 0} /></p>
               <p className="text-xs text-ink-500 mt-1.5 truncate">PDV actifs</p>
             </div>
           </div>
@@ -284,7 +285,7 @@ const Dashboard = () => {
               <UserX className="w-5 h-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-2xl font-bold text-ink-900 leading-none">{pdvStats?.inactifs ?? 0}</p>
+              <p className="text-2xl font-bold text-ink-900 leading-none"><CountUp value={pdvStats?.inactifs ?? 0} /></p>
               <p className="text-xs text-ink-500 mt-1.5 truncate">PDV inactifs</p>
             </div>
           </div>
@@ -293,7 +294,7 @@ const Dashboard = () => {
               <AlertTriangle className="w-5 h-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-2xl font-bold text-ink-900 leading-none">{pdvStats?.suspendus ?? 0}</p>
+              <p className="text-2xl font-bold text-ink-900 leading-none"><CountUp value={pdvStats?.suspendus ?? 0} /></p>
               <p className="text-xs text-ink-500 mt-1.5 truncate">PDV suspendus</p>
             </div>
           </div>
@@ -304,7 +305,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="panel-pro">
           <div className="panel-pro-head">
-            <h2 className="text-base font-semibold text-ink-900">PDV tagués par produit</h2>
+            <h2>PDV tagués par produit</h2>
             <select
               value={produitsPeriode}
               onChange={(e) => setProduitsPeriode(e.target.value as Periode)}
@@ -320,11 +321,11 @@ const Dashboard = () => {
             {produitsChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={produitsChartData} layout="vertical" margin={{ left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#dadadf" />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} axisLine={{ stroke: '#b9b9c2' }} tickLine={{ stroke: '#b9b9c2' }} />
-                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12 }} axisLine={{ stroke: '#b9b9c2' }} tickLine={{ stroke: '#b9b9c2' }} />
-                  <Tooltip />
-                  <Bar dataKey="total" fill="#e06e00" radius={[0, 6, 6, 0]} name="PDV" />
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={CHART.grid} />
+                  <XAxis type="number" allowDecimals={false} {...axisProps} />
+                  <YAxis type="category" dataKey="name" width={110} {...axisProps} />
+                  <Tooltip {...tooltipProps} />
+                  <Bar dataKey="total" fill={BRAND.orange} radius={[0, 6, 6, 0]} name="PDV" />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -358,7 +359,7 @@ const Dashboard = () => {
                           <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value: any, _name, props: any) => [`${value} PDV (${props.payload.pourcentage}%)`, props.payload.produit]} />
+                      <Tooltip {...tooltipProps} formatter={(value: any, _name, props: any) => [`${value} PDV (${props.payload.pourcentage}%)`, props.payload.produit]} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -384,7 +385,7 @@ const Dashboard = () => {
       {/* Point 3 : analyses transverses */}
       <div className="panel-pro">
         <div className="panel-pro-head">
-          <h2 className="text-base font-semibold text-ink-900">Analyses par {DIMENSION_OPTIONS.find(d => d.value === dimension)?.label ?? DIMENSION_OPTIONS[0]?.label}</h2>
+          <h2>Analyses par {DIMENSION_OPTIONS.find(d => d.value === dimension)?.label ?? DIMENSION_OPTIONS[0]?.label}</h2>
           {DIMENSION_OPTIONS.length > 1 && (
             <select
               value={dimension}
@@ -401,13 +402,13 @@ const Dashboard = () => {
           ) : analysesChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analysesChartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dadadf" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} axisLine={{ stroke: '#b9b9c2' }} tickLine={{ stroke: '#b9b9c2' }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} axisLine={{ stroke: '#b9b9c2' }} tickLine={{ stroke: '#b9b9c2' }} />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART.grid} />
+                <XAxis dataKey="name" {...axisProps} interval={0} angle={-20} textAnchor="end" height={60} />
+                <YAxis allowDecimals={false} {...axisProps} />
+                <Tooltip {...tooltipProps} />
                 <Legend />
-                <Bar dataKey="Actifs" stackId="a" fill="#009a44" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="Inactifs" stackId="a" fill="#dadadf" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="Actifs" stackId="a" fill={BRAND.green} radius={[0, 0, 0, 0]} />
+                <Bar dataKey="Inactifs" stackId="a" fill={CHART.axis} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -511,7 +512,7 @@ const Dashboard = () => {
       {/* Map Section */}
       <div className="panel-pro">
         <div className="panel-pro-head">
-          <h2 className="text-base font-semibold text-ink-900">Carte en temps réel</h2>
+          <h2>Carte en temps réel</h2>
           <span className="text-xs text-ink-400">{allPDVs?.length || 0} point(s) géolocalisé(s)</span>
         </div>
         <div className="h-96 bg-ink-50">
@@ -528,7 +529,7 @@ const Dashboard = () => {
       {/* Recent Activity */}
       <div className="panel-pro">
         <div className="panel-pro-head">
-          <h2 className="text-base font-semibold text-ink-900">Alertes récentes</h2>
+          <h2>Alertes récentes</h2>
           {/* <Link> et non <a href> : un <a> déclenche une navigation
               navigateur, donc un rechargement complet de l'application
               (re-téléchargement du bundle, perte du cache React Query,

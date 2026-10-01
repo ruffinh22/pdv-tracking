@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { CHART_SERIES } from '../lib/theme';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { GeofenceZone } from '../services/geofenceService';
@@ -9,7 +10,7 @@ interface GeofenceZonesMapProps {
 }
 
 // Palette cyclique pour distinguer les zones sur la carte
-const ZONE_COLORS = ['#e06e00', '#00833a', '#0ea5e9', '#c98a00', '#d64545', '#795548', '#14b8a6', '#8f4500'];
+const ZONE_COLORS = CHART_SERIES;
 
 const colorForZone = (index: number) => ZONE_COLORS[index % ZONE_COLORS.length];
 

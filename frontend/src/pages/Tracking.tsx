@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { BRAND, couleurStatut } from '../lib/theme';
 import { useQuery } from '@tanstack/react-query';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -171,7 +172,7 @@ const Tracking = () => {
     polylinesRef.current.clear();
 
     const createIcon = (statut: string, isSelected: boolean) => {
-      const color = statut === 'actif' ? '#009a44' : statut === 'inactif' ? '#8f8f9c' : '#cc2b26';
+      const color = couleurStatut(statut);
       const size = isSelected ? 40 : 32;
       const borderSize = isSelected ? 4 : 3;
       return L.divIcon({
@@ -219,7 +220,7 @@ const Tracking = () => {
               <p style="margin: 5px 0;"><strong>Statut:</strong> ${pdv.statut}</p>
               <p style="margin: 5px 0;"><strong>Position actuelle:</strong> ${latNum.toFixed(6)}, ${lngNum.toFixed(6)}</p>
               <p style="margin: 5px 0;"><strong>Dernière mise à jour:</strong> ${livePos?.horodatage || pdv.derniere_position_date || 'Inconnue'}</p>
-              <button onclick="window.selectPDV(${pdv.id})" style="margin-top: 10px; padding: 5px 10px; background: #e06e00; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: Inter, sans-serif;">
+              <button onclick="window.selectPDV(${pdv.id})" style="margin-top: 10px; padding: 5px 10px; background: ${BRAND.orange}; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: Inter, sans-serif;">
                 Suivre ce PDV
               </button>
             </div>
@@ -248,7 +249,7 @@ const Tracking = () => {
 
             if (trajectoryPoints.length > 1) {
               const polyline = L.polyline(trajectoryPoints, {
-                color: '#e06e00',
+                color: BRAND.orange,
                 weight: 3,
                 opacity: 0.7,
                 dashArray: '10, 10'

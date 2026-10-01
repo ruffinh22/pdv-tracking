@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { BRAND } from '../lib/theme';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Undo2, Trash2 } from 'lucide-react';
@@ -96,9 +97,9 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
     if (center) {
       circleRef.current = L.circle(center, {
         radius: rayon || 100,
-        color: '#e06e00',
+        color: BRAND.orange,
         weight: 2,
-        fillColor: '#e06e00',
+        fillColor: BRAND.orange,
         fillOpacity: 0.18
       }).addTo(mapRef.current);
 
@@ -126,7 +127,7 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
     points.forEach((pt, i) => {
       const marker = L.circleMarker(pt, {
         radius: 6,
-        color: '#e06e00',
+        color: BRAND.orange,
         weight: 2,
         fillColor: '#ffffff',
         fillOpacity: 1
@@ -137,9 +138,9 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
 
     if (points.length >= 2) {
       polygonRef.current = L.polygon(points, {
-        color: '#e06e00',
+        color: BRAND.orange,
         weight: 2,
-        fillColor: '#e06e00',
+        fillColor: BRAND.orange,
         fillOpacity: 0.18
       }).addTo(mapRef.current);
     }

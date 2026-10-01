@@ -151,10 +151,10 @@ const Layout = () => {
   const initials = `${user?.prenom?.[0] ?? ''}${user?.nom?.[0] ?? ''}`.toUpperCase() || 'U';
 
   const navLinkClasses = (active: boolean) =>
-    `group relative flex items-center gap-3 pl-4 pr-3 py-3 rounded-xl text-[0.95rem] font-semibold transition-all duration-200 ${
+    `group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-lg text-[0.94rem] font-semibold transition-colors duration-150 ${
       active
-        ? 'bg-gradient-to-r from-primary-500/90 to-primary-600/70 text-white shadow-glow'
-        : 'text-brand-100 hover:bg-white/10 hover:text-white hover:translate-x-0.5'
+        ? 'bg-white/[0.09] text-white ring-1 ring-inset ring-white/10'
+        : 'text-brand-100 hover:bg-white/[0.06] hover:text-white'
     }`;
 
   return (
@@ -166,33 +166,32 @@ const Layout = () => {
         }`}
       >
         <div className={`relative w-64 h-full flex flex-col transition-opacity duration-150 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="pointer-events-none absolute -top-20 -left-20 w-72 h-72 rounded-full bg-success-600/25 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -right-16 w-72 h-72 rounded-full bg-primary-500/20 blur-3xl" />
+          <div className="pointer-events-none absolute -top-24 -left-24 w-64 h-64 rounded-full bg-success-600/15 blur-3xl" />
           {/* Liseré tricolore */}
           <div className="flag-stripe shrink-0"><span /><span /><span /></div>
 
           {/* Brand */}
-          <div className="relative flex items-center gap-3 h-[72px] px-5 border-b border-white/10 shrink-0">
-            <div className="bg-white rounded-xl px-2.5 py-2 shrink-0 shadow-lg ring-2 ring-primary-500/60 flex items-center justify-center">
-              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-7 w-auto max-w-[72px] object-contain" />
+          <div className="relative flex items-center gap-3 h-[72px] px-4 border-b border-white/10 shrink-0">
+            <div className="bg-white rounded-xl px-2.5 py-2 shrink-0 shadow-lg ring-1 ring-white/20 flex items-center justify-center">
+              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-8 w-auto max-w-[92px] object-contain" />
             </div>
             <div className="leading-tight min-w-0">
               <p className="font-display text-base font-extrabold text-white tracking-tight truncate">Tracking PDV</p>
-              <p className="text-xs font-semibold text-primary-300 truncate">Espace {roleLabel(user?.role)}</p>
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-primary-400 truncate">{roleLabel(user?.role)}</p>
             </div>
           </div>
 
           {/* Nav */}
           <nav className="flex-1 overflow-y-auto px-3 py-4">
-            <p className="px-4 pb-2 text-[11px] font-extrabold uppercase tracking-widest text-success-400">Menu</p>
+            <p className="px-4 pb-2 text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-brand-300">Menu</p>
             <ul className="space-y-1">
               {navItems.map(({ to, label, icon: Icon }) => (
                 <li key={to}>
                   <Link to={to} className={navLinkClasses(isActive(to))}>
                     {isActive(to) && (
-                      <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-7 w-1.5 rounded-r-full bg-success-400" />
+                      <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-primary-500 shadow-[0_0_12px_rgba(255,130,0,.8)]" />
                     )}
-                    <Icon className={`w-5 h-5 shrink-0 ${isActive(to) ? 'text-white' : 'text-success-400 group-hover:text-primary-300'}`} />
+                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive(to) ? 'text-primary-400' : 'text-brand-300 group-hover:text-primary-300'}`} />
                     {label}
                   </Link>
                 </li>
@@ -200,15 +199,15 @@ const Layout = () => {
 
               {settingsItems.length > 0 && (
                 <li className="pt-3">
-                  <p className="px-4 pb-2 text-[11px] font-extrabold uppercase tracking-widest text-success-400">Configuration</p>
+                  <p className="px-4 pb-2 text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-brand-300">Configuration</p>
                   <button
                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                    className={`flex items-center justify-between w-full pl-4 pr-3 py-3 rounded-xl text-[0.95rem] font-semibold transition-colors ${
-                      isSettingsActive() ? 'bg-white/10 text-white' : 'text-brand-100 hover:bg-white/10 hover:text-white'
+                    className={`flex items-center justify-between w-full pl-4 pr-3 py-2.5 rounded-lg text-[0.94rem] font-semibold transition-colors ${
+                      isSettingsActive() ? 'bg-white/[0.09] text-white' : 'text-brand-100 hover:bg-white/[0.06] hover:text-white'
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Settings className={`w-5 h-5 ${isSettingsActive() ? 'text-primary-300' : 'text-success-400'}`} />
+                      <Settings className={`w-[18px] h-[18px] ${isSettingsActive() ? 'text-primary-400' : 'text-brand-300'}`} />
                       Paramètres
                     </span>
                     {isSettingsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -240,7 +239,7 @@ const Layout = () => {
           {/* User footer */}
           <div className="p-3 border-t border-white/10 shrink-0">
             <div className="flex items-center gap-3 px-2.5 py-2.5 rounded-xl bg-white/[0.07] ring-1 ring-white/10">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-sm font-extrabold shrink-0 shadow-glow">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-sm font-extrabold shrink-0">
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
@@ -269,7 +268,7 @@ const Layout = () => {
         }`}
       >
         <div className="flag-stripe"><span /><span /><span /></div>
-        <div className="flex items-center justify-between h-[68px] px-6 gap-4 bg-white/90 backdrop-blur-md border-b border-ink-200">
+        <div className="flex items-center justify-between h-[64px] px-6 gap-4 bg-white/85 backdrop-blur-xl border-b border-ink-200">
           <div className="flex items-center gap-4 min-w-0">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -280,17 +279,16 @@ const Layout = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="min-w-0">
-              <h1 className="font-display text-xl font-extrabold text-ink-950 truncate">{currentPage.title}</h1>
-              {currentPage.subtitle && (
-                <p className="text-[13px] text-ink-600 truncate hidden sm:block font-semibold">{currentPage.subtitle}</p>
-              )}
-            </div>
+            <nav aria-label="Fil d'Ariane" className="min-w-0 flex items-center gap-2 text-sm">
+              <span className="hidden sm:inline font-bold text-ink-500">LONACI</span>
+              <ChevronRight className="hidden sm:block w-4 h-4 text-ink-300 shrink-0" />
+              <span className="font-display text-base font-extrabold text-ink-950 truncate">{currentPage.title}</span>
+            </nav>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="relative hidden md:block" ref={searchBoxRef}>
-              <Search className="w-4 h-4 text-success-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
@@ -306,8 +304,8 @@ const Layout = () => {
                   }
                 }}
                 placeholder="Rechercher un PDV, produit, agence..."
-                className="w-56 lg:w-80 pl-10 pr-3 py-2.5 text-sm font-medium bg-ink-50 border-2 border-ink-200 rounded-xl text-ink-900 placeholder:text-ink-500
-                           focus:outline-none focus:ring-4 focus:ring-success-500/15 focus:border-success-600 focus:bg-white transition-colors"
+                className="w-56 lg:w-80 pl-10 pr-3 py-2.5 text-sm font-medium bg-ink-50 border border-ink-200 rounded-xl text-ink-900 placeholder:text-ink-500
+                           focus:outline-none focus:shadow-ring focus:border-success-600 focus:bg-white transition-all"
               />
 
               {isSearchOpen && debouncedQuery.length >= 2 && (
@@ -386,7 +384,7 @@ const Layout = () => {
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex items-center gap-2.5 pl-1.5 pr-2 py-1.5 rounded-md hover:bg-ink-100 transition-colors"
               >
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-success-500 to-success-700 text-white ring-2 ring-primary-400 flex items-center justify-center text-sm font-extrabold">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-brand-900 text-white ring-2 ring-primary-500 flex items-center justify-center text-sm font-extrabold">
                   {initials}
                 </div>
                 <div className="text-left hidden sm:block leading-tight">
@@ -417,7 +415,7 @@ const Layout = () => {
 
       {/* Main content */}
       <main
-        className={`pt-[74px] transition-all duration-200 ${isSidebarOpen ? 'pl-64' : 'pl-0'}`}
+        className={`pt-[72px] transition-all duration-200 ${isSidebarOpen ? 'pl-64' : 'pl-0'}`}
       >
         {location.pathname === '/tracking' ? (
           <Outlet />
