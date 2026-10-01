@@ -152,8 +152,8 @@ const Layout = () => {
   const navLinkClasses = (active: boolean) =>
     `group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 ${
       active
-        ? 'bg-white/10 text-white'
-        : 'text-ink-300 hover:bg-white/5 hover:text-white'
+        ? 'bg-white/15 text-white font-semibold'
+        : 'text-brand-100 hover:bg-white/10 hover:text-white'
     }`;
 
   return (
@@ -169,25 +169,25 @@ const Layout = () => {
           <div className="flag-stripe shrink-0"><span /><span /><span /></div>
 
           {/* Brand */}
-          <div className="flex items-center gap-3 h-16 px-5 border-b border-white/10 shrink-0">
-            <div className="bg-white rounded-md px-1.5 py-1 shrink-0 shadow-sm flex items-center justify-center max-w-[70px]">
-              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-5 w-auto max-w-[52px] object-contain" />
+          <div className="flex items-center gap-3 h-16 px-5 border-b border-white/15 shrink-0">
+            <div className="bg-white rounded-md px-2 py-1.5 shrink-0 shadow-sm flex items-center justify-center max-w-[84px]">
+              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-6 w-auto max-w-[64px] object-contain" />
             </div>
             <div className="leading-tight min-w-0">
               <p className="text-sm font-bold text-white tracking-tight truncate">Tracking PDV</p>
-              <p className="text-xs text-ink-400 truncate">Espace {roleLabel(user?.role)}</p>
+              <p className="text-xs text-brand-200 truncate">Espace {roleLabel(user?.role)}</p>
             </div>
           </div>
 
           {/* Nav */}
           <nav className="flex-1 overflow-y-auto px-3 py-4">
-            <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-500">Menu</p>
+            <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-brand-300">Menu</p>
             <ul className="space-y-1">
               {navItems.map(({ to, label, icon: Icon }) => (
                 <li key={to}>
                   <Link to={to} className={navLinkClasses(isActive(to))}>
                     {isActive(to) && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] bg-primary-500" />
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r bg-primary-500" />
                     )}
                     <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive(to) ? 'text-primary-400' : ''}`} />
                     {label}
@@ -197,7 +197,7 @@ const Layout = () => {
 
               {settingsItems.length > 0 && (
                 <li className="pt-3">
-                  <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-ink-500">Configuration</p>
+                  <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-wider text-brand-300">Configuration</p>
                   <button
                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                     className={`flex items-center justify-between w-full pl-4 pr-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
@@ -237,12 +237,12 @@ const Layout = () => {
           {/* User footer */}
           <div className="p-3 border-t border-white/10 shrink-0">
             <div className="flex items-center gap-3 px-2 py-2 rounded-md bg-white/5">
-              <div className="w-9 h-9 rounded-md bg-primary-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+              <div className="w-9 h-9 rounded-md bg-primary-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-white truncate">{user?.prenom} {user?.nom}</p>
-                <p className="text-xs text-ink-400 truncate">{roleLabel(user?.role)}</p>
+                <p className="text-xs text-brand-200 truncate">{roleLabel(user?.role)}</p>
               </div>
               <button
                 onClick={logout}
@@ -265,6 +265,7 @@ const Layout = () => {
           isSidebarOpen ? 'left-64' : 'left-0'
         }`}
       >
+        <div className="flag-stripe"><span /><span /><span /></div>
         <div className="flex items-center justify-between h-16 px-6 gap-4 bg-white border-b border-ink-200">
           <div className="flex items-center gap-4 min-w-0">
             <button
@@ -277,9 +278,9 @@ const Layout = () => {
               <Menu className="w-5 h-5" />
             </button>
             <div className="min-w-0">
-              <h1 className="text-base font-semibold text-ink-900 truncate">{currentPage.title}</h1>
+              <h1 className="text-lg font-bold text-brand-800 truncate">{currentPage.title}</h1>
               {currentPage.subtitle && (
-                <p className="text-xs text-ink-500 truncate hidden sm:block">{currentPage.subtitle}</p>
+                <p className="text-xs text-ink-500 truncate hidden sm:block font-medium">{currentPage.subtitle}</p>
               )}
             </div>
           </div>
@@ -382,7 +383,7 @@ const Layout = () => {
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex items-center gap-2.5 pl-1.5 pr-2 py-1.5 rounded-md hover:bg-ink-100 transition-colors"
               >
-                <div className="w-8 h-8 rounded-md bg-primary-600 text-white flex items-center justify-center text-xs font-bold">
+                <div className="w-8 h-8 rounded-md bg-primary-600 text-white ring-2 ring-primary-300 flex items-center justify-center text-xs font-bold">
                   {initials}
                 </div>
                 <div className="text-left hidden sm:block leading-tight">
@@ -413,7 +414,7 @@ const Layout = () => {
 
       {/* Main content */}
       <main
-        className={`pt-16 transition-all duration-200 ${isSidebarOpen ? 'pl-64' : 'pl-0'}`}
+        className={`pt-[68px] transition-all duration-200 ${isSidebarOpen ? 'pl-64' : 'pl-0'}`}
       >
         {location.pathname === '/tracking' ? (
           <Outlet />

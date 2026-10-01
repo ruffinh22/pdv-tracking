@@ -34,13 +34,13 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-ink-50">
+    <div className="min-h-screen flex bg-white">
       <DocumentTitle title="Connexion" />
       {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-brand-900 flex-col">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 flex-col">
         <div className="flag-stripe"><span /><span /><span /></div>
         <div
-          className="absolute inset-0 opacity-[0.07]"
+          className="absolute inset-0 opacity-[0.09]"
           style={{
             backgroundImage:
               'radial-gradient(circle at 2px 2px, white 1.5px, transparent 0)',
@@ -48,48 +48,48 @@ const Login = () => {
           }}
         />
         {/* Touche rouge, en écho au volatile du logo LONACI */}
-        <div className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-danger-600/20 blur-3xl" />
-        <div className="absolute -left-16 bottom-24 w-56 h-56 rounded-full bg-primary-500/10 blur-3xl" />
+        <div className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-primary-500/30 blur-3xl" />
+        <div className="absolute -left-16 bottom-24 w-56 h-56 rounded-full bg-success-400/20 blur-3xl" />
 
         <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full flex-1">
           <div className="flex items-center gap-3">
             <div className="bg-white rounded-md px-2 py-1.5 shadow-sm flex items-center justify-center">
-              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-8 w-auto" />
+              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-10 w-auto" />
             </div>
-            <span className="text-lg font-bold">Tracking PDV</span>
+            <span className="text-xl font-extrabold tracking-tight">Tracking PDV</span>
           </div>
 
           <div className="max-w-md">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-danger-500/15 text-danger-300 text-xs font-semibold ring-1 ring-inset ring-danger-500/30 mb-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-danger-400" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary-500 text-white text-xs font-bold ring-0 mb-5">
+              <span className="w-1.5 h-1.5 rounded-full bg-white" />
               Réseau national LONACI
             </span>
-            <h2 className="text-3xl font-bold leading-snug mb-4">
+            <h2 className="text-4xl font-extrabold leading-tight mb-5">
               Pilotez votre réseau de points de vente en temps réel.
             </h2>
-            <p className="text-brand-100 text-sm leading-relaxed">
+            <p className="text-brand-100 text-base leading-relaxed">
               Suivi terrain, alertes géographiques, reporting des ventes et gestion
               d'équipe réunis dans un seul tableau de bord.
             </p>
           </div>
 
-          <p className="text-xs text-brand-200">© {new Date().getFullYear()} LONACI — Loterie Nationale de Côte d'Ivoire</p>
+          <p className="text-xs text-brand-200 border-t border-white/15 pt-4">© {new Date().getFullYear()} LONACI — Loterie Nationale de Côte d'Ivoire</p>
         </div>
       </div>
 
       {/* Right form panel */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="bg-brand-900 rounded-md px-2 py-1.5 shadow-sm flex items-center justify-center">
+            <div className="bg-white rounded-md px-2 py-1.5 shadow-card ring-1 ring-ink-200 flex items-center justify-center">
               <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-8 w-auto" />
             </div>
             <span className="text-lg font-bold text-ink-900">Tracking PDV</span>
           </div>
 
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-ink-900">Connexion</h1>
-            <p className="text-sm text-ink-500 mt-1.5">Accédez à votre tableau de bord d'administration</p>
+            <h1 className="text-3xl font-extrabold text-brand-800">Connexion</h1>
+            <p className="text-sm text-ink-600 mt-2 pb-4 border-b-4 border-primary-500 w-fit pr-8">Accédez à votre espace de suivi des points de vente</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -140,7 +140,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="btn btn-primary w-full py-2.5"
+              className="btn btn-primary w-full py-3 text-base"
             >
               {isLoading ? 'Connexion...' : 'Se connecter'}
             </button>

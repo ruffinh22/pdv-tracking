@@ -5,6 +5,12 @@
 @layer base {
   html {
     @apply antialiased;
+    font-feature-settings: 'kern', 'liga';
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4 {
+    @apply tracking-tight;
   }
 
   body {
@@ -17,7 +23,7 @@
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: #ffcb99 transparent;
+    scrollbar-color: #8fc7a9 transparent;
   }
 
   *::-webkit-scrollbar {
@@ -26,12 +32,12 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    background-color: #ffcb99;
+    background-color: #8fc7a9;
     border-radius: 4px;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background-color: #ffab5c;
+    background-color: #4fa377;
   }
 
   *::-webkit-scrollbar-track {
@@ -42,7 +48,7 @@
 @layer utilities {
   /* Liseré tricolore — signature de marque (drapeau CI), à poser en haut d'un panneau */
   .flag-stripe {
-    @apply flex h-[3px] w-full shrink-0 overflow-hidden;
+    @apply flex h-1 w-full shrink-0 overflow-hidden;
   }
   .flag-stripe > span {
     @apply flex-1;
@@ -55,13 +61,13 @@
 @layer components {
   /* Buttons */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-sm
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-semibold text-sm
            transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
            focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98];
   }
 
   .btn-primary {
-    @apply bg-primary-700 text-white shadow-sm hover:bg-primary-800 focus-visible:ring-primary-500;
+    @apply bg-primary-600 text-white shadow-sm hover:bg-primary-700 focus-visible:ring-primary-500;
   }
 
   .btn-secondary {
@@ -103,12 +109,16 @@
            transition-shadow duration-200 hover:shadow-lg;
   }
 
+  .panel-pro {
+    border-top: 3px solid theme('colors.success.600');
+  }
+
   .panel-pro-head {
-    @apply flex items-center justify-between px-6 py-4 border-b border-ink-200 bg-ink-50;
+    @apply flex items-center justify-between px-6 py-4 border-b border-ink-200 bg-white;
   }
 
   .panel-pro .table thead th {
-    @apply border-b border-primary-800;
+    @apply border-b-2 border-primary-500;
   }
 
   .panel-pro .table tbody td {
@@ -117,13 +127,13 @@
 
   /* Inputs */
   .input {
-    @apply w-full px-3.5 py-2.5 bg-white border border-ink-200 rounded-lg text-sm text-ink-900
+    @apply w-full px-3.5 py-2.5 bg-white border border-ink-200 rounded-md text-sm text-ink-900
            placeholder:text-ink-400 transition-all duration-150 shadow-sm
-           focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-400;
+           focus:outline-none focus:ring-4 focus:ring-primary-500/15 focus:border-primary-600;
   }
 
   .label {
-    @apply block text-sm font-medium text-ink-700 mb-1.5;
+    @apply block text-sm font-semibold text-ink-800 mb-1.5;
   }
 
   /* Tables */
@@ -132,7 +142,7 @@
   }
 
   .table thead th {
-    @apply px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-white bg-primary-700 border-b border-primary-800;
+    @apply px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-white bg-brand-800 border-b-2 border-primary-500;
   }
 
   .table tbody td {
@@ -227,7 +237,7 @@
 
   /* Section title used above groups of panels/cards */
   .section-title {
-    @apply text-base font-bold text-ink-900 tracking-tight;
+    @apply text-base font-bold text-brand-800 tracking-tight pl-3 border-l-4 border-primary-500;
   }
 
   /* Empty state */
@@ -237,7 +247,7 @@
 
   /* KPI card variant: surface nette légèrement détachée du fond de page */
   .kpi-card {
-    @apply bg-white border border-ink-200 shadow-card;
+    @apply bg-white border border-ink-200 shadow-card border-l-4 border-l-primary-500 rounded-lg;
   }
 
   .empty-state-icon {
@@ -262,7 +272,7 @@
 
 .leaflet-popup-content {
   margin: 12px;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
 }
 
 /* Leaflet container height fix */
@@ -288,7 +298,7 @@
 }
 /* Focus clavier visible (accessibilité) */
 :focus-visible {
-  outline: 2px solid #1f8656;
+  outline: 2px solid #ff8200;
   outline-offset: 2px;
 }
 
