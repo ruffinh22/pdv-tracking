@@ -1,4 +1,6 @@
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ColumnDef } from '@tanstack/react-table';
+import DataTable from '../components/DataTable';
 import { Plus, Edit, Trash2, Mail, Phone, Search, ToggleLeft, ToggleRight, X } from 'lucide-react';
 import { userService, User, UserRole } from '../services/userService';
 import { useMemo, useState } from 'react';
@@ -177,6 +179,91 @@ const UsersPage = () => {
 
   const initialsOf = (u: User) => `${u.prenom?.[0] ?? ''}${u.nom?.[0] ?? ''}`.toUpperCase();
 
+  const columns: ColumnDef<User>[] = [
+    {
+      id: 'utilisateur',
+      header: 'Utilisateur',
+      accessorFn: (u) => `${u.prenom} ${u.nom}`,
+      meta: { mobileTitle: true },
+      cell: ({ row }) => (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-primary-200 rounded-full flex items-center justify-center text-primary-800 text-xs font-extrabold shrink-0 ring-2 ring-white shadow-sm">
+            {initialsOf(row.original)}
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-ink-950">{row.original.prenom} {row.original.nom}</p>
+            <p className="text-sm font-medium text-ink-500 truncate">{row.original.email}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'contact',
+      header: 'Contact',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          {row.original.telephone && (
+            <div className="flex items-center text-sm text-ink-700">
+              <Phone className="w-3.5 h-3.5 mr-1.5 text-ink-400" />
+              {row.original.telephone}
+            </div>
+          )}
+          <div className="flex items-center text-sm text-ink-700">
+            <Mail className="w-3.5 h-3.5 mr-1.5 text-ink-400" />
+            {row.original.email}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'role',
+      header: 'Rôle',
+      accessorFn: (u) => ROLE_LABEL[u.role] ?? u.role,
+      cell: ({ row }) => (
+        <span className={ROLE_BADGE[row.original.role] ?? 'badge badge-neutral'}>
+          {ROLE_LABEL[row.original.role] ?? row.original.role}
+        </span>
+      ),
+    },
+    {
+      id: 'statut',
+      header: 'Statut',
+      accessorFn: (u) => u.statut,
+      cell: ({ row }) => (
+        <button onClick={() => handleToggleStatus(row.original)} className="flex items-center gap-1.5 text-sm" aria-label="Changer le statut">
+          {row.original.statut === 'actif' ? (
+            <>
+              <ToggleRight className="w-6 h-6 text-success-600" />
+              <span className="text-success-700 font-bold">Actif</span>
+            </>
+          ) : (
+            <>
+              <ToggleLeft className="w-6 h-6 text-ink-300" />
+              <span className="text-ink-500 font-semibold">Inactif</span>
+            </>
+          )}
+        </button>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      enableSorting: false,
+      meta: { align: 'right', mobileFooter: true },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <button onClick={() => handleEdit(row.original)} className="btn-icon" aria-label="Modifier">
+            <Edit className="w-4 h-4" />
+          </button>
+          <button onClick={() => handleDelete(row.original.id)} className="btn-icon hover:text-danger-600 hover:bg-danger-50" aria-label="Supprimer">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -224,99 +311,14 @@ const UsersPage = () => {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Utilisateur</th>
-                <th>Contact</th>
-                <th>Rôle</th>
-                <th>Statut</th>
-                <th className="text-right pr-6">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-10 text-ink-400">Chargement...</td>
-                </tr>
-              ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-10 text-ink-400">Aucun utilisateur trouvé</td>
-                </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <div className="flex items-center">
-                        <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center mr-3 text-primary-700 text-xs font-bold shrink-0">
-                          {initialsOf(user)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-ink-900">{user.prenom} {user.nom}</p>
-                          <p className="text-sm text-ink-400">{user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="space-y-1">
-                        {user.telephone && (
-                          <div className="flex items-center text-sm text-ink-600">
-                            <Phone className="w-3.5 h-3.5 mr-1.5 text-ink-400" />
-                            {user.telephone}
-                          </div>
-                        )}
-                        <div className="flex items-center text-sm text-ink-600">
-                          <Mail className="w-3.5 h-3.5 mr-1.5 text-ink-400" />
-                          {user.email}
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={ROLE_BADGE[user.role] ?? 'badge badge-neutral'}>
-                        {ROLE_LABEL[user.role] ?? user.role}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => handleToggleStatus(user)}
-                        className="flex items-center gap-1.5 text-sm"
-                      >
-                        {user.statut === 'actif' ? (
-                          <>
-                            <ToggleRight className="w-5 h-5 text-success-600" />
-                            <span className="text-success-700 font-medium">Actif</span>
-                          </>
-                        ) : (
-                          <>
-                            <ToggleLeft className="w-5 h-5 text-ink-300" />
-                            <span className="text-ink-400">Inactif</span>
-                          </>
-                        )}
-                      </button>
-                    </td>
-                    <td>
-                      <div className="flex justify-end gap-1">
-                        <button
-                          onClick={() => handleEdit(user)}
-                          className="btn-icon hover:text-primary-600 hover:bg-primary-50"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(user.id)}
-                          className="btn-icon hover:text-danger-600 hover:bg-danger-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={filteredUsers}
+          columns={columns}
+          loading={isLoading}
+          getRowId={(u) => String(u.id)}
+          emptyMessage="Aucun utilisateur trouvé"
+          emptyHint="Modifiez votre recherche ou créez un compte."
+        />
 
         <Pagination
           currentPage={currentPage}

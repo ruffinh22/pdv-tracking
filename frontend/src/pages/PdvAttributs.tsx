@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import DataTable from '../components/DataTable';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit, Trash2, X, Eye, EyeOff, ArrowUp, ArrowDown, ListChecks, Lock, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -208,6 +210,174 @@ const PdvAttributs = () => {
     ]);
   };
 
+  const columnsAttributs: ColumnDef<any>[] = [
+    {
+      id: 'ordre',
+      header: 'Ordre',
+      enableSorting: false,
+      meta: { mobileFooter: true },
+      cell: ({ row }) => (
+        <div className="flex gap-0.5">
+          <button onClick={() => deplacer(row.index, -1)} disabled={row.index === 0} className="btn-icon disabled:opacity-30" aria-label="Monter">
+            <ArrowUp className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => deplacer(row.index, 1)} disabled={row.index === attributs.length - 1} className="btn-icon disabled:opacity-30" aria-label="Descendre">
+            <ArrowDown className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ),
+    },
+    {
+      id: 'libelle',
+      header: 'Libellé',
+      meta: { mobileTitle: true },
+      cell: ({ row }) => (
+        <>
+          <div className="font-bold text-ink-950">{row.original.libelle}</div>
+          {row.original.aide ? <div className="text-xs font-medium text-ink-500">{row.original.aide}</div> : null}
+        </>
+      ),
+    },
+    {
+      id: 'code',
+      header: 'Code',
+      cell: ({ row }) => <code className="text-xs font-semibold text-ink-600 bg-ink-100 rounded px-1.5 py-0.5">{row.original.code}</code>,
+    },
+    {
+      id: 'type',
+      header: 'Type',
+      cell: ({ row }) => (
+        <span className="text-sm text-ink-700">
+          {TYPE_LABELS[row.original.type as keyof typeof TYPE_LABELS]}
+          {row.original.options && row.original.options.length > 0 ? (
+            <span className="block text-xs text-ink-500">{row.original.options.length} option(s)</span>
+          ) : null}
+        </span>
+      ),
+    },
+    { id: 'groupe', header: 'Section', cell: ({ row }) => <span className="text-sm text-ink-700">{row.original.groupe}</span> },
+    {
+      id: 'obligatoire',
+      header: 'Obligatoire',
+      cell: ({ row }) => (
+        <span className={row.original.obligatoire ? 'badge badge-warning' : 'badge badge-neutral'}>
+          {row.original.obligatoire ? 'Obligatoire' : 'Facultatif'}
+        </span>
+      ),
+    },
+    {
+      id: 'etat',
+      header: 'État',
+      cell: ({ row }) => (
+        <span className={row.original.actif ? 'badge badge-success' : 'badge badge-neutral'}>
+          {row.original.actif ? 'Affiché' : 'Masqué'}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      meta: { align: 'right', mobileFooter: true },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <button
+            onClick={() => basculerActif(row.original)}
+            className="btn-icon"
+            title={row.original.actif ? 'Masquer du formulaire' : 'Afficher dans le formulaire'}
+            aria-label={row.original.actif ? 'Masquer du formulaire' : 'Afficher dans le formulaire'}
+          >
+            {row.original.actif ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+          <button onClick={() => ouvrirEdition(row.original)} className="btn-icon" aria-label="Modifier">
+            <Edit className="w-4 h-4" />
+          </button>
+          <button onClick={() => handleDelete(row.original)} className="btn-icon hover:text-danger-600 hover:bg-danger-50" aria-label="Supprimer">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  const columnsChamps: ColumnDef<PdvChampFixe>[] = [
+    {
+      id: 'libelle',
+      header: 'Libellé',
+      accessorFn: (c) => c.libelle,
+      meta: { mobileTitle: true },
+      cell: ({ row }) => (
+        <div className="font-bold text-ink-950 flex items-center gap-1.5">
+          <Lock className="w-3 h-3 text-ink-400" />
+          {row.original.libelle}
+        </div>
+      ),
+    },
+    {
+      id: 'champ',
+      header: 'Champ',
+      accessorFn: (c) => c.code,
+      cell: ({ row }) => <code className="text-xs font-semibold text-ink-600 bg-ink-100 rounded px-1.5 py-0.5">{row.original.code}</code>,
+    },
+    {
+      id: 'obligatoire',
+      header: 'Obligatoire',
+      accessorFn: (c) => (c.obligatoire ? 1 : 0),
+      cell: ({ row }) => {
+        const champ = row.original;
+        return (
+          <button
+            type="button"
+            onClick={() => basculerObligatoireChampFixe(champ)}
+            disabled={!champ.visible || champFixeMutation.isPending}
+            className={
+              champ.obligatoire
+                ? 'badge badge-warning cursor-pointer disabled:cursor-not-allowed'
+                : 'badge badge-neutral cursor-pointer disabled:cursor-not-allowed'
+            }
+            title={
+              !champ.visible
+                ? 'Un champ masqué ne peut pas être obligatoire'
+                : champ.obligatoire
+                ? 'Cliquer pour rendre facultatif'
+                : 'Cliquer pour rendre obligatoire'
+            }
+          >
+            {champ.obligatoire ? 'Obligatoire' : 'Facultatif'}
+          </button>
+        );
+      },
+    },
+    {
+      id: 'etat',
+      header: 'État',
+      accessorFn: (c) => (c.visible ? 1 : 0),
+      cell: ({ row }) => (
+        <span className={row.original.visible ? 'badge badge-success' : 'badge badge-neutral'}>
+          {row.original.visible ? 'Affiché' : 'Masqué'}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      enableSorting: false,
+      meta: { align: 'right', mobileFooter: true },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <button
+            onClick={() => basculerVisibiliteChampFixe(row.original)}
+            disabled={champFixeMutation.isPending}
+            className="btn-icon"
+            title={row.original.visible ? 'Masquer du formulaire' : 'Afficher dans le formulaire'}
+            aria-label={row.original.visible ? 'Masquer du formulaire' : 'Afficher dans le formulaire'}
+          >
+            {row.original.visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -251,84 +421,14 @@ const PdvAttributs = () => {
         </div>
 
         <div className="card !p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Libellé</th>
-                  <th>Champ</th>
-                  <th>Obligatoire</th>
-                  <th>État</th>
-                  <th className="text-right pr-6">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {chargementChampsFixes ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-6 text-ink-400">
-                      Chargement…
-                    </td>
-                  </tr>
-                ) : (
-                  champsFixes.map((champ) => (
-                    <tr key={champ.code} className={champ.visible ? '' : 'opacity-50'}>
-                      <td>
-                        <div className="font-medium text-ink-900 flex items-center gap-1.5">
-                          <Lock className="w-3 h-3 text-ink-300" />
-                          {champ.libelle}
-                        </div>
-                      </td>
-                      <td>
-                        <code className="text-xs text-ink-500">{champ.code}</code>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          onClick={() => basculerObligatoireChampFixe(champ)}
-                          disabled={!champ.visible || champFixeMutation.isPending}
-                          className={
-                            champ.obligatoire
-                              ? 'badge badge-warning cursor-pointer disabled:cursor-not-allowed'
-                              : 'badge badge-neutral cursor-pointer disabled:cursor-not-allowed'
-                          }
-                          title={
-                            !champ.visible
-                              ? 'Un champ masqué ne peut pas être obligatoire'
-                              : champ.obligatoire
-                              ? 'Cliquer pour rendre facultatif'
-                              : 'Cliquer pour rendre obligatoire'
-                          }
-                        >
-                          {champ.obligatoire ? 'Obligatoire' : 'Facultatif'}
-                        </button>
-                      </td>
-                      <td>
-                        <span className={champ.visible ? 'badge badge-success' : 'badge badge-neutral'}>
-                          {champ.visible ? 'Affiché' : 'Masqué'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="flex justify-end gap-1">
-                          <button
-                            onClick={() => basculerVisibiliteChampFixe(champ)}
-                            disabled={champFixeMutation.isPending}
-                            className="btn-icon hover:text-primary-600 hover:bg-primary-50"
-                            title={champ.visible ? 'Masquer du formulaire' : 'Afficher dans le formulaire'}
-                          >
-                            {champ.visible ? (
-                              <EyeOff className="w-4 h-4" />
-                            ) : (
-                              <Eye className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            data={champsFixes}
+            columns={columnsChamps}
+            loading={chargementChampsFixes}
+            getRowId={(c) => c.code}
+            rowClassName={(c) => (c.visible ? '' : 'opacity-50')}
+            minWidth={640}
+          />
         </div>
       </div>
 
@@ -351,115 +451,18 @@ const PdvAttributs = () => {
       </div>
 
       <div className="card !p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th className="w-24">Ordre</th>
-                <th>Libellé</th>
-                <th>Code</th>
-                <th>Type</th>
-                <th>Section</th>
-                <th>Obligatoire</th>
-                <th>État</th>
-                <th className="text-right pr-6">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-10 text-ink-400">
-                    Chargement…
-                  </td>
-                </tr>
-              ) : attributs.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-10 text-ink-400">
-                    Aucun attribut personnalisé. La fiche PDV n'affiche que les champs standards.
-                  </td>
-                </tr>
-              ) : (
-                attributs.map((attribut, index) => (
-                  <tr key={attribut.id} className={attribut.actif ? '' : 'opacity-50'}>
-                    <td>
-                      <div className="flex gap-0.5">
-                        <button
-                          onClick={() => deplacer(index, -1)}
-                          disabled={index === 0}
-                          className="btn-icon disabled:opacity-30"
-                        >
-                          <ArrowUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => deplacer(index, 1)}
-                          disabled={index === attributs.length - 1}
-                          className="btn-icon disabled:opacity-30"
-                        >
-                          <ArrowDown className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="font-medium text-ink-900">{attribut.libelle}</div>
-                      {attribut.aide ? (
-                        <div className="text-xs text-ink-400">{attribut.aide}</div>
-                      ) : null}
-                    </td>
-                    <td>
-                      <code className="text-xs text-ink-500">{attribut.code}</code>
-                    </td>
-                    <td className="text-ink-600 text-sm">
-                      {TYPE_LABELS[attribut.type]}
-                      {attribut.options && attribut.options.length > 0 ? (
-                        <div className="text-xs text-ink-400">
-                          {attribut.options.length} option(s)
-                        </div>
-                      ) : null}
-                    </td>
-                    <td className="text-ink-600 text-sm">{attribut.groupe}</td>
-                    <td>
-                      <span className={attribut.obligatoire ? 'badge badge-warning' : 'badge badge-neutral'}>
-                        {attribut.obligatoire ? 'Obligatoire' : 'Facultatif'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={attribut.actif ? 'badge badge-success' : 'badge badge-neutral'}>
-                        {attribut.actif ? 'Affiché' : 'Masqué'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="flex justify-end gap-1">
-                        <button
-                          onClick={() => basculerActif(attribut)}
-                          className="btn-icon hover:text-primary-600 hover:bg-primary-50"
-                          title={attribut.actif ? 'Masquer du formulaire' : 'Afficher dans le formulaire'}
-                        >
-                          {attribut.actif ? (
-                            <EyeOff className="w-4 h-4" />
-                          ) : (
-                            <Eye className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => ouvrirEdition(attribut)}
-                          className="btn-icon hover:text-primary-600 hover:bg-primary-50"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(attribut)}
-                          className="btn-icon hover:text-danger-600 hover:bg-danger-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={attributs}
+          columns={columnsAttributs}
+          loading={isLoading}
+          sortable={false}
+          getRowId={(a: any) => String(a.id)}
+          rowClassName={(a: any) => (a.actif ? '' : 'opacity-50')}
+          minWidth={900}
+          emptyMessage="Aucun attribut personnalisé"
+          emptyHint="La fiche PDV n'affiche que les champs standards."
+          emptyIcon={<ListChecks className="w-6 h-6" />}
+        />
       </div>
 
       {showModal && (

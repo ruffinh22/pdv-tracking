@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import DataTable from '../components/DataTable';
+import type { ColumnDef } from '@tanstack/react-table';
 import { BRAND, CHART, CHART_SERIES, axisProps, tooltipProps } from '../lib/theme';
 import CountUp from '../components/CountUp';
 import { Link } from 'react-router-dom';
@@ -197,6 +199,66 @@ const Dashboard = () => {
   const produitsChartData = useMemo(() => {
     return (pdvParProduit || []).map((p: any) => ({ name: p.produit, total: p.total_pdv }));
   }, [pdvParProduit]);
+
+  const columnsAnalyses: ColumnDef<any>[] = [
+    {
+      id: 'label',
+      header: analyses?.libelle ?? 'Dimension',
+      accessorFn: (l) => l.label,
+      meta: { mobileTitle: true },
+      cell: ({ getValue }) => <span className="font-bold text-ink-950">{getValue() as string}</span>,
+    },
+    { id: 'total', header: 'Total PDV', accessorFn: (l) => l.total, meta: { align: 'right' }, cell: ({ getValue }) => <span className="font-bold num">{(getValue() as number).toLocaleString('fr-FR')}</span> },
+    { id: 'actifs', header: 'Actifs', accessorFn: (l) => l.actifs, meta: { align: 'right' }, cell: ({ getValue }) => <span className="font-bold text-success-700 num">{(getValue() as number).toLocaleString('fr-FR')}</span> },
+    { id: 'inactifs', header: 'Inactifs', accessorFn: (l) => l.inactifs, meta: { align: 'right' }, cell: ({ getValue }) => <span className="font-semibold text-ink-600 num">{(getValue() as number).toLocaleString('fr-FR')}</span> },
+  ];
+
+  const columnsIntrus: ColumnDef<any>[] = [
+    {
+      id: 'pdv',
+      header: 'PDV',
+      accessorFn: (a) => a.pdv?.nom_pdv || '',
+      meta: { mobileTitle: true },
+      cell: ({ getValue }) => <span className="font-bold text-ink-950">{(getValue() as string) || '—'}</span>,
+    },
+    {
+      id: 'type',
+      header: 'Type',
+      accessorFn: (a) => (a.type_alerte === 'sortie_zone' ? 'Sortie de zone' : 'Déplacement anormal'),
+    },
+    {
+      id: 'distance',
+      header: 'Distance',
+      accessorFn: (a) => Number(a.distance_metres) || 0,
+      cell: ({ row }) => (row.original.distance_metres ? `${Math.round(row.original.distance_metres)} m` : '—'),
+    },
+    {
+      id: 'localisation',
+      header: 'Localisation',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <span className="text-xs font-medium text-ink-700">
+          {[row.original.pdv?.quartier, row.original.pdv?.commune, row.original.pdv?.ville].filter(Boolean).join(', ') || '—'}
+        </span>
+      ),
+    },
+    {
+      id: 'date',
+      header: 'Date',
+      accessorFn: (a) => new Date(a.horodatage).getTime(),
+      cell: ({ row }) => <span className="text-xs font-medium text-ink-600">{new Date(row.original.horodatage).toLocaleString('fr-FR')}</span>,
+    },
+    {
+      id: 'statut',
+      header: 'Statut',
+      accessorFn: (a) => a.statut,
+      cell: ({ row }) => (
+        <span className={row.original.statut === 'non_traitee' ? 'badge badge-danger' : row.original.statut === 'en_cours' ? 'badge badge-warning' : 'badge badge-success'}>
+          {row.original.statut}
+        </span>
+      ),
+    },
+  ];
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -416,27 +478,13 @@ const Dashboard = () => {
           )}
         </div>
         {analyses && analyses.data.length > 0 && (
-          <div className="overflow-x-auto border-t border-ink-200">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>{analyses.libelle}</th>
-                  <th>Total PDV</th>
-                  <th>Actifs</th>
-                  <th>Inactifs</th>
-                </tr>
-              </thead>
-              <tbody>
-                {analyses.data.slice(0, 15).map((l) => (
-                  <tr key={l.label}>
-                    <td className="font-medium text-ink-900">{l.label}</td>
-                    <td className="text-ink-600">{l.total}</td>
-                    <td className="text-ink-600">{l.actifs}</td>
-                    <td className="text-ink-600">{l.inactifs}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="border-t border-ink-200">
+            <DataTable
+              data={analyses.data.slice(0, 15)}
+              columns={columnsAnalyses}
+              getRowId={(l) => l.label}
+              minWidth={480}
+            />
           </div>
         )}
       </div>
@@ -467,46 +515,15 @@ const Dashboard = () => {
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>PDV</th>
-                <th>Type</th>
-                <th>Distance</th>
-                <th>Localisation</th>
-                <th>Date</th>
-                <th>Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              {instrusLoading ? (
-                <tr><td colSpan={6} className="text-center py-8 text-ink-400">Chargement...</td></tr>
-              ) : instrus.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-8 text-ink-400">Aucun intrus détecté</td></tr>
-              ) : (
-                instrus.slice(0, 20).map((alerte: any) => (
-                  <tr key={alerte.id}>
-                    <td className="font-medium text-ink-900">{alerte.pdv?.nom_pdv || '—'}</td>
-                    <td className="text-ink-600">
-                      {alerte.type_alerte === 'sortie_zone' ? 'Sortie de zone' : 'Déplacement anormal'}
-                    </td>
-                    <td className="text-ink-600">{alerte.distance_metres ? `${Math.round(alerte.distance_metres)} m` : '—'}</td>
-                    <td className="text-ink-600 text-xs">
-                      {[alerte.pdv?.quartier, alerte.pdv?.commune, alerte.pdv?.ville].filter(Boolean).join(', ') || '—'}
-                    </td>
-                    <td className="text-ink-500 text-xs">{new Date(alerte.horodatage).toLocaleString()}</td>
-                    <td>
-                      <span className={alerte.statut === 'non_traitee' ? 'badge badge-danger' : alerte.statut === 'en_cours' ? 'badge badge-warning' : 'badge badge-success'}>
-                        {alerte.statut}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={instrus.slice(0, 20)}
+          columns={columnsIntrus}
+          loading={instrusLoading}
+          getRowId={(a: any) => String(a.id)}
+          minWidth={760}
+          emptyMessage="Aucun intrus détecté"
+          emptyIcon={<Inbox className="w-6 h-6" />}
+        />
       </div>
 
       {/* Map Section */}

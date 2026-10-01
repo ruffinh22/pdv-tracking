@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import DataTable from '../components/DataTable';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { produitService } from '../services/produitService';
 import { Plus, Edit, Trash2, Package, Search, X } from 'lucide-react';
@@ -122,6 +124,53 @@ const Produits = () => {
     }
   };
 
+  const columns: ColumnDef<any>[] = [
+    {
+      id: 'nom',
+      header: 'Nom',
+      accessorFn: (p) => p.nom_produit,
+      meta: { mobileTitle: true },
+      cell: ({ row }) => (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary-50 ring-1 ring-primary-200 flex items-center justify-center shrink-0">
+            <Package className="w-4 h-4 text-primary-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-ink-950">{row.original.nom_produit}</p>
+            {row.original.description && <p className="text-xs font-medium text-ink-500 mt-0.5">{row.original.description}</p>}
+          </div>
+        </div>
+      ),
+    },
+    { id: 'categorie', header: 'Catégorie', accessorFn: (p) => p.categorie || '', cell: ({ getValue }) => (getValue() as string) || '—' },
+    {
+      id: 'statut',
+      header: 'Statut',
+      accessorFn: (p) => p.statut,
+      cell: ({ row }) => (
+        <span className={row.original.statut === 'actif' ? 'badge badge-success' : 'badge badge-neutral'}>
+          {row.original.statut === 'actif' ? 'Actif' : 'Inactif'}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      enableSorting: false,
+      meta: { align: 'right', mobileFooter: true },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <button onClick={() => handleEdit(row.original)} className="btn-icon" aria-label="Modifier">
+            <Edit className="w-4 h-4" />
+          </button>
+          <button onClick={() => handleDelete(row.original.id)} className="btn-icon hover:text-danger-600 hover:bg-danger-50" aria-label="Supprimer">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -161,71 +210,15 @@ const Produits = () => {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Nom</th>
-                <th>Catégorie</th>
-                <th>Statut</th>
-                <th className="text-right pr-6">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={4} className="text-center py-10 text-ink-400">Chargement...</td>
-                </tr>
-              ) : filteredProduits.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="text-center py-10 text-ink-400">
-                    Aucun produit trouvé
-                  </td>
-                </tr>
-              ) : (
-                filteredProduits.map((produit: any) => (
-                  <tr key={produit.id}>
-                    <td>
-                      <div className="flex items-center space-x-2.5">
-                        <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center shrink-0">
-                          <Package className="w-4 h-4 text-primary-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-ink-900">{produit.nom_produit}</p>
-                          {produit.description && (
-                            <p className="text-xs text-ink-400 mt-0.5">{produit.description}</p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="text-ink-600">{produit.categorie || '-'}</td>
-                    <td>
-                      <span className={produit.statut === 'actif' ? 'badge badge-success' : 'badge badge-neutral'}>
-                        {produit.statut === 'actif' ? 'Actif' : 'Inactif'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="flex justify-end gap-1">
-                        <button
-                          onClick={() => handleEdit(produit)}
-                          className="btn-icon hover:text-primary-600 hover:bg-primary-50"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(produit.id)}
-                          className="btn-icon hover:text-danger-600 hover:bg-danger-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={filteredProduits}
+          columns={columns}
+          loading={isLoading}
+          getRowId={(p: any) => String(p.id)}
+          emptyMessage="Aucun produit trouvé"
+          emptyHint="Modifiez votre recherche ou ajoutez un produit."
+          emptyIcon={<Package className="w-6 h-6" />}
+        />
 
         {/* Pagination */}
         <Pagination

@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import DataTable from '../components/DataTable';
 import { BRAND, CHART, CHART_SERIES, tooltipProps } from '../lib/theme';
 import { Inbox } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
@@ -127,6 +129,93 @@ function Jauge({ valeur, ton }: { valeur: number; ton: 'succes' | 'alerte' | 'da
 function Vide({ message }: { message: string }) {
   return <EmptyState icon={Inbox} message={message} />;
 }
+
+/* ---------- Colonnes des tableaux de détail (TanStack Table) ---------- */
+type Ligne = LigneDetailReporting;
+
+const colPdv: ColumnDef<Ligne> = {
+  id: 'pdv',
+  header: 'PDV',
+  accessorFn: (l) => l.nom_pdv,
+  meta: { mobileTitle: true },
+  cell: ({ getValue }) => <span className="font-bold text-ink-950">{getValue() as string}</span>,
+};
+const colTerminal: ColumnDef<Ligne> = {
+  id: 'terminal',
+  header: 'ID terminal',
+  accessorFn: (l) => l.id_terminal || '',
+  cell: ({ getValue }) => <span className="text-xs font-semibold text-ink-600">{(getValue() as string) || '—'}</span>,
+};
+const colLocalisation: ColumnDef<Ligne> = {
+  id: 'localisation',
+  header: 'Localisation',
+  accessorFn: (l) => [l.quartier, l.commune, l.ville].filter(Boolean).join(', '),
+  cell: ({ getValue }) => (getValue() as string) || '—',
+};
+const colCommercial: ColumnDef<Ligne> = {
+  id: 'commercial',
+  header: 'Commercial',
+  accessorFn: (l) => l.commercial || '',
+  cell: ({ getValue }) => (getValue() as string) || '—',
+};
+const colTague: ColumnDef<Ligne> = {
+  id: 'tague',
+  header: 'Tagué le',
+  accessorFn: (l) => new Date(l.date_tagging).getTime() || 0,
+  cell: ({ row }) => <span className="whitespace-nowrap">{formatDate(row.original.date_tagging)}</span>,
+};
+const colDossier: ColumnDef<Ligne> = {
+  id: 'dossier',
+  header: 'Dossier',
+  accessorFn: (l) => l.statut_dossier,
+  cell: ({ row }) => (
+    <span className={`badge ${row.original.statut_dossier === 'complet' ? 'badge-success' : 'badge-warning'}`}>
+      {row.original.statut_dossier}
+    </span>
+  ),
+};
+const texteCol = (id: string, header: string, get: (l: Ligne) => string | null): ColumnDef<Ligne> => ({
+  id,
+  header,
+  accessorFn: (l) => get(l) || '',
+  cell: ({ getValue }) => (getValue() as string) || '—',
+});
+
+const colMuets: ColumnDef<Ligne>[] = [
+  colPdv,
+  colTerminal,
+  colLocalisation,
+  colCommercial,
+  colTague,
+  {
+    id: 'derniere',
+    header: 'Dernière position',
+    accessorFn: (l) => (l.derniere_position_date ? new Date(l.derniere_position_date).getTime() : 0),
+    cell: ({ row }) => <span className="badge badge-danger">{formatDateHeure(row.original.derniere_position_date)}</span>,
+  },
+];
+
+const colIntrus: ColumnDef<Ligne>[] = [colPdv, colTerminal, colLocalisation, colCommercial, colDossier, colTague];
+
+const colDetail: ColumnDef<Ligne>[] = [
+  colPdv,
+  colTerminal,
+  texteCol('ville', 'Ville', (l) => l.ville),
+  texteCol('commune', 'Commune', (l) => l.commune),
+  texteCol('quartier', 'Quartier', (l) => l.quartier),
+  texteCol('agence', 'Agence', (l) => l.agence),
+  colCommercial,
+  colTague,
+  colDossier,
+  {
+    id: 'gps',
+    header: 'Suivi GPS',
+    accessorFn: (l) => (l.muet ? 1 : 0),
+    cell: ({ row }) => (
+      <span className={`badge ${row.original.muet ? 'badge-danger' : 'badge-success'}`}>{row.original.muet ? 'Muet' : 'Actif'}</span>
+    ),
+  },
+];
 
 const Reporting = () => {
   const { user } = useAuthStore();
@@ -535,47 +624,14 @@ const Reporting = () => {
                     {detail.filter((l) => l.muet).length} terminal(aux) concerné(s)
                   </span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>PDV</th>
-                        <th>ID terminal</th>
-                        <th>Localisation</th>
-                        <th>Commercial</th>
-                        <th>Tagué le</th>
-                        <th>Dernière position</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detail.filter((l) => l.muet).length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="text-center py-10 text-ink-400">
-                            Tous les terminaux ont remonté une position récemment.
-                          </td>
-                        </tr>
-                      ) : (
-                        detail
-                          .filter((l) => l.muet)
-                          .slice(0, 100)
-                          .map((ligne) => (
-                            <tr key={ligne.id}>
-                              <td className="font-medium text-ink-900">{ligne.nom_pdv}</td>
-                              <td className="text-ink-500">{ligne.id_terminal || '—'}</td>
-                              <td>{[ligne.quartier, ligne.commune, ligne.ville].filter(Boolean).join(', ') || '—'}</td>
-                              <td>{ligne.commercial || '—'}</td>
-                              <td>{formatDate(ligne.date_tagging)}</td>
-                              <td>
-                                <span className="badge badge-danger">
-                                  {formatDateHeure(ligne.derniere_position_date)}
-                                </span>
-                              </td>
-                            </tr>
-                          ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  data={detail.filter((l) => l.muet).slice(0, 100)}
+                  columns={colMuets}
+                  getRowId={(l) => String(l.id)}
+                  minWidth={820}
+                  emptyMessage="Aucun terminal muet"
+                  emptyHint="Tous les terminaux ont remonté une position récemment."
+                />
               </div>
             </div>
           )}
@@ -645,46 +701,14 @@ const Reporting = () => {
                 <div className="panel-pro-head">
                   <h2>PDV sortis de leur zone (intrus)</h2>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>PDV</th>
-                        <th>ID terminal</th>
-                        <th>Localisation</th>
-                        <th>Commercial</th>
-                        <th>Dossier</th>
-                        <th>Tagué le</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detail.filter((l) => l.instru).length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="text-center py-10 text-ink-400">
-                            Aucun intrus détecté sur la période : tous les PDV sont dans leur zone.
-                          </td>
-                        </tr>
-                      ) : (
-                        detail
-                          .filter((l) => l.instru)
-                          .map((ligne) => (
-                            <tr key={ligne.id}>
-                              <td className="font-medium text-ink-900">{ligne.nom_pdv}</td>
-                              <td className="text-ink-500">{ligne.id_terminal || '—'}</td>
-                              <td>{[ligne.quartier, ligne.commune, ligne.ville].filter(Boolean).join(', ') || '—'}</td>
-                              <td>{ligne.commercial || '—'}</td>
-                              <td>
-                                <span className={`badge ${ligne.statut_dossier === 'complet' ? 'badge-success' : 'badge-warning'}`}>
-                                  {ligne.statut_dossier}
-                                </span>
-                              </td>
-                              <td>{formatDate(ligne.date_tagging)}</td>
-                            </tr>
-                          ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  data={detail.filter((l) => l.instru)}
+                  columns={colIntrus}
+                  getRowId={(l) => String(l.id)}
+                  minWidth={820}
+                  emptyMessage="Aucun intrus détecté sur la période"
+                  emptyHint="Tous les PDV sont dans leur zone."
+                />
               </div>
             </div>
           )}
@@ -774,56 +798,15 @@ const Reporting = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>PDV</th>
-                    <th>ID terminal</th>
-                    <th>Ville</th>
-                    <th>Commune</th>
-                    <th>Quartier</th>
-                    <th>Agence</th>
-                    <th>Commercial</th>
-                    <th>Tagué le</th>
-                    <th>Dossier</th>
-                    <th>Suivi GPS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detail.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="text-center py-10 text-ink-400">
-                        Aucun PDV ne correspond à ce filtre sur la période sélectionnée.
-                      </td>
-                    </tr>
-                  ) : (
-                    detail.slice(0, 200).map((ligne) => (
-                      <tr key={ligne.id}>
-                        <td className="font-medium text-ink-900">{ligne.nom_pdv}</td>
-                        <td className="text-ink-500">{ligne.id_terminal || '—'}</td>
-                        <td>{ligne.ville || '—'}</td>
-                        <td>{ligne.commune || '—'}</td>
-                        <td>{ligne.quartier || '—'}</td>
-                        <td>{ligne.agence || '—'}</td>
-                        <td>{ligne.commercial || '—'}</td>
-                        <td>{formatDate(ligne.date_tagging)}</td>
-                        <td>
-                          <span className={`badge ${ligne.statut_dossier === 'complet' ? 'badge-success' : 'badge-warning'}`}>
-                            {ligne.statut_dossier}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`badge ${ligne.muet ? 'badge-danger' : 'badge-success'}`}>
-                            {ligne.muet ? 'Muet' : 'Actif'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              data={detail.slice(0, 200)}
+              columns={colDetail}
+              getRowId={(l) => String(l.id)}
+              minWidth={1180}
+              stickyFirstColumn
+              emptyMessage="Aucun PDV ne correspond à ce filtre"
+              emptyHint="Aucun résultat sur la période sélectionnée."
+            />
 
             {(data.detail_tronque || detail.length > 200) && (
               <p className="px-6 py-3 text-xs text-ink-400 border-t border-ink-100">

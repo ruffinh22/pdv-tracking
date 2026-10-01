@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import DataTable from '../components/DataTable';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agenceService, Agence } from '../services/agenceService';
 import { Plus, Edit, Trash2, Building2, Search, X } from 'lucide-react';
@@ -87,6 +89,50 @@ const Agences = () => {
     }
   };
 
+  const columns: ColumnDef<Agence>[] = [
+    {
+      id: 'nom',
+      header: "Nom de l'agence",
+      accessorFn: (a) => a.nom_agence,
+      meta: { mobileTitle: true },
+      cell: ({ row }) => (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary-50 ring-1 ring-primary-200 flex items-center justify-center shrink-0">
+            <Building2 className="w-4 h-4 text-primary-600" />
+          </div>
+          <span className="font-bold text-ink-950">{row.original.nom_agence}</span>
+        </div>
+      ),
+    },
+    { id: 'ville', header: 'Ville', accessorFn: (a) => a.ville || '', cell: ({ getValue }) => (getValue() as string) || '—' },
+    {
+      id: 'statut',
+      header: 'Statut',
+      accessorFn: (a) => a.statut,
+      cell: ({ row }) => (
+        <span className={row.original.statut === 'actif' ? 'badge badge-success' : 'badge badge-neutral'}>
+          {row.original.statut === 'actif' ? 'Active' : 'Inactive'}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      enableSorting: false,
+      meta: { align: 'right', mobileFooter: true },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <button onClick={() => handleEdit(row.original)} className="btn-icon" aria-label="Modifier">
+            <Edit className="w-4 h-4" />
+          </button>
+          <button onClick={() => handleDelete(row.original.id)} className="btn-icon hover:text-danger-600 hover:bg-danger-50" aria-label="Supprimer">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -120,54 +166,15 @@ const Agences = () => {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Nom de l'agence</th>
-                <th>Ville</th>
-                <th>Statut</th>
-                <th className="text-right pr-6">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={4} className="text-center py-10 text-ink-400">Chargement...</td></tr>
-              ) : filteredAgences.length === 0 ? (
-                <tr><td colSpan={4} className="text-center py-10 text-ink-400">Aucune agence trouvée</td></tr>
-              ) : (
-                filteredAgences.map((agence: Agence) => (
-                  <tr key={agence.id}>
-                    <td>
-                      <div className="flex items-center space-x-2.5">
-                        <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center shrink-0">
-                          <Building2 className="w-4 h-4 text-primary-600" />
-                        </div>
-                        <span className="font-medium text-ink-900">{agence.nom_agence}</span>
-                      </div>
-                    </td>
-                    <td className="text-ink-600">{agence.ville || '-'}</td>
-                    <td>
-                      <span className={agence.statut === 'actif' ? 'badge badge-success' : 'badge badge-neutral'}>
-                        {agence.statut === 'actif' ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => handleEdit(agence)} className="btn-icon hover:text-primary-600 hover:bg-primary-50">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(agence.id)} className="btn-icon hover:text-danger-600 hover:bg-danger-50">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={filteredAgences}
+          columns={columns}
+          loading={isLoading}
+          getRowId={(a) => String(a.id)}
+          emptyMessage="Aucune agence trouvée"
+          emptyHint="Modifiez votre recherche ou créez une agence."
+          emptyIcon={<Building2 className="w-6 h-6" />}
+        />
 
         <Pagination
           currentPage={currentPage}

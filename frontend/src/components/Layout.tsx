@@ -55,9 +55,16 @@ const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // Ouvert par défaut sur grand écran ; sur mobile/tablette le menu est un tiroir fermé.
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() =>
+    typeof window === 'undefined' ? true : window.innerWidth >= 1024
+  );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (window.innerWidth < 1024) setIsSidebarOpen(false);
+  }, [location.pathname]);
 
   // --- Recherche globale (header) ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -159,6 +166,15 @@ const Layout = () => {
 
   return (
     <div className="min-h-screen bg-ink-50">
+      {/* Voile derrière le tiroir (mobile / tablette) */}
+      {isSidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-[15] bg-ink-950/55 backdrop-blur-[2px]"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden shadow-2xl bg-brand-950 ${
@@ -263,12 +279,12 @@ const Layout = () => {
 
       {/* Topbar */}
       <header
-        className={`fixed top-0 right-0 z-10 transition-all duration-200 shadow-sm ${
-          isSidebarOpen ? 'left-64' : 'left-0'
+        className={`fixed top-0 right-0 z-10 transition-all duration-200 shadow-sm left-0 ${
+          isSidebarOpen ? 'lg:left-64' : 'lg:left-0'
         }`}
       >
         <div className="flag-stripe"><span /><span /><span /></div>
-        <div className="flex items-center justify-between h-[64px] px-6 gap-4 bg-white/85 backdrop-blur-xl border-b border-ink-200">
+        <div className="flex items-center justify-between h-[64px] px-3 sm:px-6 gap-3 sm:gap-4 bg-white/85 backdrop-blur-xl border-b border-ink-200">
           <div className="flex items-center gap-4 min-w-0">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -415,7 +431,7 @@ const Layout = () => {
 
       {/* Main content */}
       <main
-        className={`pt-[72px] transition-all duration-200 ${isSidebarOpen ? 'pl-64' : 'pl-0'}`}
+        className={`pt-[72px] transition-all duration-200 ${isSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'}`}
       >
         {location.pathname === '/tracking' ? (
           <Outlet />
@@ -425,7 +441,7 @@ const Layout = () => {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="p-6 lg:p-8 max-w-[1600px] mx-auto"
+            className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto"
           >
             <Outlet />
           </motion.div>

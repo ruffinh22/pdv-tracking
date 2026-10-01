@@ -1,4 +1,6 @@
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ColumnDef } from '@tanstack/react-table';
+import DataTable from '../components/DataTable';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, MapPin, Phone, Search, X, ChevronDown, Tag, Filter, FileEdit, Download } from 'lucide-react';
 import { pdvService, PDV } from '../services/pdvService';
@@ -342,6 +344,113 @@ const PDVList = () => {
     }
   };
 
+  const colTexte = (id: string, header: string, get: (p: PDV) => string): ColumnDef<PDV> => ({
+    id,
+    header,
+    accessorFn: get,
+    cell: ({ getValue }) => <span className="text-ink-700">{(getValue() as string) || '—'}</span>,
+  });
+
+  const columns: ColumnDef<PDV>[] = [
+    {
+      id: 'pdv',
+      header: 'ID Terminal / PDV',
+      accessorFn: (p) => p.nom_pdv,
+      meta: { label: 'PDV', mobileTitle: true },
+      cell: ({ row }) => (
+        <div className="min-w-[170px]">
+          <div className="font-bold text-ink-950">{row.original.nom_pdv}</div>
+          <div className="text-xs font-semibold text-ink-500 break-all">{row.original.id_terminal || '—'}</div>
+          {row.original.matricule_agent ? (
+            <div className="text-xs font-medium text-ink-500">Agent {row.original.matricule_agent}</div>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      id: 'contact',
+      header: 'Contact',
+      accessorFn: (p) => p.msisdn_responsable || '',
+      cell: ({ getValue }) => (
+        <div className="flex items-center text-ink-700 whitespace-nowrap">
+          <Phone className="w-3.5 h-3.5 mr-1.5 text-ink-400" />
+          {(getValue() as string) || '—'}
+        </div>
+      ),
+    },
+    {
+      id: 'produits',
+      header: 'Produits vendus',
+      enableSorting: false,
+      cell: ({ row }) =>
+        row.original.produits && row.original.produits.length > 0 ? (
+          <div className="flex flex-wrap gap-1 max-w-[200px]">
+            {row.original.produits.map((p) => (
+              <span key={p.id} className="chip !py-0.5">{p.nom_produit}</span>
+            ))}
+          </div>
+        ) : (
+          <span className="text-ink-400 text-xs font-medium">Non renseigné</span>
+        ),
+    },
+    colTexte('agence', 'Agence', (p) => p.agence?.nom_agence || ''),
+    colTexte('commercial', 'Commercial', (p) => nomComplet(p.commercial)),
+    colTexte('superviseur', 'Superviseur', (p) => nomComplet(p.superviseur)),
+    colTexte('chefZone', 'Chef de zone', (p) => nomComplet(p.chefZone)),
+    {
+      id: 'localisation',
+      header: 'Localisation',
+      enableSorting: false,
+      cell: ({ row }) => {
+        const pdv = row.original;
+        return (
+          <div className="flex items-start text-ink-700 text-xs font-medium min-w-[140px]">
+            <MapPin className="w-3.5 h-3.5 mr-1 mt-0.5 text-primary-500 shrink-0" />
+            <span>
+              {[pdv.quartier, pdv.commune, pdv.ville].filter(Boolean).join(', ') ||
+                `${Number(pdv.latitude_creation).toFixed(3)}, ${Number(pdv.longitude_creation).toFixed(3)}`}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      id: 'statut',
+      header: 'Statut',
+      accessorFn: (p) => p.statut,
+      cell: ({ row }) => <span className={STATUS_BADGE[row.original.statut] ?? 'badge badge-neutral'}>{row.original.statut}</span>,
+    },
+    {
+      id: 'dossier',
+      header: 'Dossier',
+      accessorFn: (p) => p.statut_dossier,
+      cell: ({ row }) => (
+        <span className={row.original.statut_dossier === 'brouillon' ? 'badge badge-warning' : 'badge badge-success'}>
+          {row.original.statut_dossier === 'brouillon' ? 'À compléter' : 'Complet'}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      enableSorting: false,
+      meta: { align: 'right', mobileFooter: true },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <button onClick={() => navigate(`/pdv/${row.original.id}`)} className="btn-icon" title="Compléter le dossier" aria-label="Compléter le dossier">
+            <FileEdit className="w-4 h-4" />
+          </button>
+          <button onClick={() => handleEdit(row.original)} className="btn-icon" aria-label="Modifier">
+            <Edit className="w-4 h-4" />
+          </button>
+          <button onClick={() => handleDelete(row.original.id)} className="btn-icon hover:text-danger-600 hover:bg-danger-50" aria-label="Supprimer">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -509,120 +618,18 @@ const PDVList = () => {
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>ID Terminal / PDV</th>
-                <th>Contact</th>
-                <th>Produits vendus</th>
-                <th>Agence</th>
-                <th>Commercial</th>
-                <th>Superviseur</th>
-                <th>Chef de zone</th>
-                <th>Localisation</th>
-                <th>Statut</th>
-                <th>Dossier</th>
-                <th className="text-right pr-6">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={11} className="text-center py-10 text-ink-400">Chargement...</td>
-                </tr>
-              ) : pdvs.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="text-center py-10 text-ink-400">Aucun PDV trouvé</td>
-                </tr>
-              ) : (
-                pdvs.map((pdv) => (
-                  <tr
-                    key={pdv.id}
-                    onClick={() => navigate(`/pdv/${pdv.id}`)}
-                    className="cursor-pointer hover:bg-ink-50/60"
-                  >
-                    <td>
-                      <div className="font-medium text-ink-900">{pdv.nom_pdv}</div>
-                      <div className="text-xs text-ink-400 break-all">{pdv.id_terminal || '—'}</div>
-                      {pdv.matricule_agent ? (
-                        <div className="text-xs text-ink-400">Agent {pdv.matricule_agent}</div>
-                      ) : null}
-                    </td>
-                    <td>
-                      <div className="flex items-center text-ink-600">
-                        <Phone className="w-3.5 h-3.5 mr-1.5 text-ink-400" />
-                        {pdv.msisdn_responsable || '—'}
-                      </div>
-                    </td>
-                    <td>
-                      {pdv.produits && pdv.produits.length > 0 ? (
-                        <div className="flex flex-wrap gap-1 max-w-[180px]">
-                          {pdv.produits.map((p) => (
-                            <span key={p.id} className="chip !py-0.5">{p.nom_produit}</span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-ink-300 text-xs">Non renseigné</span>
-                      )}
-                    </td>
-                    <td className="text-ink-600">{pdv.agence?.nom_agence || '—'}</td>
-                    <td className="text-ink-600">{pdv.commercial ? nomComplet(pdv.commercial) : '—'}</td>
-                    <td className="text-ink-600">{pdv.superviseur ? nomComplet(pdv.superviseur) : '—'}</td>
-                    <td className="text-ink-600">{pdv.chefZone ? nomComplet(pdv.chefZone) : '—'}</td>
-                    <td>
-                      <div className="flex items-center text-ink-600 text-xs">
-                        <MapPin className="w-3.5 h-3.5 mr-1 text-ink-400 shrink-0" />
-                        <span>
-                          {[pdv.quartier, pdv.commune, pdv.ville].filter(Boolean).join(', ') || `${Number(pdv.latitude_creation).toFixed(3)}, ${Number(pdv.longitude_creation).toFixed(3)}`}
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={STATUS_BADGE[pdv.statut] ?? 'badge badge-neutral'}>
-                        {pdv.statut}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={
-                          pdv.statut_dossier === 'brouillon'
-                            ? 'badge badge-warning'
-                            : 'badge badge-success'
-                        }
-                      >
-                        {pdv.statut_dossier === 'brouillon' ? 'À compléter' : 'Complet'}
-                      </span>
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <div className="flex justify-end gap-1">
-                        <button
-                          onClick={() => navigate(`/pdv/${pdv.id}`)}
-                          className="btn-icon hover:text-primary-600 hover:bg-primary-50"
-                          title="Compléter le dossier"
-                        >
-                          <FileEdit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(pdv)}
-                          className="btn-icon hover:text-primary-600 hover:bg-primary-50"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(pdv.id)}
-                          className="btn-icon hover:text-danger-600 hover:bg-danger-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={pdvs}
+          columns={columns}
+          loading={isLoading}
+          getRowId={(p) => String(p.id)}
+          onRowClick={(p) => navigate(`/pdv/${p.id}`)}
+          minWidth={1280}
+          stickyFirstColumn
+          emptyMessage="Aucun PDV trouvé"
+          emptyHint="Ajustez vos filtres ou taguez un nouveau point de vente."
+          emptyIcon={<MapPin className="w-6 h-6" />}
+        />
 
         <Pagination
           currentPage={currentPage}

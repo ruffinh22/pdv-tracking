@@ -131,8 +131,43 @@
   .table tbody td:first-child { @apply pl-6; }
   .table tbody td:last-child { @apply pr-6; }
   .table tbody tr { @apply transition-colors duration-100; }
+  .table tbody tr:nth-child(even) { @apply bg-ink-100/70; }
   .table tbody tr:hover { @apply bg-primary-50/70; box-shadow: inset 3px 0 0 theme('colors.primary.500'); }
   .table tbody tr:last-child td { @apply border-b-0; }
+
+  /* ---------- DataTable (TanStack Table) ---------- */
+  .dt-table { @apply w-full border-collapse text-sm; }
+  .dt-table thead th {
+    @apply px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-100 bg-brand-900 whitespace-nowrap;
+    box-shadow: inset 0 -3px 0 theme('colors.primary.500');
+  }
+  .dt-table thead th:first-child { @apply pl-6; }
+  .dt-table thead th:last-child { @apply pr-6; }
+  .dt-table tbody td {
+    @apply px-4 py-3.5 text-[0.93rem] font-medium text-ink-800 border-b border-ink-100 align-middle;
+  }
+  .dt-table tbody td:first-child { @apply pl-6; }
+  .dt-table tbody td:last-child { @apply pr-6; }
+  /* Lignes paires teintées : lecture facilitée */
+  .dt-table tbody tr:nth-child(even) td { @apply bg-ink-100/70; }
+  .dt-table tbody tr:nth-child(odd) td { @apply bg-white; }
+  .dt-table tbody tr { @apply transition-colors duration-100; }
+  .dt-table tbody tr:hover td { @apply bg-primary-50; }
+  .dt-table tbody tr:hover td:first-child { box-shadow: inset 4px 0 0 theme('colors.primary.500'); }
+  .dt-table tbody tr:focus-visible { outline-offset: -3px; }
+  .dt-table tbody tr:last-child td { @apply border-b-0; }
+  .dt-table tbody tr.dt-empty td { @apply bg-white; }
+  .dt-table tbody tr.dt-empty:hover td { @apply bg-white; box-shadow: none; }
+  /* 1re colonne figée au défilement horizontal */
+  .dt-sticky { position: sticky; left: 0; z-index: 1; }
+  .dt-table thead th.dt-sticky { z-index: 2; }
+  .dt-table tbody td.dt-sticky { box-shadow: 1px 0 0 theme('colors.ink.200'); }
+
+  /* Vue cartes mobile : alternance de fond comme les lignes du tableau */
+  .dt-card { @apply px-4 py-4 border-b border-ink-100 transition-colors; }
+  .dt-card:nth-child(even) { @apply bg-ink-100/70; }
+  .dt-card:nth-child(odd) { @apply bg-white; }
+  .dt-card:last-child { @apply border-b-0; }
 
   /* ---------- Badges / pastilles ---------- */
   .badge {
