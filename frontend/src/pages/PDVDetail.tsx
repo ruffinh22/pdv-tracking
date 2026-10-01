@@ -312,6 +312,8 @@ const PDVDetail = () => {
     if (!Number.isFinite(pdvId)) return;
 
     const socket = io(undefined, {
+      // Fonction : le jeton est relu à chaque (re)connexion, donc toujours à jour.
+      auth: (cb) => cb({ token: localStorage.getItem('token') }),
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,

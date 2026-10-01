@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../contexts/authContext';
 import { Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import DocumentTitle from '../components/DocumentTitle';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -11,6 +12,11 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
+
+  // Précharge le chunk du tableau de bord pendant la saisie du mot de passe.
+  const precharger = () => {
+    void import('./Dashboard');
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -29,6 +35,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex bg-ink-50">
+      <DocumentTitle title="Connexion" />
       {/* Left branding panel */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-brand-900 flex-col">
         <div className="flag-stripe"><span /><span /><span /></div>
@@ -66,7 +73,7 @@ const Login = () => {
             </p>
           </div>
 
-          <p className="text-xs text-brand-200">© {new Date().getFullYear()} Tracking PDV. Tous droits réservés.</p>
+          <p className="text-xs text-brand-200">© {new Date().getFullYear()} LONACI — Loterie Nationale de Côte d'Ivoire</p>
         </div>
       </div>
 
@@ -96,7 +103,8 @@ const Login = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="input"
-                placeholder="admin@trackingpdv.com"
+                placeholder="prenom.nom@lonaci.ci"
+                autoComplete="username"
                 required
               />
             </div>
@@ -113,13 +121,16 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="input pr-10"
                   placeholder="••••••••"
+                  autoComplete="current-password"
+                  onFocus={precharger}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600"
-                  tabIndex={-1}
+                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  aria-pressed={showPassword}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -134,14 +145,6 @@ const Login = () => {
               {isLoading ? 'Connexion...' : 'Se connecter'}
             </button>
           </form>
-
-          <div className="mt-8 p-4 bg-white rounded-lg border border-ink-200 border-l-2 border-l-success-600">
-            <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Comptes de test</p>
-            <div className="space-y-1 text-sm text-ink-600">
-              <p><span className="text-ink-400">Admin —</span> admin@trackingpdv.com / admin123</p>
-              <p><span className="text-ink-400">Superviseur —</span> superviseur@trackingpdv.com / superviseur123</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

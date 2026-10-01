@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { BarChart3, BellOff, Inbox } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
+import { DashboardSkeleton } from '../components/Skeleton';
 import {
   MapPin, AlertTriangle, Activity, Download, ArrowUpRight,
   Users2, UserX, PieChart as PieChartIcon, Navigation
@@ -194,7 +197,7 @@ const Dashboard = () => {
   }, [pdvParProduit]);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64 text-ink-400">Chargement...</div>;
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -324,7 +327,7 @@ const Dashboard = () => {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-ink-400 text-sm">Aucune donnée</div>
+              <EmptyState icon={BarChart3} message="Aucune donnée sur la période" hint="Élargissez la période ou retirez un filtre." />
             )}
           </div>
         </div>
@@ -371,7 +374,7 @@ const Dashboard = () => {
                 </div>
               </div>
             ) : (
-              <div className="h-56 flex items-center justify-center text-ink-400 text-sm">Aucune donnée</div>
+              <div className="h-56"><EmptyState icon={BarChart3} message="Aucune donnée sur la période" /></div>
             )}
           </div>
         </div>
@@ -407,7 +410,7 @@ const Dashboard = () => {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-full flex items-center justify-center text-ink-400 text-sm">Aucune donnée pour cette dimension</div>
+            <EmptyState icon={Inbox} message="Aucune donnée pour cette dimension" />
           )}
         </div>
         {analyses && analyses.data.length > 0 && (
@@ -557,7 +560,7 @@ const Dashboard = () => {
               ))}
             </div>
           ) : (
-            <p className="text-ink-400 text-sm text-center py-6">Aucune alerte récente</p>
+            <EmptyState icon={BellOff} message="Aucune alerte récente" hint="Tout est calme sur votre périmètre." />
           )}
         </div>
       </div>

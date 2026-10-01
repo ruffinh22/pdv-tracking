@@ -17,6 +17,10 @@ const PDV = sequelize.define('PDV', {
     unique: true,
     comment: 'Identifiant unique du terminal (installation app), clé d\'enrôlement mobile'
   },
+  id_unique: { type: DataTypes.STRING(100), allowNull: true },
+  sous_zone: { type: DataTypes.STRING(150), allowNull: true },
+  id_distributeur: { type: DataTypes.STRING(100), allowNull: true },
+  type_terminal: { type: DataTypes.STRING(100), allowNull: true },
   nom_pdv: {
     type: DataTypes.STRING(200),
     allowNull: false

@@ -58,6 +58,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const data = await response.json();
 
     localStorage.setItem('token', data.token);
+    if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
     localStorage.setItem('user', JSON.stringify(data.user));
 
     // Le cache React Query survit au changement de compte : sans cette purge,
@@ -75,6 +76,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   logout: () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     // Même raison qu'à la connexion : ne laisser aucune donnée du compte
     // sortant en mémoire pour le compte suivant.

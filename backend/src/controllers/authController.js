@@ -71,13 +71,13 @@ const authController = {
       const token = jwt.sign(
         { userId: user.id, email: user.email, role: user.role, agence_id: user.agence_id || null },
         process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
+        { expiresIn: process.env.JWT_EXPIRES_IN || '12h' }
       );
 
       const refreshToken = jwt.sign(
         { userId: user.id },
         process.env.JWT_REFRESH_SECRET,
-        { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN }
+        { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' }
       );
 
       logger.info(`Connexion réussie: ${email}`);
@@ -110,14 +110,14 @@ const authController = {
       const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
       const user = await User.findByPk(decoded.userId);
 
-      if (!user) {
-        return res.status(401).json({ error: 'Utilisateur non trouvé' });
+      if (!user || user.statut !== 'actif') {
+        return res.status(401).json({ error: 'Utilisateur non trouvé ou désactivé' });
       }
 
       const token = jwt.sign(
         { userId: user.id, email: user.email, role: user.role, agence_id: user.agence_id || null },
         process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
+        { expiresIn: process.env.JWT_EXPIRES_IN || '12h' }
       );
 
       res.json({ token });

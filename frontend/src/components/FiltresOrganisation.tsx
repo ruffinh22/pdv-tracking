@@ -37,24 +37,32 @@ const FiltresOrganisation = ({ role, valeurs, onChange, className = '' }: Props)
     queryKey: ['users', 'commercial'],
     queryFn: () => userService.getUsersByRole('commercial'),
     enabled: autorise('commercial'),
+    staleTime: 30 * 60 * 1000,
+    refetchOnMount: false,
   });
 
   const { data: superviseurs = [] } = useQuery({
     queryKey: ['users', 'superviseur'],
     queryFn: () => userService.getUsersByRole('superviseur'),
     enabled: autorise('superviseur'),
+    staleTime: 30 * 60 * 1000,
+    refetchOnMount: false,
   });
 
   const { data: chefsZone = [] } = useQuery({
     queryKey: ['users', 'chef_zone'],
     queryFn: () => userService.getUsersByRole('chef_zone'),
     enabled: autorise('chef_zone'),
+    staleTime: 30 * 60 * 1000,
+    refetchOnMount: false,
   });
 
   const { data: agences = [] } = useQuery({
     queryKey: ['agences', 'liste'],
     queryFn: () => agenceService.getAllAgencesList(),
     enabled: autorise('agence'),
+    staleTime: 30 * 60 * 1000,
+    refetchOnMount: false,
   });
 
   const nombreActifs = Object.values(valeurs).filter((v) => v !== undefined && v !== null).length;

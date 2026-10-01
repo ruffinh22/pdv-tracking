@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { Inbox } from 'lucide-react';
+import EmptyState from '../components/EmptyState';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart,
@@ -122,7 +124,7 @@ function Jauge({ valeur, ton }: { valeur: number; ton: 'succes' | 'alerte' | 'da
 }
 
 function Vide({ message }: { message: string }) {
-  return <div className="h-full flex items-center justify-center text-sm text-ink-400">{message}</div>;
+  return <EmptyState icon={Inbox} message={message} />;
 }
 
 const Reporting = () => {
@@ -242,6 +244,15 @@ const Reporting = () => {
 
   return (
     <div className="space-y-5">
+      {/* En-tête d'impression (visible uniquement à l'impression / export PDF) */}
+      <div className="print-only print-header">
+        <img src="/assets/lonaci-logo.png" alt="LONACI" />
+        <div>
+          <strong>LONACI — Loterie Nationale de Côte d'Ivoire</strong>
+          <span>Reporting national · Tracking PDV</span>
+          <span>Édité le {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+        </div>
+      </div>
       {/* En-tête */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -649,7 +660,7 @@ const Reporting = () => {
                       {detail.filter((l) => l.instru).length === 0 ? (
                         <tr>
                           <td colSpan={6} className="text-center py-10 text-ink-400">
-                            Aucun PDV n'a quitté sa zone sur cette période.
+                            Aucun intrus détecté sur la période : tous les PDV sont dans leur zone.
                           </td>
                         </tr>
                       ) : (

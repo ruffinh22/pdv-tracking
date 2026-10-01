@@ -40,6 +40,10 @@ const venteController = {
     try {
       const { pdv_id, produit, nom_concessionnaire, nom_vendeur, contact_vendeur, latitude_saisie, longitude_saisie, horodatage, montant } = req.body;
       
+      if (!pdv_id) {
+        return res.status(400).json({ error: 'pdv_id requis' });
+      }
+
       logger.info('Données reçues:', req.body);
       
       // Obtenir les informations de localisation via géocodage

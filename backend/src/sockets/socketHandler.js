@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const geofencingService = require('../services/geofencingService');
 
@@ -7,8 +8,23 @@ const socketHandler = (io) => {
   ioInstance = io;
   geofencingService.setIo(io);
 
+  // Authentification à la connexion : sans JWT valide, le socket est refusé.
+  // Le jeton est relu à chaque (re)connexion côté client (auth en fonction).
+  io.use((socket, next) => {
+    try {
+      const token =
+        socket.handshake.auth?.token ||
+        socket.handshake.headers?.authorization?.replace('Bearer ', '');
+      if (!token) return next(new Error('Authentification requise'));
+      socket.user = jwt.verify(token, process.env.JWT_SECRET);
+      return next();
+    } catch (error) {
+      return next(new Error('Token invalide ou expiré'));
+    }
+  });
+
   io.on('connection', (socket) => {
-    logger.info(`Client connecté: ${socket.id}`);
+    logger.info(`Client connecté: ${socket.id} (user ${socket.user?.userId})`);
 
     // Join a room for PDV updates
     socket.on('join-pdv-updates', (pdvId) => {
@@ -30,7 +46,12 @@ const socketHandler = (io) => {
     // room, donc un envoi scopé à une room n'était jamais reçu non plus.
     socket.on('position_update', async (data) => {
       try {
-        const { pdv_id, latitude, longitude, precision, horodatage } = data;
+        const { pdv_id, latitude, longitude, precision, horodatage } = data || {};
+        // Validation minimale : on ne rediffuse jamais une position incohérente.
+        if (!Number.isFinite(Number(pdv_id)) || Math.abs(Number(latitude)) > 90 || Math.abs(Number(longitude)) > 180 ||
+            !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
+          return;
+        }
 
         io.emit('position_update', {
           pdv_id,

@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -287,4 +285,47 @@
     transform: scale(1);
     opacity: 1;
   }
+}
+/* Focus clavier visible (accessibilité) */
+:focus-visible {
+  outline: 2px solid #1f8656;
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Impression / export PDF (reporting national)                        */
+/* ------------------------------------------------------------------ */
+.print-only { display: none; }
+
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+
+  html, body { background: #fff !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* On retire la navigation, les boutons et les contrôles interactifs */
+  aside, header, nav, button, .btn, .no-print, select, input[type='date'] { display: none !important; }
+
+  /* Le contenu reprend toute la largeur (la mise en page web réserve la sidebar et la topbar) */
+  [class*='ml-64'], [class*='pl-64'] { margin-left: 0 !important; padding-left: 0 !important; }
+  [class*='pt-16'], [class*='pt-20'], [class*='mt-16'] { padding-top: 0 !important; margin-top: 0 !important; }
+  main { margin: 0 !important; padding: 0 !important; }
+
+  .print-only { display: block !important; }
+  .print-header {
+    display: flex !important;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+    border-bottom: 3px solid #062316;
+  }
+  .print-header img { height: 40px; width: auto; }
+  .print-header div { display: flex; flex-direction: column; font-size: 11px; color: #333; }
+  .print-header strong { font-size: 14px; color: #062316; }
+
+  /* Évite de couper une carte ou une ligne de tableau entre deux pages */
+  .kpi-card, tr, canvas, svg, .recharts-wrapper { break-inside: avoid; page-break-inside: avoid; }
+  table { width: 100%; }
+  a { color: inherit; text-decoration: none; }
 }

@@ -1,4 +1,13 @@
 require('dotenv').config();
+
+// Les secrets JWT sont indispensables : on échoue tôt avec un message clair plutôt
+// que de lever « secretOrPrivateKey must have a value » à la première connexion.
+['JWT_SECRET', 'JWT_REFRESH_SECRET'].forEach((cle) => {
+  if (!process.env[cle]) {
+    console.error(`[config] Variable d'environnement manquante : ${cle}. Vérifiez backend/.env`);
+    process.exit(1);
+  }
+});
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -56,8 +65,8 @@ const io = socketIo(server, {
 
 // --- Sécurité ---------------------------------------------------------
 // CSP explicite plutôt que désactivée : on autorise précisément les domaines
-// nécessaires à la carte (tuiles OpenStreetMap + Nominatim), aux polices Google
-// et au websocket Socket.IO, sans ouvrir la politique en grand.
+// nécessaires à la carte (tuiles OpenStreetMap + Nominatim) et au websocket Socket.IO
+// (polices et CSS Leaflet sont auto-hébergés dans le bundle), sans ouvrir la politique en grand.
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -65,8 +74,8 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
-        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        fontSrc: ["'self'", 'data:'],
         imgSrc: [
           "'self'",
           'data:',
@@ -97,14 +106,26 @@ app.use(
 );
 
 // Limitation de taux (API uniquement)
-const limiter = rateLimit({
+// - Plafond généreux sur l'API : un tableau de bord enchaîne plusieurs appels par page
+//   et un réseau partagé (Wi-Fi d'une salle) expose une seule IP.
+// - Plafond strict sur /auth/login (anti brute-force) ; seules les tentatives échouées comptent.
+const apiLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 100,
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 1000,
   standardHeaders: true,
   legacyHeaders: false,
-  message: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.',
+  message: { error: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.' },
 });
-app.use('/api/', limiter);
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseInt(process.env.LOGIN_RATE_LIMIT_MAX, 10) || 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: 'Trop de tentatives de connexion. Réessayez dans quelques minutes.' },
+});
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/', apiLimiter);
 
 // Logging
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
@@ -181,8 +202,13 @@ app.use((req, res) => {
 // Gestion des erreurs globales
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   logger.error(err.stack);
-  res.status(err.status || 500).json({
-    error: err.message || 'Erreur serveur interne',
+  const status = err.status || 500;
+  // Les erreurs 5xx (SQL, bibliothèques…) ne doivent jamais fuiter vers le client en production.
+  const message = status >= 500 && NODE_ENV === 'production'
+    ? 'Erreur serveur interne'
+    : err.message || 'Erreur serveur interne';
+  res.status(status).json({
+    error: message,
     ...(NODE_ENV === 'development' && { stack: err.stack }),
   });
 });

@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import DocumentTitle from './DocumentTitle';
 import {
   LayoutDashboard,
   MapPin,
@@ -14,7 +15,6 @@ import {
   ChevronDown,
   ChevronRight,
   Search,
-  Bell,
   Building2,
 } from 'lucide-react';
 import { useAuthStore } from '../contexts/authContext';
@@ -137,7 +137,7 @@ const Layout = () => {
     const page = PAGES.find((p) => p.path === relativePath);
     const roleKey = (user?.role as keyof typeof ROLE_DASHBOARD_SUBTITLE | undefined) ?? 'commercial';
     if (relativePath === '') {
-      return { title: 'Dashboard', subtitle: ROLE_DASHBOARD_SUBTITLE[roleKey] };
+      return { title: 'Tableau de bord', subtitle: ROLE_DASHBOARD_SUBTITLE[roleKey] };
     }
     return {
       title: page?.label ?? 'Tracking PDV',
@@ -247,6 +247,7 @@ const Layout = () => {
               <button
                 onClick={logout}
                 title="Déconnexion"
+                aria-label="Se déconnecter"
                 className="inline-flex items-center justify-center w-8 h-8 rounded-md text-ink-400 hover:bg-danger-600/20 hover:text-danger-300 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
@@ -255,6 +256,8 @@ const Layout = () => {
           </div>
         </div>
       </aside>
+
+      <DocumentTitle title={currentPage.title} />
 
       {/* Topbar */}
       <header
@@ -268,6 +271,8 @@ const Layout = () => {
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="inline-flex items-center justify-center w-9 h-9 rounded-md text-ink-500 hover:bg-ink-100 hover:text-ink-800 transition-colors"
               title="Basculer le menu"
+              aria-label="Basculer le menu"
+              aria-expanded={isSidebarOpen}
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -369,10 +374,6 @@ const Layout = () => {
               )}
             </div>
 
-            <button className="relative inline-flex items-center justify-center w-9 h-9 rounded-md text-ink-500 hover:bg-ink-100 hover:text-ink-800 transition-colors" title="Notifications">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger-500 ring-2 ring-white" />
-            </button>
 
             <div className="h-6 w-px bg-ink-200 hidden sm:block" />
 
