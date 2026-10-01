@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { pdvService } from '../services/pdvService';
 import { produitService } from '../services/produitService';
 import { agenceService } from '../services/agenceService';
+import PageHeader from './ui/PageHeader';
 import { PAGES, ROLE_DASHBOARD_SUBTITLE, roleLabel } from '../config/permissions';
 
 // Icônes et sous-titres associés à chaque page déclarée dans permissions.ts.
@@ -49,6 +50,8 @@ const PAGE_SUBTITLE: Record<string, string> = {
   produits: 'Catalogue de produits pour les ventes',
   geofence: 'Zones géographiques et assignations',
 };
+
+const today = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
 
 const Layout = () => {
   const location = useLocation();
@@ -160,7 +163,7 @@ const Layout = () => {
     <div className="min-h-screen bg-ink-50">
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden shadow-2xl bg-brand-900 ${
+        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden shadow-2xl bg-gradient-to-b from-brand-600 to-brand-800 ${
           isSidebarOpen ? 'w-64' : 'w-0'
         }`}
       >
@@ -236,7 +239,7 @@ const Layout = () => {
 
           {/* User footer */}
           <div className="p-3 border-t border-white/10 shrink-0">
-            <div className="flex items-center gap-3 px-2 py-2 rounded-md bg-white/5">
+            <div className="flex items-center gap-3 px-2 py-2 rounded-md bg-black/15">
               <div className="w-9 h-9 rounded-md bg-primary-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
                 {initials}
               </div>
@@ -277,12 +280,7 @@ const Layout = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold text-brand-800 truncate">{currentPage.title}</h1>
-              {currentPage.subtitle && (
-                <p className="text-xs text-ink-500 truncate hidden sm:block font-medium">{currentPage.subtitle}</p>
-              )}
-            </div>
+            <p className="text-sm font-semibold text-brand-700 first-letter:uppercase hidden sm:block">{today}</p>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -420,6 +418,7 @@ const Layout = () => {
           <Outlet />
         ) : (
           <div className="p-6 lg:p-8">
+            <PageHeader title={currentPage.title} subtitle={currentPage.subtitle} badge={`Espace ${roleLabel(user?.role)}`} />
             <Outlet />
           </div>
         )}

@@ -85,17 +85,8 @@ export default {
            sur les surfaces "sombres" (sidebar, barres de la carte de suivi) pour
            que ces zones restent dans l'identité de marque plutôt qu'un noir neutre. */
         brand: {
-          50: '#e7f3ec',
-          100: '#c6e3d3',
-          200: '#8fc7a9',
-          300: '#4fa377',
-          400: '#1f8656',
-          500: '#0f6b40',
-          600: '#0b5734',
-          700: '#0a4429',
-          800: '#08331f',
-          900: '#062316',
-          950: '#041710',
+          50: '#e6f6ec', 100: '#c2ebd0', 200: '#8bd7a9', 300: '#4fbd80', 400: '#1fa15a',
+          500: '#008840', 600: '#007433', 700: '#005f2a', 800: '#004a21', 900: '#003518', 950: '#00200e',
         },
       },
       boxShadow: {

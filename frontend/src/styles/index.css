@@ -14,7 +14,8 @@
   }
 
   body {
-    @apply bg-ink-50 text-ink-900 font-sans;
+    @apply text-ink-900 font-sans;
+    background: linear-gradient(180deg, #e6f6ec 0, #f7f7f8 360px) no-repeat, #f7f7f8;
   }
 
   ::selection {
@@ -110,11 +111,11 @@
   }
 
   .panel-pro {
-    border-top: 3px solid theme('colors.success.600');
+    border-top: 4px solid theme('colors.brand.500');
   }
 
   .panel-pro-head {
-    @apply flex items-center justify-between px-6 py-4 border-b border-ink-200 bg-white;
+    @apply flex items-center justify-between px-6 py-4 border-b border-ink-200 bg-gradient-to-r from-brand-50 to-white;
   }
 
   .panel-pro .table thead th {
@@ -142,7 +143,7 @@
   }
 
   .table thead th {
-    @apply px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-white bg-brand-800 border-b-2 border-primary-500;
+    @apply px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-white bg-brand-600 border-b-2 border-primary-500;
   }
 
   .table tbody td {
@@ -154,7 +155,7 @@
   }
 
   .table tbody tr:nth-child(even) {
-    @apply bg-ink-50;
+    @apply bg-brand-50/50;
   }
 
   .table tbody tr:hover {
@@ -246,6 +247,10 @@
   }
 
   /* KPI card variant: surface nette légèrement détachée du fond de page */
+  .kpi-card:nth-child(4n+2) { border-left-color: theme('colors.brand.500'); }
+  .kpi-card:nth-child(4n+3) { border-left-color: theme('colors.danger.500'); }
+  .kpi-card:nth-child(4n+4) { border-left-color: theme('colors.warning.400'); }
+
   .kpi-card {
     @apply bg-white border border-ink-200 shadow-card border-l-4 border-l-primary-500 rounded-lg;
   }

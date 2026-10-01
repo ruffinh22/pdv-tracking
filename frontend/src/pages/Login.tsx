@@ -37,7 +37,7 @@ const Login = () => {
     <div className="min-h-screen flex bg-white">
       <DocumentTitle title="Connexion" />
       {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 flex-col">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-brand-800 via-brand-600 to-brand-500 flex-col">
         <div className="flag-stripe"><span /><span /><span /></div>
         <div
           className="absolute inset-0 opacity-[0.09]"
