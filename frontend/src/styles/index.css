@@ -5,17 +5,22 @@
 @layer base {
   html {
     @apply antialiased;
+    font-size: 106.25%; /* texte globalement plus grand et plus lisible (17px) */
     font-feature-settings: 'kern', 'liga';
     text-rendering: optimizeLegibility;
   }
 
   h1, h2, h3, h4 {
-    @apply tracking-tight;
+    @apply font-display tracking-tight text-ink-950;
   }
 
   body {
-    @apply text-ink-900 font-sans;
-    background: linear-gradient(180deg, #e6f6ec 0, #f7f7f8 360px) no-repeat, #f7f7f8;
+    @apply text-ink-900 font-sans font-medium;
+    background-color: theme('colors.ink.50');
+    background-image:
+      radial-gradient(900px 420px at 100% -10%, rgba(255, 130, 0, 0.10), transparent 60%),
+      radial-gradient(800px 420px at 0% 0%, rgba(0, 136, 64, 0.09), transparent 60%);
+    background-attachment: fixed;
   }
 
   ::selection {
@@ -24,239 +29,151 @@
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: #8fc7a9 transparent;
+    scrollbar-color: theme('colors.success.300') transparent;
   }
-
-  *::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  *::-webkit-scrollbar-thumb {
-    background-color: #8fc7a9;
-    border-radius: 4px;
-  }
-
-  *::-webkit-scrollbar-thumb:hover {
-    background-color: #4fa377;
-  }
-
-  *::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  *::-webkit-scrollbar { width: 9px; height: 9px; }
+  *::-webkit-scrollbar-thumb { background-color: theme('colors.success.300'); border-radius: 6px; }
+  *::-webkit-scrollbar-thumb:hover { background-color: theme('colors.success.500'); }
+  *::-webkit-scrollbar-track { background: transparent; }
 }
 
 @layer utilities {
-  /* Liseré tricolore — signature de marque (drapeau CI), à poser en haut d'un panneau */
-  .flag-stripe {
-    @apply flex h-1 w-full shrink-0 overflow-hidden;
-  }
-  .flag-stripe > span {
-    @apply flex-1;
-  }
+  /* Liseré tricolore — signature de marque (drapeau CI) */
+  .flag-stripe { @apply flex h-1.5 w-full shrink-0 overflow-hidden; }
+  .flag-stripe > span { @apply flex-1; }
   .flag-stripe > span:nth-child(1) { background-color: theme('colors.flag.orange'); }
   .flag-stripe > span:nth-child(2) { background-color: theme('colors.flag.white'); }
   .flag-stripe > span:nth-child(3) { background-color: theme('colors.flag.green'); }
+
+  .text-gradient-brand {
+    background: linear-gradient(100deg, theme('colors.primary.500'), theme('colors.success.600'));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 }
 
 @layer components {
-  /* Buttons */
+  /* ---------- Boutons ---------- */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-semibold text-sm
-           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
-           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm
+           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.97];
   }
-
   .btn-primary {
-    @apply bg-primary-600 text-white shadow-sm hover:bg-primary-700 focus-visible:ring-primary-500;
+    @apply text-white shadow-glow hover:-translate-y-0.5 hover:brightness-105 focus-visible:ring-primary-500;
+    background-image: linear-gradient(135deg, #ff9533 0%, #ee7000 55%, #c85d00 100%);
   }
-
   .btn-secondary {
-    @apply bg-white text-ink-700 border border-ink-200 shadow-sm hover:bg-ink-50 hover:border-ink-300
-           focus-visible:ring-ink-300;
+    @apply bg-white text-ink-800 border-2 border-ink-200 shadow-sm hover:border-success-600 hover:text-success-700
+           hover:bg-success-50 focus-visible:ring-success-500;
   }
-
   .btn-danger {
-    @apply bg-danger-600 text-white shadow-sm hover:bg-danger-700 focus-visible:ring-danger-500;
+    @apply bg-danger-500 text-white shadow-sm hover:bg-danger-600 hover:-translate-y-0.5 focus-visible:ring-danger-500;
   }
-
   .btn-success {
-    @apply bg-success-600 text-white shadow-sm hover:bg-success-700 focus-visible:ring-success-500;
+    @apply text-white shadow-glow-green hover:-translate-y-0.5 hover:brightness-110 focus-visible:ring-success-500;
+    background-image: linear-gradient(135deg, #24ab62 0%, #008840 60%, #006d34 100%);
   }
-
-  .btn-ghost {
-    @apply text-ink-600 hover:bg-ink-100 hover:text-ink-900 focus-visible:ring-ink-300;
-  }
-
+  .btn-ghost { @apply text-ink-700 hover:bg-ink-100 hover:text-ink-950 focus-visible:ring-ink-300; }
   .btn-icon {
-    @apply inline-flex items-center justify-center w-9 h-9 rounded-md text-ink-500
-           hover:bg-ink-100 hover:text-ink-800 transition-all duration-150 active:scale-95
+    @apply inline-flex items-center justify-center w-10 h-10 rounded-xl text-ink-600
+           hover:bg-primary-50 hover:text-primary-700 transition-all duration-150 active:scale-95
            focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500;
   }
 
-  /* Cards / surfaces */
-  .card {
-    @apply bg-white rounded-lg border border-ink-200 shadow-card p-6;
-  }
+  /* ---------- Surfaces ---------- */
+  .card { @apply bg-white rounded-2xl border border-ink-200 shadow-card p-6; }
 
   .panel {
-    @apply bg-white rounded-lg border border-ink-200 shadow-card overflow-hidden
-           transition-shadow duration-200 hover:shadow-lg;
-  }
-
-  /* Crisper panel variant for the dashboard: more visible contour + hover lift */
-  .panel-pro {
-    @apply bg-white rounded-lg border border-ink-200 shadow-card overflow-hidden
-           transition-shadow duration-200 hover:shadow-lg;
+    @apply bg-white rounded-2xl border border-ink-200 shadow-card overflow-hidden
+           transition-all duration-200 hover:shadow-lift;
   }
 
   .panel-pro {
-    border-top: 4px solid theme('colors.brand.500');
+    @apply relative bg-white rounded-2xl border border-ink-200 shadow-card overflow-hidden
+           transition-all duration-200 hover:shadow-lift;
   }
-
-  .panel-pro-head {
-    @apply flex items-center justify-between px-6 py-4 border-b border-ink-200 bg-gradient-to-r from-brand-50 to-white;
-  }
-
-  .panel-pro .table thead th {
-    @apply border-b-2 border-primary-500;
-  }
-
-  .panel-pro .table tbody td {
-    @apply border-b border-ink-100;
-  }
-
-  /* Inputs */
-  .input {
-    @apply w-full px-3.5 py-2.5 bg-white border border-ink-200 rounded-md text-sm text-ink-900
-           placeholder:text-ink-400 transition-all duration-150 shadow-sm
-           focus:outline-none focus:ring-4 focus:ring-primary-500/15 focus:border-primary-600;
-  }
-
-  .label {
-    @apply block text-sm font-semibold text-ink-800 mb-1.5;
-  }
-
-  /* Tables */
-  .table {
-    @apply w-full border-collapse text-sm;
-  }
-
-  .table thead th {
-    @apply px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-white bg-brand-600 border-b-2 border-primary-500;
-  }
-
-  .table tbody td {
-    @apply px-4 py-3.5 text-sm text-ink-700 border-b border-ink-100;
-  }
-
-  .table tbody tr {
-    @apply transition-colors duration-100;
-  }
-
-  .table tbody tr:nth-child(even) {
-    @apply bg-brand-50/50;
-  }
-
-  .table tbody tr:hover {
-    @apply bg-primary-50/60;
-  }
-
-  .table tbody tr:last-child td {
-    @apply border-b-0;
-  }
-
-  /* Badges / status pills — peu arrondis, cohérent avec le mobile */
-  .badge {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap
-           ring-1 ring-inset;
-  }
-
-  .badge::before {
+  /* Filet tricolore en tête de chaque panneau */
+  .panel-pro::before {
     content: '';
-    @apply w-1.5 h-1.5 rounded-full shrink-0;
-    background: currentColor;
+    @apply absolute inset-x-0 top-0 h-1 bg-flag-gradient z-10;
   }
-
-  .badge-success {
-    @apply bg-success-50 text-success-700 ring-success-200;
+  .panel-pro-head {
+    @apply flex items-center justify-between px-6 py-5 border-b border-ink-100 bg-gradient-to-b from-white to-ink-50/60;
   }
+  .panel-pro-head h2, .panel-pro-head h3 { @apply text-lg font-extrabold; }
+  .panel-pro .table thead th { @apply border-b-2 border-primary-500; }
 
-  .badge-danger {
-    @apply bg-danger-50 text-danger-700 ring-danger-200;
+  /* ---------- Champs ---------- */
+  .input {
+    @apply w-full px-4 py-3 bg-white border-2 border-ink-200 rounded-xl text-[0.95rem] font-medium text-ink-950
+           placeholder:text-ink-400 placeholder:font-normal transition-all duration-150
+           hover:border-ink-300
+           focus:outline-none focus:ring-4 focus:ring-success-500/15 focus:border-success-600;
   }
+  .label { @apply block text-sm font-bold text-ink-900 mb-1.5; }
 
-  .badge-warning {
-    @apply bg-warning-50 text-warning-700 ring-warning-200;
+  /* ---------- Tableaux ---------- */
+  .table { @apply w-full border-collapse text-sm; }
+  .table thead th {
+    @apply px-4 py-4 text-left text-xs font-extrabold uppercase tracking-wider text-white bg-brand-800 border-b-[3px] border-primary-500;
   }
+  .table thead th:first-child { @apply pl-6; }
+  .table tbody td { @apply px-4 py-4 text-[0.95rem] font-medium text-ink-800 border-b border-ink-100; }
+  .table tbody td:first-child { @apply pl-6; }
+  .table tbody tr { @apply transition-colors duration-100; }
+  .table tbody tr:nth-child(even) { @apply bg-ink-50/70; }
+  .table tbody tr:hover { @apply bg-primary-50; box-shadow: inset 4px 0 0 theme('colors.primary.500'); }
+  .table tbody tr:last-child td { @apply border-b-0; }
 
-  .badge-neutral {
-    @apply bg-ink-100 text-ink-600 ring-ink-200;
+  /* ---------- Badges / pastilles ---------- */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ring-1 ring-inset;
   }
+  .badge::before { content: ''; @apply w-2 h-2 rounded-full shrink-0; background: currentColor; }
+  .badge-success { @apply bg-success-50 text-success-700 ring-success-200; }
+  .badge-danger { @apply bg-danger-50 text-danger-700 ring-danger-200; }
+  .badge-warning { @apply bg-warning-50 text-warning-700 ring-warning-200; }
+  .badge-neutral { @apply bg-ink-100 text-ink-700 ring-ink-200; }
+  .badge-primary { @apply bg-primary-50 text-primary-700 ring-primary-200; }
+  .badge-solid-primary { @apply bg-primary-600 text-white ring-transparent; }
+  .badge-solid-primary::before { @apply bg-white/80; }
+  .badge-solid-amber { @apply bg-warning-500 text-white ring-transparent; }
+  .badge-solid-amber::before { @apply bg-white/80; }
 
-  .badge-primary {
-    @apply bg-primary-50 text-primary-700 ring-primary-200;
-  }
-
-  .badge-solid-primary {
-    @apply bg-primary-700 text-white ring-transparent;
-  }
-
-  .badge-solid-primary::before {
-    @apply bg-white/70;
-  }
-
-  .badge-solid-amber {
-    @apply bg-warning-600 text-white ring-transparent;
-  }
-
-  .badge-solid-amber::before {
-    @apply bg-white/70;
-  }
-
-  /* Plain tag/chip — like a badge but no status dot (for labels, not statuses) */
   .chip {
-    @apply inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap
            bg-primary-50 text-primary-700 ring-1 ring-inset ring-primary-200;
   }
+  .chip--active { @apply bg-primary-600 text-white ring-0 shadow-glow; }
 
-  /* Visual state for selected chips (clear contrast) */
-  .chip--active {
-    @apply bg-primary-700 text-white ring-0;
-  }
-
-  /* Toolbar (search + filters row above tables) */
-  .toolbar {
-    @apply flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-ink-100 bg-white;
-  }
-
+  /* ---------- Barre d'outils ---------- */
+  .toolbar { @apply flex flex-wrap items-center gap-3 px-6 py-4 border-b border-ink-100 bg-white; }
   .toolbar-select {
-    @apply px-3 py-2 text-sm border border-ink-200 rounded-lg bg-white text-ink-700 shadow-sm
-           transition-all duration-150
-           focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-400;
+    @apply px-3.5 py-2.5 text-sm font-semibold border-2 border-ink-200 rounded-xl bg-white text-ink-800
+           transition-all duration-150 hover:border-ink-300
+           focus:outline-none focus:ring-4 focus:ring-success-500/15 focus:border-success-600;
   }
 
-  /* Section title used above groups of panels/cards */
   .section-title {
-    @apply text-base font-bold text-brand-800 tracking-tight pl-3 border-l-4 border-primary-500;
+    @apply font-display text-xl font-extrabold text-ink-950 tracking-tight pl-3 border-l-[5px] border-primary-500;
   }
 
-  /* Empty state */
-  .empty-state {
-    @apply flex flex-col items-center justify-center gap-2 py-14 text-center;
-  }
-
-  /* KPI card variant: surface nette légèrement détachée du fond de page */
-  .kpi-card:nth-child(4n+2) { border-left-color: theme('colors.brand.500'); }
-  .kpi-card:nth-child(4n+3) { border-left-color: theme('colors.danger.500'); }
-  .kpi-card:nth-child(4n+4) { border-left-color: theme('colors.warning.400'); }
-
-  .kpi-card {
-    @apply bg-white border border-ink-200 shadow-card border-l-4 border-l-primary-500 rounded-lg;
-  }
-
+  .empty-state { @apply flex flex-col items-center justify-center gap-2 py-16 text-center; }
   .empty-state-icon {
-    @apply w-12 h-12 rounded-lg bg-ink-100 text-ink-400 flex items-center justify-center mb-1;
+    @apply w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-50 to-success-50 text-success-600
+           flex items-center justify-center mb-1 ring-1 ring-ink-200;
+  }
+
+  /* ---------- Cartes KPI ---------- */
+  .kpi-card {
+    @apply relative overflow-hidden bg-white border border-ink-200 shadow-card rounded-2xl
+           transition-all duration-300 hover:-translate-y-1 hover:shadow-lift;
+  }
+  .kpi-card::after {
+    content: '';
+    @apply absolute -right-8 -bottom-8 w-28 h-28 rounded-full opacity-[0.07] bg-current pointer-events-none;
   }
 }
 
@@ -303,7 +220,7 @@
 }
 /* Focus clavier visible (accessibilité) */
 :focus-visible {
-  outline: 2px solid #ff8200;
+  outline: 3px solid #ff8200;
   outline-offset: 2px;
 }
 

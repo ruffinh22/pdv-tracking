@@ -1,103 +1,69 @@
 /** @type {import('tailwindcss').Config} */
+import forms from '@tailwindcss/forms';
+
+/*
+ * Identité LONACI
+ * - Logo      : vert #008840 · rouge #C82828 · noir #000
+ * - Drapeau CI: orange #FF8200 · blanc · vert #009A44
+ */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Public Sans"', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans Variable"', '"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['"Bricolage Grotesque Variable"', '"Bricolage Grotesque"', '"Plus Jakarta Sans Variable"', 'ui-sans-serif', 'sans-serif'],
       },
       colors: {
-        /* Orange — teinte principale, drapeau CI */
+        /* Orange du drapeau — actions, éléments actifs */
         primary: {
-          50: '#fff4e8',
-          100: '#ffe6cc',
-          200: '#ffcb99',
-          300: '#ffab5c',
-          400: '#ff9433',
-          500: '#ff8200',
-          600: '#e06e00',
-          700: '#b85900',
-          800: '#8f4500',
-          900: '#6b3400',
+          50: '#fff6ec', 100: '#ffe8cf', 200: '#ffd0a0', 300: '#ffb066', 400: '#ff9533',
+          500: '#ff8200', 600: '#ee7000', 700: '#c85d00', 800: '#9a4700', 900: '#6e3300',
         },
-        /* Vert — accents positifs / succès, drapeau CI */
+        /* Vert du logo LONACI (#008840) — succès, croissance, identité */
         success: {
-          50: '#e8f7ee',
-          100: '#c8ecd6',
-          200: '#93d9ae',
-          300: '#5cc086',
-          400: '#2ba965',
-          500: '#009a44',
-          600: '#00833a',
-          700: '#00682e',
-          800: '#005024',
-          900: '#00391a',
+          50: '#e9f8ef', 100: '#c9eed8', 200: '#94dcb2', 300: '#5cc78a', 400: '#24ab62',
+          500: '#009a4a', 600: '#008840', 700: '#006d34', 800: '#00552a', 900: '#003d1e',
         },
-        /* Rouge — recalé sur le rouge du volatile du logo LONACI (#cd2b26) */
+        /* Rouge du volatile du logo (#C82828) */
         danger: {
-          50: '#fdecec',
-          100: '#f9d2d1',
-          200: '#f2a6a4',
-          300: '#e87874',
-          400: '#dd4f49',
-          500: '#cc2b26',
-          600: '#ad211d',
-          700: '#8a1a17',
-          800: '#671412',
-          900: '#450d0c',
+          50: '#fdeeee', 100: '#fad6d5', 200: '#f4aaa8', 300: '#ea7b78', 400: '#dc4f4a',
+          500: '#c82828', 600: '#b02020', 700: '#8f1a1a', 800: '#6e1515', 900: '#4a0e0e',
         },
-        /* Jaune doré — attention, distinct de l'orange primaire */
         warning: {
-          50: '#fdf8e8',
-          100: '#f9ecc0',
-          200: '#f2da85',
-          300: '#e6c150',
-          400: '#daa927',
-          500: '#c98a00',
-          600: '#a87100',
-          700: '#805700',
-          800: '#5f4100',
-          900: '#432e00',
+          50: '#fffbe6', 100: '#fff3b8', 200: '#ffe680', 300: '#ffd447', 400: '#f5be16',
+          500: '#dba200', 600: '#b38000', 700: '#8a6200', 800: '#634600', 900: '#443000',
         },
+        /* Neutres — gris très légèrement chauds */
         ink: {
-          50: '#f7f7f8',
-          100: '#ededf0',
-          200: '#dadadf',
-          300: '#b9b9c2',
-          400: '#8f8f9c',
-          500: '#6b6b78',
-          600: '#52525e',
-          700: '#3f3f4a',
-          800: '#292933',
-          900: '#18181f',
-          950: '#0e0e12',
+          50: '#f6f7f6', 100: '#eceeed', 200: '#dcdfdd', 300: '#bcc1be', 400: '#8d9490',
+          500: '#646b67', 600: '#4a504d', 700: '#363b38', 800: '#232725', 900: '#141716', 950: '#0a0c0b',
         },
-        /* Couleurs du drapeau, pour tout élément de branding explicite */
-        flag: {
-          orange: '#ff8200',
-          white: '#ffffff',
-          green: '#009a44',
-        },
-        /* Vert profond du wordmark LONACI — remplace le noir/anthracite générique
-           sur les surfaces "sombres" (sidebar, barres de la carte de suivi) pour
-           que ces zones restent dans l'identité de marque plutôt qu'un noir neutre. */
+        /* Noir du logo avec une pointe de vert : surfaces sombres (menu, en-têtes de tableau) */
         brand: {
-          50: '#e6f6ec', 100: '#c2ebd0', 200: '#8bd7a9', 300: '#4fbd80', 400: '#1fa15a',
-          500: '#008840', 600: '#007433', 700: '#005f2a', 800: '#004a21', 900: '#003518', 950: '#00200e',
+          50: '#eef2f0', 100: '#d5dcd8', 200: '#aab6b0', 300: '#7b8a83', 400: '#52615a',
+          500: '#37433d', 600: '#27312c', 700: '#1c2420', 800: '#141a17', 900: '#0d1210', 950: '#070a09',
         },
+        flag: { orange: '#ff8200', white: '#ffffff', green: '#009a44' },
+        logo: { green: '#008840', red: '#c82828', black: '#000000' },
       },
       boxShadow: {
-        card: '0 1px 2px 0 rgba(14, 14, 18, 0.05), 0 1px 6px -1px rgba(14, 14, 18, 0.06)',
-        popover: '0 12px 32px -8px rgba(14, 14, 18, 0.16), 0 4px 10px -4px rgba(14, 14, 18, 0.08)',
+        card: '0 1px 2px rgba(10,12,11,.06), 0 4px 14px -4px rgba(10,12,11,.08)',
+        lift: '0 2px 4px rgba(10,12,11,.06), 0 14px 30px -10px rgba(10,12,11,.18)',
+        popover: '0 16px 40px -8px rgba(10,12,11,.24), 0 4px 12px -4px rgba(10,12,11,.1)',
+        glow: '0 8px 24px -6px rgba(255,130,0,.55)',
+        'glow-green': '0 8px 24px -6px rgba(0,136,64,.5)',
       },
-      borderRadius: {
-        xl: '0.5rem',
-        '2xl': '0.625rem',
+      borderRadius: { xl: '0.75rem', '2xl': '1rem', '3xl': '1.5rem' },
+      backgroundImage: {
+        'flag-gradient': 'linear-gradient(90deg,#ff8200 0%,#ff8200 33%,#fff 33%,#fff 66%,#009a44 66%,#009a44 100%)',
       },
+      keyframes: {
+        shimmer: { '100%': { transform: 'translateX(100%)' } },
+        floaty: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+      },
+      animation: { floaty: 'floaty 7s ease-in-out infinite' },
     },
   },
-  plugins: [],
+  plugins: [forms({ strategy: 'class' })],
 }

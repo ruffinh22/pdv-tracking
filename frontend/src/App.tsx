@@ -26,7 +26,7 @@ const PdvAttributs = lazy(() => import('./pages/PdvAttributs'));
 function RouteFallback() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-4 border-success-600 border-t-primary-500 rounded-full animate-spin" />
     </div>
   );
 }
@@ -175,7 +175,15 @@ function App() {
           </Route>
         </Routes>
       </BrowserRouter>
-      <Toaster position="top-right" />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: { borderRadius: '14px', fontWeight: 700, fontSize: '0.95rem', padding: '14px 18px', boxShadow: '0 16px 40px -8px rgba(10,12,11,.28)' },
+          success: { iconTheme: { primary: '#008840', secondary: '#fff' }, style: { borderLeft: '6px solid #008840' } },
+          error: { iconTheme: { primary: '#c82828', secondary: '#fff' }, style: { borderLeft: '6px solid #c82828' } },
+        }}
+      />
     </QueryClientProvider>
   );
 }

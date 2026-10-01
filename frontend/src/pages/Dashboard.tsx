@@ -26,36 +26,40 @@ const KPI_CARDS = [
     label: 'PDV Actifs',
     caption: 'Points de vente en activité',
     icon: MapPin,
-    accentBar: 'bg-primary-500',
-    iconBg: 'bg-primary-50',
-    iconColor: 'text-primary-600',
+    accentBar: 'bg-gradient-to-b from-success-400 to-success-700',
+    iconBg: 'bg-gradient-to-br from-success-400 to-success-700 shadow-glow-green',
+    iconColor: 'text-white',
+    tone: 'text-success-600',
   },
   {
     key: 'pdv_tagues_aujourdhui',
     label: "Tagués aujourd'hui",
     caption: 'Nouveaux PDV enrôlés',
     icon: Navigation,
-    accentBar: 'bg-teal-500',
-    iconBg: 'bg-teal-50',
-    iconColor: 'text-teal-600',
+    accentBar: 'bg-gradient-to-b from-primary-300 to-primary-600',
+    iconBg: 'bg-gradient-to-br from-primary-400 to-primary-600 shadow-glow',
+    iconColor: 'text-white',
+    tone: 'text-primary-600',
   },
   {
     key: 'alertes_actives',
     label: 'Alertes Actives',
     caption: 'Nécessitent une action',
     icon: AlertTriangle,
-    accentBar: 'bg-danger-500',
-    iconBg: 'bg-danger-50',
-    iconColor: 'text-danger-600',
+    accentBar: 'bg-gradient-to-b from-danger-400 to-danger-700',
+    iconBg: 'bg-gradient-to-br from-danger-400 to-danger-700',
+    iconColor: 'text-white',
+    tone: 'text-danger-500',
   },
   {
     key: 'pdv_muets',
     label: 'Terminaux muets',
     caption: 'Sans remontée GPS récente',
     icon: Activity,
-    accentBar: 'bg-amber-500',
-    iconBg: 'bg-amber-50',
-    iconColor: 'text-amber-600',
+    accentBar: 'bg-gradient-to-b from-brand-400 to-brand-800',
+    iconBg: 'bg-gradient-to-br from-brand-500 to-brand-800',
+    iconColor: 'text-white',
+    tone: 'text-brand-600',
   },
 ];
 
@@ -76,7 +80,7 @@ const ALL_DIMENSION_OPTIONS: { value: Dimension; label: string }[] = [
   { value: 'chef_zone', label: 'Chef de zone' },
 ];
 
-const PIE_COLORS = ['#e06e00', '#009a44', '#c98a00', '#d64545', '#3B82F6', '#795548', '#14B8A6', '#8f4500', '#00683a', '#6b6b78'];
+const PIE_COLORS = ['#ff8200', '#008840', '#c82828', '#141816', '#f5be16', '#24ab62', '#c85d00', '#646b67', '#006d34', '#ea7b78'];
 
 const Dashboard = () => {
   const { user } = useAuthStore();
@@ -219,20 +223,17 @@ const Dashboard = () => {
       <FiltresOrganisation role={role} valeurs={filtresOrg} onChange={setFiltresOrg} />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {KPI_CARDS.map(({ key, label, caption, icon: Icon, accentBar, iconBg, iconColor }) => (
-          <div
-            key={key}
-            className="group relative flex items-center gap-3 rounded-xl transition-all duration-200 p-3.5 kpi-card hover:shadow-lg hover:border-ink-300"
-          >
-            <div className={`absolute top-0 left-0 bottom-0 w-[3px] rounded-l-xl ${accentBar}`} />
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
-              <Icon className={`w-4 h-4 ${iconColor}`} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {KPI_CARDS.map(({ key, label, caption, icon: Icon, accentBar, iconBg, iconColor, tone }) => (
+          <div key={key} className={`group relative flex items-center gap-4 p-5 kpi-card ${tone}`}>
+            <div className={`absolute top-0 left-0 bottom-0 w-1.5 ${accentBar}`} />
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 ${iconBg}`}>
+              <Icon className={`w-6 h-6 ${iconColor}`} />
             </div>
             <div className="min-w-0">
-              <p className="text-xl font-bold text-ink-900 leading-none tracking-tight">{values[key]}</p>
-              <p className="text-xs font-semibold text-ink-700 truncate mt-1">{label}</p>
-              <p className="text-[11px] text-ink-400 truncate">{caption}</p>
+              <p className="font-display text-3xl font-extrabold text-ink-950 leading-none tracking-tight">{values[key]}</p>
+              <p className="text-sm font-bold text-ink-800 truncate mt-1.5">{label}</p>
+              <p className="text-xs font-medium text-ink-500 truncate">{caption}</p>
             </div>
           </div>
         ))}
