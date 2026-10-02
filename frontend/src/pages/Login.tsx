@@ -61,7 +61,7 @@ const Login = () => {
           <div className="max-w-xl">
             <motion.span
               initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-500 text-white text-sm font-bold shadow-glow mb-6"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-[4px] bg-danger-500 text-white text-sm font-bold mb-6"
             >
               <span className="w-2 h-2 rounded-full bg-white" />
               Réseau national LONACI
@@ -74,7 +74,7 @@ const Login = () => {
             </motion.h2>
             <motion.p
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35, duration: 0.6 }}
-              className="text-lg leading-relaxed text-success-100 mb-10 max-w-lg"
+              className="text-lg leading-relaxed text-white/90 mb-10 max-w-lg"
             >
               Suivi terrain, alertes, reporting et gestion d’équipe réunis dans un seul tableau de bord.
             </motion.p>
@@ -84,21 +84,21 @@ const Login = () => {
                 <motion.li
                   key={titre}
                   initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.45 + i * 0.1, duration: 0.45 }}
-                  className="flex items-center gap-4 rounded-2xl bg-white/[0.07] ring-1 ring-white/10 backdrop-blur px-5 py-4"
+                  className="flex items-center gap-4 rounded-[4px] bg-white/10 border border-white/25 px-5 py-4"
                 >
-                  <span className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${i === 0 ? 'bg-success-600' : i === 1 ? 'bg-danger-500' : 'bg-primary-500'}`}>
+                  <span className={`w-12 h-12 rounded-[4px] flex items-center justify-center shrink-0 ${i === 0 ? 'bg-white/20 border border-white/30' : i === 1 ? 'bg-danger-500' : 'bg-primary-500'}`}>
                     <Icon className="w-6 h-6 text-white" />
                   </span>
                   <span>
                     <span className="block font-bold text-white text-base">{titre}</span>
-                    <span className="block text-sm text-success-200">{texte}</span>
+                    <span className="block text-sm text-white/80">{texte}</span>
                   </span>
                 </motion.li>
               ))}
             </ul>
           </div>
 
-          <p className="text-sm text-success-300 border-t border-white/10 pt-5">
+          <p className="text-sm text-white/80 border-t border-white/25 pt-5">
             © {new Date().getFullYear()} LONACI — Loterie Nationale de Côte d’Ivoire
           </p>
         </div>
