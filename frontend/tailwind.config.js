@@ -51,7 +51,7 @@ export default {
       boxShadow: {
         card: '0 1px 2px rgba(10,12,11,.05), 0 2px 8px -2px rgba(10,12,11,.06)',
         lift: '0 2px 4px rgba(10,12,11,.05), 0 12px 28px -10px rgba(10,12,11,.16)',
-        ring: '0 0 0 4px rgba(0,136,64,.14)',
+        ring: '0 0 0 3px rgba(0,136,64,.10)',
         popover: '0 16px 40px -8px rgba(10,12,11,.24), 0 4px 12px -4px rgba(10,12,11,.1)',
         glow: '0 6px 16px -4px rgba(255,130,0,.45)',
         'glow-green': '0 6px 16px -4px rgba(0,136,64,.4)',

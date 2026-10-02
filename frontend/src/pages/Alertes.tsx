@@ -61,7 +61,7 @@ const Alertes = () => {
         subtitle={<>{nonTraiteesCount > 0
               ? `${nonTraiteesCount} alerte${nonTraiteesCount > 1 ? 's' : ''} en attente de traitement`
               : 'Toutes les alertes sont traitées'}</>}
-        actions={<><div className="flex items-center gap-2 bg-white border border-ink-200 rounded-lg px-3 py-2">
+        actions={<><div className="flex items-center gap-2 bg-white border border-[color:var(--field-border)] rounded-[4px] px-3 py-2">
           <Filter className="w-4 h-4 text-ink-400" />
           <select
             value={filter}

@@ -4,9 +4,10 @@
 
 @layer base {
   :root {
-    /* Bordure des champs : à ajuster ici (plus clair = valeur plus proche de #dfe3e0) */
-    --field-border: #c6ccc8;
-    --field-border-hover: #a3aaa6;
+    /* Champs : bordure 1px douce, arrondi discret (ajuster ici pour toutes les pages) */
+    --field-border: #e1e5e2;
+    --field-border-hover: #cbd1cd;
+    --field-radius: 4px;
   }
 
   html {
@@ -136,8 +137,8 @@
 
   /* ---------- Champs de formulaire ---------- */
   .input {
-    @apply w-full h-11 px-3.5 bg-white rounded-lg text-[0.95rem] font-semibold text-ink-950
-           border border-[color:var(--field-border)] shadow-[0_1px_2px_rgba(10,12,11,0.06)]
+    @apply w-full h-11 px-3.5 bg-white rounded-[4px] text-[0.95rem] font-medium text-ink-900
+           border border-[color:var(--field-border)]
            placeholder:text-ink-400 placeholder:font-medium transition-[border-color,box-shadow] duration-150
            hover:border-[color:var(--field-border-hover)]
            focus:outline-none focus:border-success-600 focus:shadow-ring focus:ring-0;
@@ -183,7 +184,7 @@
 
   /* Choix multiple (produits, options) : cartes cliquables avec coche */
   .choice {
-    @apply inline-flex items-center gap-2 h-10 px-3.5 rounded-lg bg-white text-[13px] font-bold text-ink-700
+    @apply inline-flex items-center gap-2 h-10 px-3.5 rounded-[4px] bg-white text-[13px] font-semibold text-ink-700
            border border-[color:var(--field-border)] transition-all duration-150 cursor-pointer select-none
            hover:border-success-600 hover:bg-success-50 hover:text-success-800
            focus:outline-none focus-visible:shadow-ring;
@@ -274,7 +275,7 @@
   /* ---------- Barre d'outils ---------- */
   .toolbar { @apply flex flex-wrap items-center gap-3 px-6 py-3.5 border-b border-ink-100 bg-ink-50/60; }
   .toolbar-select {
-    @apply h-10 pl-3.5 text-sm font-bold border border-[color:var(--field-border)] rounded-lg bg-white text-ink-900
+    @apply h-10 pl-3.5 text-sm font-medium border border-[color:var(--field-border)] rounded-[4px] bg-white text-ink-900
            transition-[border-color,box-shadow] duration-150 hover:border-[color:var(--field-border-hover)]
            focus:outline-none focus:shadow-ring focus:border-success-600;
   }
