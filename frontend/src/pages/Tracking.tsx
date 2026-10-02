@@ -77,15 +77,18 @@ const toCoord = (v: unknown): number | null => {
 const echapper = (t: unknown) =>
   String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
-const popupHtml = (pdv: PDV, pos: { lat: number; lng: number; date: string; live: boolean }) => `
+const popupHtml = (pdv: PDV, pos: { lat: number; lng: number; date: string; live: boolean }, suivi: boolean) => `
   <div style="min-width: 240px;">
     <h3 style="margin: 0 0 8px 0; font-weight: bold;">${echapper(pdv.nom_pdv)}</h3>
     <p style="margin: 4px 0;"><strong>Statut :</strong> ${echapper(pdv.statut)}</p>
     <p style="margin: 4px 0;"><strong>Position :</strong> ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}</p>
     <p style="margin: 4px 0;"><strong>Dernière mise à jour :</strong> ${echapper(pos.date ? new Date(pos.date).toLocaleString('fr-FR') : 'Inconnue')}</p>
-    <button onclick="window.selectPDV(${pdv.id})" style="margin-top: 8px; padding: 5px 10px; background: ${BRAND.orange}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
-      Suivre ce PDV
-    </button>
+    ${
+      suivi
+        ? `<p style="margin: 8px 0 0 0; color: ${BRAND.green}; font-weight: 600;">Suivi en cours</p>
+           <button data-action="arreter" data-pdv="${pdv.id}" style="margin-top: 6px; padding: 6px 12px; background: ${BRAND.red}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Arrêter le suivi</button>`
+        : `<button data-action="suivre" data-pdv="${pdv.id}" style="margin-top: 8px; padding: 6px 12px; background: ${BRAND.green}; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Suivre ce PDV</button>`
+    }
   </div>`;
 
 const Tracking = () => {
@@ -276,14 +279,14 @@ const Tracking = () => {
       const pos = positions.get(pdv.id);
       if (!pos) return;
       const cle = `${pdv.statut}|${selectedPDV === pdv.id}`;
-      let marker = markersRef.current.get(pdv.id) as (L.Marker & { __cle?: string }) | undefined;
+      let marker = markersRef.current.get(pdv.id) as (L.Marker & { __cle?: string; __html?: string }) | undefined;
 
       if (!marker) {
-        marker = L.marker([pos.lat, pos.lng], { icon: createIcon(pdv.statut, selectedPDV === pdv.id) }) as L.Marker & { __cle?: string };
+        marker = L.marker([pos.lat, pos.lng], { icon: createIcon(pdv.statut, selectedPDV === pdv.id) }) as L.Marker & { __cle?: string; __html?: string };
         marker.__cle = cle;
         marker.addTo(map);
-        marker.bindPopup(popupHtml(pdv, pos));
-        marker.on('click', () => setSelectedPDV(pdv.id));
+        marker.__html = popupHtml(pdv, pos, selectedPDV === pdv.id);
+        marker.bindPopup(marker.__html);
         markersRef.current.set(pdv.id, marker);
       } else {
         marker.setLatLng([pos.lat, pos.lng]);
@@ -291,7 +294,13 @@ const Tracking = () => {
           marker.setIcon(createIcon(pdv.statut, selectedPDV === pdv.id));
           marker.__cle = cle;
         }
-        marker.setPopupContent(popupHtml(pdv, pos));
+        // Le contenu n'est remplacé que s'il a changé : sinon le bouton serait
+        // recréé sous le doigt de l'utilisateur et le clic perdu.
+        const html = popupHtml(pdv, pos, selectedPDV === pdv.id);
+        if (marker.__html !== html) {
+          marker.__html = html;
+          marker.setPopupContent(html);
+        }
       }
     });
 
@@ -341,12 +350,25 @@ const Tracking = () => {
     map.panTo([posSuivie.lat, posSuivie.lng], { animate: true });
   }, [posSuivie?.lat, posSuivie?.lng, isTracking]);
 
-  // Bouton « Suivre ce PDV » de la fenêtre d'information
+  // Boutons de la fenêtre d'information. Écoute en phase de capture sur la carte :
+  // Leaflet stoppe la propagation des clics à l'intérieur des popups.
   useEffect(() => {
-    (window as any).selectPDV = (id: number) => setSelectedPDV(id);
-    return () => {
-      delete (window as any).selectPDV;
+    const el = mapContainerRef.current;
+    if (!el) return;
+    const surClic = (e: Event) => {
+      const cible = (e.target as HTMLElement | null)?.closest?.('[data-action]') as HTMLElement | null;
+      if (!cible) return;
+      if (cible.dataset.action === 'suivre') {
+        setSelectedPDV(Number(cible.dataset.pdv));
+        setIsTracking(true);
+        mapRef.current?.closePopup();
+      } else if (cible.dataset.action === 'arreter') {
+        setSelectedPDV(null);
+        mapRef.current?.closePopup();
+      }
     };
+    el.addEventListener('click', surClic, true);
+    return () => el.removeEventListener('click', surClic, true);
   }, []);
 
   const toggleFullscreen = () => {
@@ -487,10 +509,27 @@ const Tracking = () => {
       </div>
 
       {/* Carte en plein écran */}
-      <div 
-        ref={mapContainerRef} 
-        className="flex-1 bg-ink-100 relative z-0"
-      />
+      <div className="flex-1 relative z-0">
+        <div ref={mapContainerRef} className="absolute inset-0 bg-ink-100" />
+        {selectedPDV && (
+          <div className="absolute top-3 left-14 z-[500] flex items-center gap-3 bg-white border border-ink-300 rounded-[4px] shadow-popover px-3.5 py-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-success-600 animate-pulse" />
+            <div className="leading-tight">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-500">Suivi en cours</p>
+              <p className="text-[13px] font-bold text-ink-900">
+                {allPdvs.find((p) => p.id === selectedPDV)?.nom_pdv || `PDV ${selectedPDV}`}
+              </p>
+            </div>
+            <button
+              onClick={() => setSelectedPDV(null)}
+              className="ml-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-danger-500 hover:bg-danger-600 text-white text-xs font-semibold transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+              Arrêter
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
