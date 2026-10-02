@@ -97,7 +97,7 @@ const Agences = () => {
       meta: { mobileTitle: true },
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary-50 ring-1 ring-primary-200 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-primary-50 ring-1 ring-primary-200 flex items-center justify-center shrink-0">
             <Building2 className="w-4 h-4 text-primary-600" />
           </div>
           <span className="font-bold text-ink-950">{row.original.nom_agence}</span>

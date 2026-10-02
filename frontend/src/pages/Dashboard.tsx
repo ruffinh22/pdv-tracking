@@ -284,20 +284,19 @@ const Dashboard = () => {
       <FiltresOrganisation role={role} valeurs={filtresOrg} onChange={setFiltresOrg} />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {KPI_CARDS.map(({ key, label, caption, icon: Icon, iconBg, iconColor, tone }) => (
-          <div key={key} className={`group relative p-5 kpi-card ${tone}`}>
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-ink-500">{label}</p>
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105 ${iconBg}`}>
-                <Icon className={`w-5 h-5 ${iconColor}`} />
-              </div>
+          <div key={key} title={caption} className={`group kpi-card flex items-center gap-3.5 px-4 py-3.5 ${tone}`}>
+            <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+              <Icon className={`w-5 h-5 ${iconColor}`} />
             </div>
-            <p className="font-display text-[2.6rem] font-extrabold text-ink-950 leading-none tracking-tight mt-3 num">
-              <CountUp value={values[key]} />
-            </p>
-            <p className="text-sm font-medium text-ink-500 mt-2 truncate">{caption}</p>
-            <div className="absolute inset-x-0 bottom-0 h-1 bg-current opacity-90" />
+            <div className="min-w-0 leading-none">
+              <p className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-ink-500 truncate">{label}</p>
+              <p className="font-display text-[1.75rem] font-extrabold text-ink-950 tracking-tight mt-1.5 num">
+                <CountUp value={values[key]} />
+              </p>
+            </div>
+            <div className="absolute left-0 inset-y-0 w-1 bg-current" />
           </div>
         ))}
       </div>

@@ -131,28 +131,30 @@
   .table tbody td:first-child { @apply pl-6; }
   .table tbody td:last-child { @apply pr-6; }
   .table tbody tr { @apply transition-colors duration-100; }
-  .table tbody tr:nth-child(even) { @apply bg-ink-100/70; }
+  .table tbody tr:nth-child(even) { background-color: theme('colors.zebra'); }
   .table tbody tr:hover { @apply bg-primary-50/70; box-shadow: inset 3px 0 0 theme('colors.primary.500'); }
   .table tbody tr:last-child td { @apply border-b-0; }
 
   /* ---------- DataTable (TanStack Table) ---------- */
   .dt-table { @apply w-full border-collapse text-sm; }
   .dt-table thead th {
-    @apply px-4 py-3.5 text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-100 bg-brand-900 whitespace-nowrap;
-    box-shadow: inset 0 -3px 0 theme('colors.primary.500');
+    @apply px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-ink-200 bg-brand-900 whitespace-nowrap;
+    box-shadow: inset 0 -2px 0 theme('colors.primary.500');
   }
   .dt-table thead th:first-child { @apply pl-6; }
   .dt-table thead th:last-child { @apply pr-6; }
   .dt-table tbody td {
-    @apply px-4 py-3.5 text-[0.93rem] font-medium text-ink-800 border-b border-ink-100 align-middle;
+    @apply px-4 py-2.5 text-[13px] leading-snug font-medium text-ink-800 border-b border-ink-200/70 align-middle;
   }
+  /* Textes secondaires sous une valeur principale */
+  .dt-table tbody td .text-xs { font-size: 11px; line-height: 1.35; }
   .dt-table tbody td:first-child { @apply pl-6; }
   .dt-table tbody td:last-child { @apply pr-6; }
   /* Lignes paires teintées : lecture facilitée */
-  .dt-table tbody tr:nth-child(even) td { @apply bg-ink-100/70; }
+  .dt-table tbody tr:nth-child(even) td { background-color: theme('colors.zebra'); }
   .dt-table tbody tr:nth-child(odd) td { @apply bg-white; }
   .dt-table tbody tr { @apply transition-colors duration-100; }
-  .dt-table tbody tr:hover td { @apply bg-primary-50; }
+  .dt-table tbody tr:hover td { background-color: theme('colors.primary.100'); }
   .dt-table tbody tr:hover td:first-child { box-shadow: inset 4px 0 0 theme('colors.primary.500'); }
   .dt-table tbody tr:focus-visible { outline-offset: -3px; }
   .dt-table tbody tr:last-child td { @apply border-b-0; }
@@ -165,13 +167,13 @@
 
   /* Vue cartes mobile : alternance de fond comme les lignes du tableau */
   .dt-card { @apply px-4 py-4 border-b border-ink-100 transition-colors; }
-  .dt-card:nth-child(even) { @apply bg-ink-100/70; }
+  .dt-card:nth-child(even) { background-color: theme('colors.zebra'); }
   .dt-card:nth-child(odd) { @apply bg-white; }
   .dt-card:last-child { @apply border-b-0; }
 
   /* ---------- Badges / pastilles ---------- */
   .badge {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ring-1 ring-inset;
+    @apply inline-flex items-center gap-1.5 px-2 py-[3px] rounded-full text-[11px] leading-none font-bold whitespace-nowrap ring-1 ring-inset;
   }
   .badge::before { content: ''; @apply w-1.5 h-1.5 rounded-full shrink-0; background: currentColor; }
   .badge-success { @apply bg-success-50 text-success-700 ring-success-200; }
@@ -187,7 +189,7 @@
   .badge-solid-amber::before { @apply bg-white/80; }
 
   .chip {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap
+    @apply inline-flex items-center px-2 py-[3px] rounded-md text-[11px] leading-none font-bold whitespace-nowrap
            bg-primary-50 text-primary-700 ring-1 ring-inset ring-primary-200;
   }
   .chip--active { @apply bg-primary-600 text-white ring-0 shadow-glow; }
@@ -212,12 +214,8 @@
 
   /* ---------- Cartes KPI ---------- */
   .kpi-card {
-    @apply relative overflow-hidden bg-white border border-ink-200/80 shadow-card rounded-2xl
-           transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lift;
-  }
-  .kpi-card::after {
-    content: '';
-    @apply absolute -right-10 -bottom-10 w-32 h-32 rounded-full opacity-[0.06] bg-current pointer-events-none;
+    @apply relative overflow-hidden bg-white border border-ink-200/80 shadow-card rounded-xl
+           transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift;
   }
 }
 

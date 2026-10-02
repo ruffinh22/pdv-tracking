@@ -187,12 +187,12 @@ const UsersPage = () => {
       meta: { mobileTitle: true },
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-primary-200 rounded-full flex items-center justify-center text-primary-800 text-xs font-extrabold shrink-0 ring-2 ring-white shadow-sm">
+          <div className="w-8 h-8 bg-gradient-to-br from-primary-100 to-primary-200 rounded-full flex items-center justify-center text-primary-800 text-[11px] font-extrabold shrink-0 ring-2 ring-white shadow-sm">
             {initialsOf(row.original)}
           </div>
           <div className="min-w-0">
             <p className="font-bold text-ink-950">{row.original.prenom} {row.original.nom}</p>
-            <p className="text-sm font-medium text-ink-500 truncate">{row.original.email}</p>
+            <p className="text-[11.5px] font-medium text-ink-500 truncate">{row.original.email}</p>
           </div>
         </div>
       ),
@@ -204,12 +204,12 @@ const UsersPage = () => {
       cell: ({ row }) => (
         <div className="space-y-1">
           {row.original.telephone && (
-            <div className="flex items-center text-sm text-ink-700">
+            <div className="flex items-center text-[12px] font-medium text-ink-700">
               <Phone className="w-3.5 h-3.5 mr-1.5 text-ink-400" />
               {row.original.telephone}
             </div>
           )}
-          <div className="flex items-center text-sm text-ink-700">
+          <div className="flex items-center text-[12px] font-medium text-ink-700">
             <Mail className="w-3.5 h-3.5 mr-1.5 text-ink-400" />
             {row.original.email}
           </div>
