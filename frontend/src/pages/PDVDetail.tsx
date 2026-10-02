@@ -13,7 +13,6 @@ import {
   Save,
   Route,
   Radio,
-  Crosshair,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { pdvService, estNomProvisoire } from '../services/pdvService';
@@ -387,34 +386,6 @@ const PDVDetail = () => {
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.error || 'Erreur lors de l\'enregistrement');
-    },
-  });
-
-  // Reprise du géocodage inverse. Le remplissage automatique a lieu à
-  // l'enrôlement, mais il dépend d'un service externe : quand il a échoué sur
-  // le terrain, l'agent relance le calcul ici au lieu de ressaisir à la main
-  // une adresse que les coordonnées GPS suffisent à déterminer.
-  const geocodage = useMutation({
-    mutationFn: () => pdvService.regeocoderPDV(pdvId),
-    onSuccess: (data) => {
-      if (!data.champs_remplis || data.champs_remplis.length === 0) {
-        toast('Ces coordonnées ne permettent pas d\'en déduire plus. Complétez à la main.', {
-          icon: 'ℹ️',
-        });
-        return;
-      }
-      setFiche((f) => ({
-        ...f,
-        pays: data.pays || f.pays,
-        ville: data.ville || f.ville,
-        commune: data.commune || f.commune,
-        quartier: data.quartier || f.quartier,
-      }));
-      queryClient.invalidateQueries({ queryKey: ['pdv', pdvId] });
-      toast.success(`Rempli depuis le GPS : ${data.champs_remplis.join(', ')}`);
-    },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Géocodage impossible pour le moment');
     },
   });
 
@@ -848,25 +819,10 @@ const PDVDetail = () => {
           </div>
 
           <div>
-            <div className="flex items-start justify-between gap-3 mb-2.5 flex-wrap">
-              <h3 className="form-section !mb-0 !border-0 !pb-0">
-                Localisation administrative
-              </h3>
-              <button
-                type="button"
-                onClick={() => geocodage.mutate()}
-                disabled={geocodage.isPending}
-                className="btn btn-secondary !py-1 !px-2.5 !text-xs"
-                title="Déduire pays, ville, commune et quartier des coordonnées relevées à l'installation"
-              >
-                <Crosshair className="w-3.5 h-3.5 mr-1" />
-                {geocodage.isPending ? 'Calcul…' : 'Remplir depuis le GPS'}
-              </button>
-            </div>
+            <h3 className="form-section">Localisation administrative</h3>
             <p className="form-hint !mt-0 mb-3">
-              Pré-remplie automatiquement à partir des coordonnées relevées sur le terrain.
-              Si le service de géolocalisation était indisponible au moment de la pose du terminal,
-              relancez le calcul — les champs déjà saisis ne sont pas écrasés.
+              Relevée automatiquement par le terminal du PDV à partir de ses coordonnées GPS.
+              Ces informations ne sont pas modifiables.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               {(['pays', 'ville', 'commune', 'quartier'] as const)
@@ -878,13 +834,13 @@ const PDVDetail = () => {
                         champ,
                         champ.charAt(0).toUpperCase() + champ.slice(1)
                       )}
-                      {etoile(champ)}
                     </label>
                     <input
                       type="text"
                       className="input"
-                      value={fiche[champ]}
-                      onChange={(e) => setFiche({ ...fiche, [champ]: e.target.value })}
+                      value={fiche[champ] || '—'}
+                      readOnly
+                      tabIndex={-1}
                     />
                   </div>
                 ))}
