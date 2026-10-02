@@ -160,8 +160,8 @@ const Layout = () => {
   const navLinkClasses = (active: boolean) =>
     `group relative flex items-center gap-3 pl-4 pr-3 py-2.5 rounded-lg text-[0.94rem] font-semibold transition-colors duration-150 ${
       active
-        ? 'bg-white/[0.09] text-white ring-1 ring-inset ring-white/10'
-        : 'text-brand-100 hover:bg-white/[0.06] hover:text-white'
+        ? 'bg-black/20 text-white ring-1 ring-inset ring-white/15'
+        : 'text-success-100 hover:bg-white/[0.08] hover:text-white'
     }`;
 
   return (
@@ -177,12 +177,12 @@ const Layout = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden shadow-2xl bg-brand-950 ${
+        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden shadow-2xl bg-nation ${
           isSidebarOpen ? 'w-64' : 'w-0'
         }`}
       >
         <div className={`relative w-64 h-full flex flex-col transition-opacity duration-150 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="pointer-events-none absolute -top-24 -left-24 w-64 h-64 rounded-full bg-success-600/15 blur-3xl" />
+          <div className="pointer-events-none absolute -top-24 -left-24 w-64 h-64 rounded-full bg-success-400/10 blur-3xl" />
           {/* Liseré tricolore */}
           <div className="flag-stripe shrink-0"><span /><span /><span /></div>
 
@@ -199,7 +199,7 @@ const Layout = () => {
 
           {/* Nav */}
           <nav className="flex-1 overflow-y-auto px-3 py-4">
-            <p className="px-4 pb-2 text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-brand-300">Menu</p>
+            <p className="px-4 pb-2 text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-success-300/80">Menu</p>
             <ul className="space-y-1">
               {navItems.map(({ to, label, icon: Icon }) => (
                 <li key={to}>
@@ -207,7 +207,7 @@ const Layout = () => {
                     {isActive(to) && (
                       <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-primary-500 shadow-[0_0_12px_rgba(255,130,0,.8)]" />
                     )}
-                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive(to) ? 'text-primary-400' : 'text-brand-300 group-hover:text-primary-300'}`} />
+                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive(to) ? 'text-primary-400' : 'text-success-300 group-hover:text-primary-300'}`} />
                     {label}
                   </Link>
                 </li>
@@ -215,15 +215,15 @@ const Layout = () => {
 
               {settingsItems.length > 0 && (
                 <li className="pt-3">
-                  <p className="px-4 pb-2 text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-brand-300">Configuration</p>
+                  <p className="px-4 pb-2 text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-success-300/80">Configuration</p>
                   <button
                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                     className={`flex items-center justify-between w-full pl-4 pr-3 py-2.5 rounded-lg text-[0.94rem] font-semibold transition-colors ${
-                      isSettingsActive() ? 'bg-white/[0.09] text-white' : 'text-brand-100 hover:bg-white/[0.06] hover:text-white'
+                      isSettingsActive() ? 'bg-black/20 text-white' : 'text-success-100 hover:bg-white/[0.08] hover:text-white'
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Settings className={`w-[18px] h-[18px] ${isSettingsActive() ? 'text-primary-400' : 'text-brand-300'}`} />
+                      <Settings className={`w-[18px] h-[18px] ${isSettingsActive() ? 'text-primary-400' : 'text-success-300'}`} />
                       Paramètres
                     </span>
                     {isSettingsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -254,7 +254,7 @@ const Layout = () => {
 
           {/* User footer */}
           <div className="p-3 border-t border-white/10 shrink-0">
-            <div className="flex items-center gap-3 px-2.5 py-2.5 rounded-xl bg-white/[0.07] ring-1 ring-white/10">
+            <div className="flex items-center gap-3 px-2.5 py-2.5 rounded-xl bg-black/20 ring-1 ring-white/10">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-sm font-extrabold shrink-0">
                 {initials}
               </div>

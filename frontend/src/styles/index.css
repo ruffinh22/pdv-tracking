@@ -40,6 +40,16 @@
   .flag-stripe > span:nth-child(2) { background-color: theme('colors.flag.white'); }
   .flag-stripe > span:nth-child(3) { background-color: theme('colors.flag.green'); }
 
+  /* Vert du logo (#008840) approfondi : surfaces sombres « nationales » */
+  .bg-nation {
+    background-color: #00441f;
+    background-image:
+      radial-gradient(520px 320px at 0% 0%, rgba(36, 171, 98, 0.30), transparent 70%),
+      radial-gradient(420px 300px at 100% 100%, rgba(255, 130, 0, 0.12), transparent 70%),
+      linear-gradient(170deg, #00552a 0%, #00441f 55%, #003119 100%);
+  }
+  .bg-nation-flat { background-color: #00552a; }
+
   .text-gradient-brand {
     background: linear-gradient(100deg, theme('colors.primary.500'), theme('colors.success.600'));
     -webkit-background-clip: text;
@@ -122,7 +132,8 @@
   /* ---------- Tableaux ---------- */
   .table { @apply w-full border-collapse text-sm; }
   .table thead th {
-    @apply px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-100 bg-brand-900 whitespace-nowrap;
+    @apply px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.08em] text-success-50 whitespace-nowrap;
+    background-color: #00552a;
     box-shadow: inset 0 -2px 0 theme('colors.primary.500');
   }
   .table thead th:first-child { @apply pl-6; }
@@ -138,7 +149,8 @@
   /* ---------- DataTable (TanStack Table) ---------- */
   .dt-table { @apply w-full border-collapse text-sm; }
   .dt-table thead th {
-    @apply px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-ink-200 bg-brand-900 whitespace-nowrap;
+    @apply px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-success-50 whitespace-nowrap;
+    background-color: #00552a;
     box-shadow: inset 0 -2px 0 theme('colors.primary.500');
   }
   .dt-table thead th:first-child { @apply pl-6; }
@@ -163,6 +175,7 @@
   /* 1re colonne figée au défilement horizontal */
   .dt-sticky { position: sticky; left: 0; z-index: 1; }
   .dt-table thead th.dt-sticky { z-index: 2; }
+  .dt-table thead th button:hover { @apply text-white; }
   .dt-table tbody td.dt-sticky { box-shadow: 1px 0 0 theme('colors.ink.200'); }
 
   /* Vue cartes mobile : alternance de fond comme les lignes du tableau */

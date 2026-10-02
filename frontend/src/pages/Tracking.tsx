@@ -299,10 +299,10 @@ const Tracking = () => {
   return (
     <div className="h-[calc(100vh-4rem)] w-full bg-brand-950 flex flex-col">
       {/* Barre de contrôle principale */}
-      <div className="bg-brand-900 text-white px-6 py-4 flex items-center justify-between shadow-lg border-b border-brand-800" style={{ position: 'relative', zIndex: 100 }}>
+      <div className="bg-success-900 text-white px-6 py-4 flex items-center justify-between shadow-lg border-b border-success-800" style={{ position: 'relative', zIndex: 100 }}>
         <div className="flex items-center space-x-6">
           <h1 className="text-lg font-bold tracking-tight">Suivi en temps réel</h1>
-          <div className="h-6 w-px bg-brand-700"></div>
+          <div className="h-6 w-px bg-success-700"></div>
           <div className="flex items-center space-x-4 text-sm">
             <div className="flex items-center space-x-2">
               <span className="text-ink-400">PDV actifs:</span>
@@ -318,7 +318,7 @@ const Tracking = () => {
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setIsTracking(!isTracking)}
-            className={`p-2 rounded-lg transition-all ${isTracking ? 'bg-success-600 hover:bg-success-700' : 'bg-brand-700 hover:bg-brand-600'}`}
+            className={`p-2 rounded-lg transition-all ${isTracking ? 'bg-success-600 hover:bg-success-700' : 'bg-success-700 hover:bg-success-600'}`}
             title={isTracking ? 'Pause' : 'Reprendre'}
           >
             {isTracking ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
@@ -326,7 +326,7 @@ const Tracking = () => {
           
           <button
             onClick={refreshMap}
-            className="p-2 bg-brand-700 rounded-lg hover:bg-brand-600 transition-all"
+            className="p-2 bg-success-700 rounded-lg hover:bg-success-600 transition-all"
             title="Rafraîchir"
           >
             <RefreshCw className="w-5 h-5" />
@@ -334,7 +334,7 @@ const Tracking = () => {
           
           <button
             onClick={toggleFullscreen}
-            className="p-2 bg-brand-700 rounded-lg hover:bg-brand-600 transition-all"
+            className="p-2 bg-success-700 rounded-lg hover:bg-success-600 transition-all"
             title="Plein écran"
           >
             {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
@@ -352,7 +352,7 @@ const Tracking = () => {
       </div>
 
       {/* Barre de filtres incorporée */}
-      <div className="bg-brand-900/60 px-6 py-3 flex items-center space-x-6 border-b border-brand-800" style={{ position: 'relative', zIndex: 90 }}>
+      <div className="bg-success-900/70 px-6 py-3 flex items-center space-x-6 border-b border-success-800" style={{ position: 'relative', zIndex: 90 }}>
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-ink-400" />
           <span className="text-sm font-medium text-ink-300">Filtres:</span>
@@ -363,7 +363,7 @@ const Tracking = () => {
             <label className="text-xs text-ink-400">Statut:</label>
             <select 
               value={statutFilter}
-              className="bg-brand-800 text-white text-sm px-3 py-1.5 rounded border border-brand-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="bg-success-800 text-white text-sm px-3 py-1.5 rounded border border-success-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               onChange={(e) => setStatutFilter(e.target.value)}
             >
               <option value="all">Tous</option>
@@ -377,7 +377,7 @@ const Tracking = () => {
             <label className="text-xs text-ink-400">Zone:</label>
             <select 
               value={zoneFilter}
-              className="bg-brand-800 text-white text-sm px-3 py-1.5 rounded border border-brand-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="bg-success-800 text-white text-sm px-3 py-1.5 rounded border border-success-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               onChange={(e) => setZoneFilter(e.target.value)}
             >
               <option value="all">Toutes les zones</option>

@@ -43,10 +43,10 @@ const Login = () => {
     <div className="min-h-screen flex bg-white">
       <DocumentTitle title="Connexion" />
 
-      {/* Panneau de marque : noir du logo, halos vert / orange / rouge */}
-      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-brand-950 flex-col">
+      {/* Panneau de marque : vert du logo approfondi, halos vert clair et orange */}
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden bg-nation flex-col">
         <div className="flag-stripe"><span /><span /><span /></div>
-        <div className="absolute -top-32 -left-32 w-[34rem] h-[34rem] rounded-full bg-success-600/40 blur-3xl animate-floaty" />
+        <div className="absolute -top-32 -left-32 w-[34rem] h-[34rem] rounded-full bg-success-400/30 blur-3xl animate-floaty" />
         <div className="absolute -bottom-40 -right-24 w-[32rem] h-[32rem] rounded-full bg-primary-500/35 blur-3xl animate-floaty" style={{ animationDelay: '-3s' }} />
         <div className="absolute top-1/2 right-10 w-56 h-56 rounded-full bg-danger-500/25 blur-3xl" />
         <div
@@ -78,7 +78,7 @@ const Login = () => {
             </motion.h2>
             <motion.p
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35, duration: 0.6 }}
-              className="text-lg leading-relaxed text-brand-100 mb-10 max-w-lg"
+              className="text-lg leading-relaxed text-success-100 mb-10 max-w-lg"
             >
               Suivi terrain, alertes, reporting et gestion d’équipe réunis dans un seul tableau de bord.
             </motion.p>
@@ -95,14 +95,14 @@ const Login = () => {
                   </span>
                   <span>
                     <span className="block font-bold text-white text-base">{titre}</span>
-                    <span className="block text-sm text-brand-200">{texte}</span>
+                    <span className="block text-sm text-success-200">{texte}</span>
                   </span>
                 </motion.li>
               ))}
             </ul>
           </div>
 
-          <p className="text-sm text-brand-300 border-t border-white/10 pt-5">
+          <p className="text-sm text-success-300 border-t border-white/10 pt-5">
             © {new Date().getFullYear()} LONACI — Loterie Nationale de Côte d’Ivoire
           </p>
         </div>

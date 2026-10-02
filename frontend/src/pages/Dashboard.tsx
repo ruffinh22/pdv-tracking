@@ -3,9 +3,10 @@ import DataTable from '../components/DataTable';
 import type { ColumnDef } from '@tanstack/react-table';
 import { BRAND, CHART, CHART_SERIES, axisProps, tooltipProps } from '../lib/theme';
 import CountUp from '../components/CountUp';
+import AnalyseClassement from '../components/AnalyseClassement';
 import { Link } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { BarChart3, BellOff, Inbox } from 'lucide-react';
+import { BarChart3, BellOff, ChevronDown, Inbox } from 'lucide-react';
 import EmptyState from '../components/EmptyState';
 import { DashboardSkeleton } from '../components/Skeleton';
 import {
@@ -96,6 +97,7 @@ const Dashboard = () => {
   const [periode, setPeriode] = useState<Periode>('jour');
   const [produitsPeriode, setProduitsPeriode] = useState<Periode>('all');
   const [dimension, setDimension] = useState<Dimension>('ville');
+  const [detailOuvert, setDetailOuvert] = useState(false);
   const [instrusStatut, setInstrusStatut] = useState<string>('');
 
   // Filtres transverses (par agent commercial, chef de zone, superviseur,
@@ -187,14 +189,6 @@ const Dashboard = () => {
     alertes_actives: kpis?.alertes_actives || 0,
     pdv_muets: kpis?.pdv_muets || 0,
   };
-
-  const analysesChartData = useMemo(() => {
-    return (analyses?.data || []).slice(0, 10).map((l) => ({
-      name: l.label.length > 16 ? `${l.label.slice(0, 16)}…` : l.label,
-      Actifs: l.actifs,
-      Inactifs: l.inactifs,
-    }));
-  }, [analyses]);
 
   const produitsChartData = useMemo(() => {
     return (pdvParProduit || []).map((p: any) => ({ name: p.produit, total: p.total_pdv }));
@@ -457,33 +451,29 @@ const Dashboard = () => {
             </select>
           )}
         </div>
-        <div className="p-6 h-80">
-          {analysesLoading ? (
-            <div className="h-full flex items-center justify-center text-ink-400 text-sm">Chargement...</div>
-          ) : analysesChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analysesChartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART.grid} />
-                <XAxis dataKey="name" {...axisProps} interval={0} angle={-20} textAnchor="end" height={60} />
-                <YAxis allowDecimals={false} {...axisProps} />
-                <Tooltip {...tooltipProps} />
-                <Legend />
-                <Bar dataKey="Actifs" stackId="a" fill={BRAND.green} radius={[0, 0, 0, 0]} />
-                <Bar dataKey="Inactifs" stackId="a" fill={CHART.axis} radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <EmptyState icon={Inbox} message="Aucune donnée pour cette dimension" />
-          )}
-        </div>
+        <AnalyseClassement
+          data={analyses?.data ?? []}
+          loading={analysesLoading}
+          dimensionLabel={(DIMENSION_OPTIONS.find((d) => d.value === dimension)?.label ?? 'zone').toLowerCase()}
+        />
         {analyses && analyses.data.length > 0 && (
           <div className="border-t border-ink-200">
-            <DataTable
-              data={analyses.data.slice(0, 15)}
-              columns={columnsAnalyses}
-              getRowId={(l) => l.label}
-              minWidth={480}
-            />
+            <button
+              onClick={() => setDetailOuvert((v) => !v)}
+              className="w-full flex items-center justify-between px-6 py-3 text-[12px] font-bold text-ink-700 hover:bg-ink-50 transition-colors"
+              aria-expanded={detailOuvert}
+            >
+              <span>{detailOuvert ? 'Masquer le détail' : 'Afficher le détail en tableau'}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${detailOuvert ? 'rotate-180' : ''}`} />
+            </button>
+            {detailOuvert && (
+              <DataTable
+                data={analyses.data.slice(0, 15)}
+                columns={columnsAnalyses}
+                getRowId={(l) => l.label}
+                minWidth={480}
+              />
+            )}
           </div>
         )}
       </div>
