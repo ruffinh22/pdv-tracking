@@ -11,8 +11,8 @@
     /* Vert du logo : unique couleur verte des surfaces (en-têtes de tableaux, boutons, bandeaux) */
     --brand-green: #008840;
     --brand-green-hover: #006d34;
-    /* Fond de la barre latérale uniquement : ne pas réutiliser ailleurs */
-    --sidebar-bg: #0a2a19;
+    /* Fond gris doux du menu latéral, distinct des surfaces principales */
+    --sidebar-bg: #eef1ef;
   }
 
   html {

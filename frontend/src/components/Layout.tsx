@@ -160,10 +160,10 @@ const Layout = () => {
   const initials = `${user?.prenom?.[0] ?? ''}${user?.nom?.[0] ?? ''}`.toUpperCase() || 'U';
 
   const navLinkClasses = (active: boolean) =>
-    `group relative flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-[4px] text-[14px] font-medium transition-colors duration-150 ${
+    `group relative flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-[4px] text-[14px] font-semibold transition-colors duration-150 ${
       active
-        ? 'bg-white/10 text-white'
-        : 'text-white/70 hover:bg-white/[0.06] hover:text-white'
+        ? 'bg-white text-success-700 shadow-sm'
+        : 'text-ink-600 hover:bg-white/75 hover:text-ink-900'
     }`;
 
   return (
@@ -179,36 +179,36 @@ const Layout = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden bg-[color:var(--sidebar-bg)] border-r border-black/30 ${
-          isSidebarOpen ? 'w-64' : 'w-0'
+        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden bg-[color:var(--sidebar-bg)] border-r border-ink-200 ${
+          isSidebarOpen ? 'w-56' : 'w-0'
         }`}
       >
-        <div className={`relative w-64 h-full flex flex-col transition-opacity duration-150 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
+        <div className={`relative w-56 h-full flex flex-col transition-opacity duration-150 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
           {/* Liseré tricolore */}
           <div className="flag-stripe shrink-0"><span /><span /><span /></div>
 
           {/* Brand */}
-          <div className="relative flex items-center gap-3 h-[68px] px-4 border-b border-white/10 shrink-0">
-            <div className="bg-white rounded-[4px] px-2 py-1.5 shrink-0 flex items-center justify-center">
+          <div className="relative flex items-center gap-3 h-[68px] px-4 border-b border-ink-200 shrink-0">
+            <div className="bg-white border border-ink-200 rounded-[4px] px-2 py-1.5 shrink-0 flex items-center justify-center">
               <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-7 w-auto max-w-[84px] object-contain" />
             </div>
             <div className="leading-tight min-w-0">
-              <p className="font-display text-[15px] font-bold text-white truncate">Tracking PDV</p>
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-white/55 truncate">{roleLabel(user?.role)}</p>
+              <p className="font-display text-[15px] font-bold text-ink-900 truncate">Tracking PDV</p>
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-500 truncate">{roleLabel(user?.role)}</p>
             </div>
           </div>
 
           {/* Nav */}
           <nav className="flex-1 overflow-y-auto px-3 py-4">
-            <p className="px-3 pb-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/40">Menu</p>
+            <p className="px-3 pb-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-ink-400">Menu</p>
             <ul className="space-y-0.5">
               {navItems.map(({ to, label, icon: Icon }) => (
                 <li key={to}>
                   <Link to={to} className={navLinkClasses(isActive(to))}>
                     {isActive(to) && (
-                      <span className="absolute -left-3 top-0 bottom-0 w-[3px] bg-primary-500" />
+                      <span className="absolute -left-3 top-1 bottom-1 w-[3px] rounded-r bg-success-600" />
                     )}
-                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive(to) ? 'text-white' : 'text-white/50 group-hover:text-white/80'}`} />
+                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive(to) ? 'text-success-600' : 'text-ink-400 group-hover:text-ink-700'}`} />
                     {label}
                   </Link>
                 </li>
@@ -216,29 +216,29 @@ const Layout = () => {
 
               {settingsItems.length > 0 && (
                 <li className="pt-3">
-                  <p className="px-3 pb-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/40">Configuration</p>
+                  <p className="px-3 pb-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-ink-400">Configuration</p>
                   <button
                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                     className={`flex items-center justify-between w-full pl-3 pr-3 py-2.5 rounded-[4px] text-[14px] font-medium transition-colors ${
-                      isSettingsActive() ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/[0.06] hover:text-white'
+                      isSettingsActive() ? 'bg-white text-success-700 shadow-sm' : 'text-ink-600 hover:bg-white/75 hover:text-ink-900'
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Settings className={`w-[18px] h-[18px] ${isSettingsActive() ? 'text-white' : 'text-white/50'}`} />
+                      <Settings className={`w-[18px] h-[18px] ${isSettingsActive() ? 'text-success-600' : 'text-ink-400'}`} />
                       Paramètres
                     </span>
                     {isSettingsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                   </button>
                   {isSettingsOpen && (
-                    <ul className="mt-1 ml-4 pl-4 space-y-1 border-l border-white/10">
+                    <ul className="mt-1 ml-4 pl-4 space-y-1 border-l border-ink-300">
                       {settingsItems.map(({ to, label, icon: Icon }) => (
                         <li key={to}>
                           <Link
                             to={to}
                             className={`flex items-center gap-2.5 px-3 py-2 rounded-[4px] text-[13px] transition-colors ${
                               isActive(to)
-                                ? 'bg-white/10 text-white font-medium'
-                                : 'text-white/60 hover:bg-white/[0.05] hover:text-white'
+                                ? 'bg-white text-success-700 font-semibold shadow-sm'
+                                : 'text-ink-500 hover:bg-white/75 hover:text-ink-900'
                             }`}
                           >
                             <Icon className="w-4 h-4" />
@@ -254,20 +254,20 @@ const Layout = () => {
           </nav>
 
           {/* User footer */}
-          <div className="p-3 border-t border-white/10 shrink-0">
+          <div className="p-3 border-t border-ink-200 shrink-0">
             <div className="flex items-center gap-3 px-2 py-2">
-              <div className="w-9 h-9 rounded-[4px] bg-white/10 border border-white/15 text-white flex items-center justify-center text-[13px] font-semibold shrink-0">
+              <div className="w-9 h-9 rounded-[4px] bg-success-600 text-white flex items-center justify-center text-[13px] font-bold shrink-0">
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold text-white truncate">{user?.prenom} {user?.nom}</p>
-                <p className="text-[11px] font-medium text-white/50 truncate">{roleLabel(user?.role)}</p>
+                <p className="text-[13px] font-semibold text-ink-900 truncate">{user?.prenom} {user?.nom}</p>
+                <p className="text-[11px] font-medium text-ink-500 truncate">{roleLabel(user?.role)}</p>
               </div>
               <button
                 onClick={logout}
                 title="Déconnexion"
                 aria-label="Se déconnecter"
-                className="inline-flex items-center justify-center w-8 h-8 rounded-[4px] text-white/50 hover:bg-white/10 hover:text-white transition-colors"
+                className="inline-flex items-center justify-center w-8 h-8 rounded-[4px] text-ink-500 hover:bg-white hover:text-danger-600 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -281,7 +281,7 @@ const Layout = () => {
       {/* Topbar */}
       <header
         className={`fixed top-0 right-0 z-10 transition-all duration-200 left-0 bg-white shadow-[0_1px_3px_rgba(10,30,20,0.12)] ${
-          isSidebarOpen ? 'lg:left-64' : 'lg:left-0'
+          isSidebarOpen ? 'lg:left-56' : 'lg:left-0'
         }`}
       >
         <div className="flag-stripe"><span /><span /><span /></div>
@@ -431,7 +431,7 @@ const Layout = () => {
 
       {/* Main content */}
       <main
-        className={`pt-[76px] min-h-screen flex flex-col transition-all duration-200 ${isSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'}`}
+        className={`pt-[76px] min-h-screen flex flex-col transition-all duration-200 ${isSidebarOpen ? 'lg:pl-56' : 'lg:pl-0'}`}
       >
         {location.pathname === '/tracking' ? (
           <Outlet />
