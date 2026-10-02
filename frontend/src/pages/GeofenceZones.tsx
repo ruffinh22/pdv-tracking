@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import PageHeader from '../components/PageHeader';
 import { Plus, Edit, Trash2, MapPin, Layers, UserPlus, UserMinus, X } from 'lucide-react';
 import { geofenceService, GeofenceZone } from '../services/geofenceService';
 import { pdvService, PDV } from '../services/pdvService';
@@ -180,12 +181,10 @@ const GeofenceZones = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Zones Geofence</h1>
-          <p className="page-subtitle">Gestion des zones géographiques et assignation des PDV</p>
-        </div>
-        <button
+      <PageHeader
+        title={'Zones Geofence'}
+        subtitle={'Gestion des zones géographiques et assignation des PDV'}
+        actions={<><button
           onClick={() => {
             resetForm();
             setShowModal(true);
@@ -194,8 +193,8 @@ const GeofenceZones = () => {
         >
           <Plus className="w-4 h-4" />
           Nouvelle Zone
-        </button>
-      </div>
+        </button></>}
+      />
 
       {zones && zones.length > 0 && (
         <div className="card p-0 overflow-hidden">

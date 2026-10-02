@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PageHeader from '../components/PageHeader';
 import type { ColumnDef } from '@tanstack/react-table';
 import DataTable from '../components/DataTable';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -380,18 +381,14 @@ const PdvAttributs = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Attributs PDV</h1>
-          <p className="page-subtitle">
-            Champs du formulaire de complétion d'un dossier point de vente
-          </p>
-        </div>
-        <button onClick={ouvrirCreation} className="btn btn-primary">
+      <PageHeader
+        title={'Attributs PDV'}
+        subtitle={<>Champs du formulaire de complétion d'un dossier point de vente</>}
+        actions={<><button onClick={ouvrirCreation} className="btn btn-primary">
           <Plus className="w-4 h-4 mr-1.5" />
           Nouvel attribut
-        </button>
-      </div>
+        </button></>}
+      />
 
       {/* ---- Champs standards : vraies colonnes de la fiche PDV --------------
           Contrairement aux attributs ci-dessous, ceux-ci ne peuvent pas être

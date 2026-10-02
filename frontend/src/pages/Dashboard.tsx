@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import PageHeader from '../components/PageHeader';
 import DataTable from '../components/DataTable';
 import type { ColumnDef } from '@tanstack/react-table';
 import { BRAND, CHART, CHART_SERIES, axisProps, tooltipProps } from '../lib/theme';
@@ -14,7 +15,7 @@ import {
   Users2, UserX, PieChart as PieChartIcon, Navigation
 } from 'lucide-react';
 import {
-  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer
 } from 'recharts';
 import { dashboardService, telechargerBlob, Periode, Dimension } from '../services/dashboardService';
@@ -260,19 +261,15 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="page-title">Tableau de bord</h1>
-          <p className="page-subtitle">
-            {ROLE_DASHBOARD_SUBTITLE[role]} · Situation au{' '}
-            {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
-        </div>
-        <button onClick={handleExportExcel} className="btn btn-primary shrink-0">
+      <PageHeader
+        title={'Tableau de bord'}
+        subtitle={<>{ROLE_DASHBOARD_SUBTITLE[role]} · Situation au{' '}
+            {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</>}
+        actions={<><button onClick={handleExportExcel} className="btn btn-primary shrink-0">
           <Download className="w-4 h-4" />
           Export Excel
-        </button>
-      </div>
+        </button></>}
+      />
 
       {/* Filtres transverses : agent commercial, chef de zone, superviseur, agence */}
       <FiltresOrganisation role={role} valeurs={filtresOrg} onChange={setFiltresOrg} />

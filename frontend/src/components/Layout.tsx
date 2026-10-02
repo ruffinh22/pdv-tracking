@@ -2,6 +2,8 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import DocumentTitle from './DocumentTitle';
+import InstitutionFooter from './InstitutionFooter';
+import { INSTITUTION } from '../config/institution';
 import {
   LayoutDashboard,
   MapPin,
@@ -295,11 +297,10 @@ const Layout = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <nav aria-label="Fil d'Ariane" className="min-w-0 flex items-center gap-2 text-sm">
-              <span className="hidden sm:inline font-bold text-ink-500">LONACI</span>
-              <ChevronRight className="hidden sm:block w-4 h-4 text-ink-300 shrink-0" />
-              <span className="font-display text-base font-extrabold text-ink-950 truncate">{currentPage.title}</span>
-            </nav>
+            <div className="min-w-0 leading-tight">
+              <p className="font-display text-[13.5px] font-extrabold text-ink-950 truncate">{INSTITUTION.nom}</p>
+              <p className="hidden sm:block text-[11px] font-semibold text-ink-500 truncate">{INSTITUTION.systeme}</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -431,7 +432,7 @@ const Layout = () => {
 
       {/* Main content */}
       <main
-        className={`pt-[72px] transition-all duration-200 ${isSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'}`}
+        className={`pt-[72px] min-h-screen flex flex-col transition-all duration-200 ${isSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'}`}
       >
         {location.pathname === '/tracking' ? (
           <Outlet />
@@ -441,11 +442,12 @@ const Layout = () => {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto"
+            className="flex-1 w-full p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto"
           >
             <Outlet />
           </motion.div>
         )}
+        {location.pathname !== '/tracking' && <InstitutionFooter />}
       </main>
     </div>
   );

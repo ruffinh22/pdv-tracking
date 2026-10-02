@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import PageHeader from '../components/PageHeader';
 import type { ColumnDef } from '@tanstack/react-table';
 import DataTable from '../components/DataTable';
 import { BRAND, CHART, CHART_SERIES, tooltipProps } from '../lib/theme';
@@ -344,18 +345,14 @@ const Reporting = () => {
         </div>
       </div>
       {/* En-tête */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="page-title">Reporting</h1>
-          <p className="page-subtitle">
-            Enrôlement, couverture terrain et conformité des points de vente tagués
-          </p>
-        </div>
-        <button type="button" onClick={handleExport} disabled={exportEnCours} className="btn btn-primary shrink-0">
+      <PageHeader
+        title={'Reporting'}
+        subtitle={'Enrôlement, couverture terrain et conformité des points de vente tagués'}
+        actions={<><button type="button" onClick={handleExport} disabled={exportEnCours} className="btn btn-primary shrink-0">
           <Download className="w-4 h-4" />
           {exportEnCours ? 'Génération…' : 'Export Excel'}
-        </button>
-      </div>
+        </button></>}
+      />
 
       {/* Sélection de période */}
       <div className="card !p-4">

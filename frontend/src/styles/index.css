@@ -64,16 +64,17 @@
   .page-title {
     @apply font-display text-[1.7rem] leading-tight font-extrabold text-ink-950 tracking-tight;
   }
-  .page-title::after {
+  .page-header { @apply relative pb-5 mb-1 border-b border-ink-200; }
+  .page-header::after {
     content: '';
-    display: block;
-    margin-top: 0.45rem;
-    height: 4px;
-    width: 3.25rem;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #ff8200 0 55%, #009a44 55% 100%);
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 96px;
+    height: 3px;
+    background: linear-gradient(90deg, #ff8200 0 36%, transparent 36% 64%, #009a44 64% 100%);
   }
-  .page-subtitle { @apply text-[0.95rem] font-medium text-ink-600 mt-2; }
+  .page-subtitle { @apply text-[0.9rem] font-medium text-ink-600 mt-1.5; }
 
   /* ---------- Boutons ---------- */
   .btn {
@@ -109,7 +110,7 @@
 
   .panel-pro { @apply relative bg-white rounded-2xl border border-ink-200/80 shadow-card overflow-hidden; }
   .panel-pro-head {
-    @apply flex items-center justify-between gap-3 px-6 py-4 border-b border-ink-100 bg-white;
+    @apply flex items-center justify-between gap-3 px-6 py-3.5 border-b border-ink-200 bg-ink-50;
   }
   .panel-pro-head h2, .panel-pro-head h3 {
     @apply text-[1.05rem] font-extrabold text-ink-950 flex items-center gap-2.5;
@@ -120,14 +121,64 @@
     @apply inline-block w-1 h-5 rounded-full bg-primary-500;
   }
 
-  /* ---------- Champs ---------- */
+  /* ---------- Champs de formulaire ---------- */
   .input {
-    @apply w-full px-4 py-2.5 bg-white border border-ink-300 rounded-xl text-[0.95rem] font-medium text-ink-950
-           placeholder:text-ink-400 placeholder:font-normal transition-all duration-150
+    @apply w-full h-11 px-3.5 bg-white rounded-lg text-[0.95rem] font-semibold text-ink-950
+           border-2 border-ink-300 shadow-[inset_0_1px_2px_rgba(10,12,11,0.05)]
+           placeholder:text-ink-400 placeholder:font-medium transition-[border-color,box-shadow] duration-150
            hover:border-ink-400
-           focus:outline-none focus:shadow-ring focus:border-success-600;
+           focus:outline-none focus:border-success-600 focus:shadow-ring focus:ring-0;
   }
-  .label { @apply block text-[13px] font-extrabold uppercase tracking-wide text-ink-700 mb-1.5; }
+  textarea.input { @apply h-auto min-h-[96px] py-2.5 leading-relaxed resize-y; }
+  .input:disabled, .input[readonly] {
+    @apply bg-ink-100 text-ink-500 border-ink-200 cursor-not-allowed shadow-none;
+  }
+  /* Rouge uniquement après une vraie interaction (jamais à l'ouverture du formulaire) */
+  .input:user-invalid:not(:focus) { @apply border-danger-500; }
+
+  /* Listes déroulantes : flèche verte intégrée, même gabarit que les champs texte */
+  select.input, .toolbar-select {
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M5 7.5l5 5 5-5' stroke='%23006d34' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.8rem center;
+    background-size: 1.15rem 1.15rem;
+  }
+  select.input:invalid { @apply text-ink-400 font-medium; }
+  select.input option { @apply text-ink-950 font-medium; }
+
+  .label { @apply block text-[13px] font-bold text-ink-800 mb-1.5; }
+
+  /* Cases à cocher et boutons radio */
+  input[type='checkbox'], input[type='radio'] {
+    @apply w-[18px] h-[18px] border-2 border-ink-400 text-success-600 bg-white cursor-pointer
+           focus:ring-2 focus:ring-success-500/30 focus:ring-offset-0 transition-colors;
+  }
+  input[type='checkbox'] { @apply rounded-[5px]; }
+  input[type='checkbox']:checked, input[type='radio']:checked { @apply border-success-600; }
+
+  /* Titre de section d'un formulaire */
+  .form-section {
+    @apply flex items-center gap-2.5 pb-2.5 mb-4 border-b border-ink-200
+           font-display text-[0.95rem] font-extrabold text-success-800 tracking-tight;
+  }
+  .form-section::before { content: ''; @apply w-1 h-4 rounded-full bg-primary-500; }
+  .form-hint { @apply text-[12px] font-medium text-ink-500 leading-snug mt-1.5; }
+
+  /* Choix multiple (produits, options) : cartes cliquables avec coche */
+  .choice {
+    @apply inline-flex items-center gap-2 h-10 px-3.5 rounded-lg bg-white text-[13px] font-bold text-ink-700
+           border-2 border-ink-300 transition-all duration-150 cursor-pointer select-none
+           hover:border-success-600 hover:bg-success-50 hover:text-success-800
+           focus:outline-none focus-visible:shadow-ring;
+  }
+  .choice--active {
+    @apply bg-success-700 border-success-700 text-white shadow-[0_4px_10px_-4px_rgba(0,109,52,0.7)]
+           hover:bg-success-800 hover:border-success-800 hover:text-white;
+  }
 
   /* ---------- Tableaux ---------- */
   .table { @apply w-full border-collapse text-sm; }
@@ -210,8 +261,8 @@
   /* ---------- Barre d'outils ---------- */
   .toolbar { @apply flex flex-wrap items-center gap-3 px-6 py-3.5 border-b border-ink-100 bg-ink-50/60; }
   .toolbar-select {
-    @apply px-3.5 py-2 text-sm font-semibold border border-ink-300 rounded-xl bg-white text-ink-800
-           transition-all duration-150 hover:border-ink-400
+    @apply h-10 pl-3.5 text-sm font-bold border-2 border-ink-300 rounded-lg bg-white text-ink-900
+           transition-[border-color,box-shadow] duration-150 hover:border-ink-400
            focus:outline-none focus:shadow-ring focus:border-success-600;
   }
 

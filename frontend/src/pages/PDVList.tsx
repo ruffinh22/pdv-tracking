@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import PageHeader from '../components/PageHeader';
 import type { ColumnDef } from '@tanstack/react-table';
 import DataTable from '../components/DataTable';
 import { useNavigate } from 'react-router-dom';
@@ -137,7 +138,8 @@ const PDVList = () => {
   const champObligatoire = (code: string) => champsFixesParCode.get(code)?.obligatoire === true;
   const champLibelle = (code: string, defaut: string) =>
     champsFixesParCode.get(code)?.libelle || defaut;
-  const etoile = (code: string) => (champObligatoire(code) ? ' *' : '');
+  const etoile = (code: string) =>
+    champObligatoire(code) ? <span className="text-danger-500 font-extrabold ml-0.5" title="Champ obligatoire">*</span> : null;
 
   useEffect(() => {
     const minuteur = setTimeout(() => {
@@ -453,12 +455,10 @@ const PDVList = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Points de Vente</h1>
-          <p className="page-subtitle">{pagination.total} point{pagination.total > 1 ? 's' : ''} de vente tagué{pagination.total > 1 ? 's' : ''}</p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        title={'Points de Vente'}
+        subtitle={<>{pagination.total} point{pagination.total > 1 ? 's' : ''} de vente tagué{pagination.total > 1 ? 's' : ''}</>}
+        actions={<><div className="flex gap-2">
           <div className="flex rounded-lg border border-ink-200 overflow-hidden">
             <button
               onClick={() => handleExport('complet')}
@@ -488,8 +488,8 @@ const PDVList = () => {
             <Plus className="w-4 h-4" />
             Nouveau PDV
           </button>
-        </div>
-      </div>
+        </div></>}
+      />
 
       <div className="panel">
         {/* Toolbar */}
@@ -657,7 +657,7 @@ const PDVList = () => {
               <div className="space-y-5">
                 {/* Identification */}
                 <div>
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">Identification</h3>
+                  <h3 className="form-section">Identification</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="label">ID Terminal</label>
@@ -714,7 +714,7 @@ const PDVList = () => {
 
                 {/* Tagging */}
                 <div>
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">Tagging (Concessionnaire / Vendeur)</h3>
+                  <h3 className="form-section">Tagging (Concessionnaire / Vendeur)</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {champVisible('concessionnaire_nom') && (
                       <div>
@@ -790,7 +790,7 @@ const PDVList = () => {
 
                 {/* Hiérarchie commerciale */}
                 <div>
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">Hiérarchie commerciale</h3>
+                  <h3 className="form-section">Hiérarchie commerciale</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {champVisible('agence_id') && (
                       <div>
@@ -860,7 +860,7 @@ const PDVList = () => {
 
                 {/* Localisation */}
                 <div>
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">Localisation</h3>
+                  <h3 className="form-section">Localisation</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     {champVisible('pays') && (
                       <div>

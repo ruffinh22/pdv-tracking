@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PageHeader from '../components/PageHeader';
 import type { ColumnDef } from '@tanstack/react-table';
 import DataTable from '../components/DataTable';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -135,19 +136,17 @@ const Agences = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Agences</h1>
-          <p className="page-subtitle">Référentiel utilisé pour le tagging des points de vente</p>
-        </div>
-        <button
+      <PageHeader
+        title={'Agences'}
+        subtitle={'Référentiel utilisé pour le tagging des points de vente'}
+        actions={<><button
           onClick={() => { resetForm(); setEditingAgence(null); setShowModal(true); }}
           className="btn btn-primary"
         >
           <Plus className="w-4 h-4" />
           Nouvelle Agence
-        </button>
-      </div>
+        </button></>}
+      />
 
       <div className="panel">
         <div className="toolbar">

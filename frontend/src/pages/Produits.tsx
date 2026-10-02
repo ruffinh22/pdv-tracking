@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PageHeader from '../components/PageHeader';
 import type { ColumnDef } from '@tanstack/react-table';
 import DataTable from '../components/DataTable';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -174,12 +175,10 @@ const Produits = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Gestion des Produits</h1>
-          <p className="page-subtitle">Catalogue de produits pour les ventes</p>
-        </div>
-        <button
+      <PageHeader
+        title={'Gestion des Produits'}
+        subtitle={'Catalogue de produits pour les ventes'}
+        actions={<><button
           onClick={() => {
             resetForm();
             setEditingProduit(null);
@@ -189,8 +188,8 @@ const Produits = () => {
         >
           <Plus className="w-4 h-4" />
           Nouveau Produit
-        </button>
-      </div>
+        </button></>}
+      />
 
       {/* Table */}
       <div className="panel">

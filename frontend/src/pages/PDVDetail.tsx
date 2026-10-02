@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import PageHeader from '../components/PageHeader';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import {
   ArrowLeft,
+  Check,
   MapPin,
   Smartphone,
   CheckCircle2,
@@ -154,8 +156,8 @@ function ChampDynamique({
                 }
                 className={
                   actif
-                    ? 'chip !bg-primary-50 !text-primary-700 !border-primary-200'
-                    : 'chip'
+                    ? 'choice choice--active'
+                    : 'choice'
                 }
               >
                 {opt}
@@ -279,7 +281,8 @@ const PDVDetail = () => {
   const champObligatoire = (code: string) => champsFixesParCode.get(code)?.obligatoire === true;
   const champLibelle = (code: string, defaut: string) =>
     champsFixesParCode.get(code)?.libelle || defaut;
-  const etoile = (code: string) => (champObligatoire(code) ? ' *' : '');
+  const etoile = (code: string) =>
+    champObligatoire(code) ? <span className="text-danger-500 font-extrabold ml-0.5" title="Champ obligatoire">*</span> : null;
 
   // Fenêtre de suivi demandée. Calculée une fois par changement de période pour
   // que la clé de requête reste stable — sinon `new Date()` à chaque rendu
@@ -479,27 +482,26 @@ const PDVDetail = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="btn-icon">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="flex-1">
-          <h1 className="page-title">
-            {estNomProvisoire(pdv.nom_pdv) ? 'Dossier à compléter' : pdv.nom_pdv}
-          </h1>
-          <p className="page-subtitle">
-            Dossier point de vente #{pdv.id}
-          </p>
-        </div>
-        <span className={estBrouillon ? 'badge badge-warning' : 'badge badge-success'}>
-          {estBrouillon ? 'Brouillon' : 'Dossier complet'}
-        </span>
-      </div>
+      <PageHeader
+        crumb={estNomProvisoire(pdv.nom_pdv) ? 'Dossier à compléter' : pdv.nom_pdv}
+        leading={
+          <button onClick={() => navigate(-1)} className="btn-icon mt-1" aria-label="Retour">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        }
+        title={estNomProvisoire(pdv.nom_pdv) ? 'Dossier à compléter' : pdv.nom_pdv}
+        subtitle={`Dossier point de vente #${pdv.id}`}
+        actions={
+          <span className={estBrouillon ? 'badge badge-warning' : 'badge badge-success'}>
+            {estBrouillon ? 'Brouillon' : 'Dossier complet'}
+          </span>
+        }
+      />
 
       {/* Ce que le terminal a remonté du terrain : non modifiable ici, c'est la
           trace de l'enrôlement. */}
       <div className="card">
-        <h2 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-3">
+        <h2 className="form-section">
           Relevé du terrain
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
@@ -542,7 +544,7 @@ const PDVDetail = () => {
         <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <Route className="w-4 h-4 text-ink-400" />
-            <h2 className="text-xs font-extrabold uppercase tracking-wider text-ink-500">
+            <h2 className="form-section !mb-0 !border-0 !pb-0">
               Suivi du terminal
             </h2>
             {positionLive ? (
@@ -661,7 +663,7 @@ const PDVDetail = () => {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="card space-y-5">
           <div>
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">
+            <h3 className="form-section">
               Identité du point de vente
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -738,7 +740,7 @@ const PDVDetail = () => {
           </div>
 
           <div>
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">
+            <h3 className="form-section">
               Rattachement commercial
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -847,7 +849,7 @@ const PDVDetail = () => {
 
           <div>
             <div className="flex items-start justify-between gap-3 mb-2.5 flex-wrap">
-              <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500">
+              <h3 className="form-section !mb-0 !border-0 !pb-0">
                 Localisation administrative
               </h3>
               <button
@@ -861,7 +863,7 @@ const PDVDetail = () => {
                 {geocodage.isPending ? 'Calcul…' : 'Remplir depuis le GPS'}
               </button>
             </div>
-            <p className="text-xs text-ink-400 mb-2.5">
+            <p className="form-hint !mt-0 mb-3">
               Pré-remplie automatiquement à partir des coordonnées relevées sur le terrain.
               Si le service de géolocalisation était indisponible au moment de la pose du terminal,
               relancez le calcul — les champs déjà saisis ne sont pas écrasés.
@@ -891,10 +893,10 @@ const PDVDetail = () => {
 
           {champVisible('produits') && (
           <div>
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5">
+            <h3 className="form-section">
               {champLibelle('produits', 'Produits vendus')}{etoile('produits')}
             </h3>
-            <p className="text-xs text-ink-400 mb-2.5">
+            <p className="form-hint !mt-0 mb-3">
               {champObligatoire('produits')
                 ? "Au moins un produit est requis : c'est la colonne « Produit_vendu » du mapping standard. Seule la gamme est demandée ici, jamais les prix."
                 : "Seule la gamme est demandée ici, jamais les prix."}
@@ -914,8 +916,10 @@ const PDVDetail = () => {
                         prev.includes(p.id) ? prev.filter((x) => x !== p.id) : [...prev, p.id]
                       );
                     }}
-                    className={actif ? 'chip chip--active' : 'chip'}
+                    className={actif ? 'choice choice--active' : 'choice'}
+                    aria-pressed={actif}
                   >
+                    {actif ? <Check className="w-4 h-4" aria-hidden /> : <span className="w-4 h-4 rounded-[4px] border-2 border-ink-300 bg-white" aria-hidden />}
                     {p.nom_produit}
                   </button>
                 );
@@ -928,7 +932,7 @@ const PDVDetail = () => {
         {/* Champs pilotés par l'admin depuis Paramètres > Attributs PDV */}
         {groupes.map(([groupe, champs]) => (
           <div className="card" key={groupe}>
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-3">
+            <h3 className="form-section">
               {groupe}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

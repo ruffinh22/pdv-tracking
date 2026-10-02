@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import PageHeader from '../components/PageHeader';
 import type { ColumnDef } from '@tanstack/react-table';
 import DataTable from '../components/DataTable';
 import { Plus, Edit, Trash2, Mail, Phone, Search, ToggleLeft, ToggleRight, X } from 'lucide-react';
@@ -266,12 +267,10 @@ const UsersPage = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Utilisateurs</h1>
-          <p className="page-subtitle">Gérez les comptes et les rôles de votre équipe</p>
-        </div>
-        <button
+      <PageHeader
+        title={'Utilisateurs'}
+        subtitle={'Gérez les comptes et les rôles de votre équipe'}
+        actions={<><button
           onClick={() => {
             resetForm();
             setShowModal(true);
@@ -280,8 +279,8 @@ const UsersPage = () => {
         >
           <Plus className="w-4 h-4" />
           Nouvel Utilisateur
-        </button>
-      </div>
+        </button></>}
+      />
 
       <div className="panel">
         <div className="toolbar">

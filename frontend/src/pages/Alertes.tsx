@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import PageHeader from '../components/PageHeader';
 import { CheckCircle, AlertTriangle, MapPin, Calendar, Filter } from 'lucide-react';
 import { alerteService, Alerte } from '../services/alerteService';
 import { useState } from 'react';
@@ -55,16 +56,12 @@ const Alertes = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Alertes</h1>
-          <p className="page-subtitle">
-            {nonTraiteesCount > 0
+      <PageHeader
+        title={'Alertes'}
+        subtitle={<>{nonTraiteesCount > 0
               ? `${nonTraiteesCount} alerte${nonTraiteesCount > 1 ? 's' : ''} en attente de traitement`
-              : 'Toutes les alertes sont traitées'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 bg-white border border-ink-200 rounded-lg px-3 py-2">
+              : 'Toutes les alertes sont traitées'}</>}
+        actions={<><div className="flex items-center gap-2 bg-white border border-ink-200 rounded-lg px-3 py-2">
           <Filter className="w-4 h-4 text-ink-400" />
           <select
             value={filter}
@@ -75,8 +72,8 @@ const Alertes = () => {
             <option value="non_traitee">Non traitées</option>
             <option value="traitee">Traitées</option>
           </select>
-        </div>
-      </div>
+        </div></>}
+      />
 
       <div className="space-y-3">
         {isLoading ? (
