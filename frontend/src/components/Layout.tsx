@@ -167,7 +167,7 @@ const Layout = () => {
     }`;
 
   return (
-    <div className="min-h-screen bg-[#e9edea]">
+    <div className="min-h-screen bg-[#f4f6f4]">
       {/* Voile derrière le tiroir (mobile / tablette) */}
       {isSidebarOpen && (
         <div
@@ -188,13 +188,13 @@ const Layout = () => {
           <div className="flag-stripe shrink-0"><span /><span /><span /></div>
 
           {/* Brand */}
-          <div className="relative flex items-center gap-3 h-[68px] px-4 border-b border-ink-200 shrink-0">
-            <div className="bg-white border border-ink-200 rounded-[4px] px-2 py-1.5 shrink-0 flex items-center justify-center">
-              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-7 w-auto max-w-[84px] object-contain" />
+          <div className="relative flex flex-col items-center justify-center gap-2 h-[116px] px-3 border-b border-ink-300/80 shrink-0">
+            <div className="bg-white border border-ink-200 rounded-[4px] px-3 py-2 flex items-center justify-center shadow-sm">
+              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-8 w-auto max-w-[124px] object-contain" />
             </div>
-            <div className="leading-tight min-w-0">
-              <p className="font-display text-[15px] font-bold text-ink-900 truncate">Tracking PDV</p>
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink-500 truncate">{roleLabel(user?.role)}</p>
+            <div className="text-center leading-tight min-w-0">
+              <p className="font-display text-[14px] font-bold text-ink-900 truncate">Tracking PDV</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-500 truncate">{roleLabel(user?.role)}</p>
             </div>
           </div>
 
