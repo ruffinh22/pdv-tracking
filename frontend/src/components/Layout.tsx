@@ -162,8 +162,8 @@ const Layout = () => {
   const navLinkClasses = (active: boolean) =>
     `group relative flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-[4px] text-[14px] font-semibold transition-colors duration-150 ${
       active
-        ? 'bg-white text-success-700 shadow-sm'
-        : 'text-ink-600 hover:bg-white/75 hover:text-ink-900'
+        ? 'bg-success-50 text-success-800 ring-1 ring-inset ring-success-100 shadow-sm'
+        : 'text-ink-700 hover:bg-white/70 hover:text-ink-950'
     }`;
 
   return (
@@ -179,7 +179,7 @@ const Layout = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden bg-[color:var(--sidebar-bg)] border-r border-ink-200 ${
+        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden bg-[color:var(--sidebar-bg)] border-l-[3px] border-l-success-700 border-r border-ink-300 shadow-[4px_0_18px_rgba(20,38,28,0.08)] ${
           isSidebarOpen ? 'w-56' : 'w-0'
         }`}
       >
@@ -200,15 +200,15 @@ const Layout = () => {
 
           {/* Nav */}
           <nav className="flex-1 overflow-y-auto px-3 py-4">
-            <p className="px-3 pb-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-ink-400">Menu</p>
+            <p className="px-3 pb-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-ink-500">Menu</p>
             <ul className="space-y-0.5">
               {navItems.map(({ to, label, icon: Icon }) => (
                 <li key={to}>
                   <Link to={to} className={navLinkClasses(isActive(to))}>
                     {isActive(to) && (
-                      <span className="absolute -left-3 top-1 bottom-1 w-[3px] rounded-r bg-success-600" />
+                      <span className="absolute -left-3 top-1 bottom-1 w-[3px] rounded-r bg-success-700" />
                     )}
-                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive(to) ? 'text-success-600' : 'text-ink-400 group-hover:text-ink-700'}`} />
+                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive(to) ? 'text-success-700' : 'text-ink-500 group-hover:text-ink-800'}`} />
                     {label}
                   </Link>
                 </li>
@@ -216,15 +216,15 @@ const Layout = () => {
 
               {settingsItems.length > 0 && (
                 <li className="pt-3">
-                  <p className="px-3 pb-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-ink-400">Configuration</p>
+                  <p className="px-3 pb-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-ink-500">Configuration</p>
                   <button
                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                     className={`flex items-center justify-between w-full pl-3 pr-3 py-2.5 rounded-[4px] text-[14px] font-medium transition-colors ${
-                      isSettingsActive() ? 'bg-white text-success-700 shadow-sm' : 'text-ink-600 hover:bg-white/75 hover:text-ink-900'
+                      isSettingsActive() ? 'bg-success-50 text-success-800 ring-1 ring-inset ring-success-100 shadow-sm' : 'text-ink-700 hover:bg-white/70 hover:text-ink-950'
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Settings className={`w-[18px] h-[18px] ${isSettingsActive() ? 'text-success-600' : 'text-ink-400'}`} />
+                      <Settings className={`w-[18px] h-[18px] ${isSettingsActive() ? 'text-success-700' : 'text-ink-500'}`} />
                       Paramètres
                     </span>
                     {isSettingsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -237,8 +237,8 @@ const Layout = () => {
                             to={to}
                             className={`flex items-center gap-2.5 px-3 py-2 rounded-[4px] text-[13px] transition-colors ${
                               isActive(to)
-                                ? 'bg-white text-success-700 font-semibold shadow-sm'
-                                : 'text-ink-500 hover:bg-white/75 hover:text-ink-900'
+                                ? 'bg-success-50 text-success-800 font-semibold ring-1 ring-inset ring-success-100 shadow-sm'
+                                : 'text-ink-600 hover:bg-white/70 hover:text-ink-950'
                             }`}
                           >
                             <Icon className="w-4 h-4" />
@@ -254,9 +254,9 @@ const Layout = () => {
           </nav>
 
           {/* User footer */}
-          <div className="p-3 border-t border-ink-200 shrink-0">
-            <div className="flex items-center gap-3 px-2 py-2">
-              <div className="w-9 h-9 rounded-[4px] bg-success-600 text-white flex items-center justify-center text-[13px] font-bold shrink-0">
+          <div className="p-3 border-t border-ink-300 shrink-0">
+            <div className="flex items-center gap-3 px-2 py-2 rounded-md bg-white/70 border border-white/80 shadow-sm">
+              <div className="w-9 h-9 rounded-[4px] bg-success-700 text-white flex items-center justify-center text-[13px] font-bold shrink-0 shadow-sm">
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
