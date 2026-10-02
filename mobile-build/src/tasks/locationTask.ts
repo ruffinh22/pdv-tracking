@@ -6,7 +6,7 @@ const mockLocation = {
   hasStartedLocationUpdatesAsync: async () => false,
   startLocationUpdatesAsync: async () => {},
   stopLocationUpdatesAsync: async () => {},
-  Accuracy: { Balanced: 'balanced' },
+  Accuracy: { High: 'high' },
 };
 
 const mockTaskManager = {
@@ -42,12 +42,13 @@ if (Platform.OS !== 'web' && !TaskManager.isTaskDefined(LOCATION_TASK_NAME)) {
 
     const last = locations[locations.length - 1];
     try {
-      await syncService.savePositionLocally({
+      const sauvegardee = await syncService.savePositionLocally({
         latitude: last.coords.latitude,
         longitude: last.coords.longitude,
         horodatage: new Date(last.timestamp).toISOString(),
         accuracy: last.coords.accuracy,
       });
+      if (!sauvegardee) return;
       // Synchronisation opportuniste en arrière-plan, SANS l'attendre : cette
       // tâche tourne à chaque tick GPS (potentiellement toutes les 30s), et le
       // système d'exploitation peut throttle/tuer une tâche background trop
@@ -74,7 +75,7 @@ export async function startBackgroundLocationTracking(intervalMs: number, distan
   if (started) return;
 
   await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-    accuracy: Location.Accuracy.Balanced,
+    accuracy: Location.Accuracy.High,
     timeInterval: intervalMs,
     distanceInterval: distanceM,
     showsBackgroundLocationIndicator: true,

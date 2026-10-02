@@ -7,6 +7,7 @@
 
 export interface PDV {
   id: number;
+  id_unique?: string | null;
   nom_pdv: string;
   id_terminal?: string | null;
   msisdn_responsable?: string | null;
@@ -29,6 +30,7 @@ export interface GPSPoint {
 /** Position enregistrée localement, en attente d'envoi au serveur. */
 export interface PositionLocale {
   id: number;
+  client_event_id?: string | null;
   latitude: number;
   longitude: number;
   horodatage: string;

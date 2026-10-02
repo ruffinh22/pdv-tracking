@@ -80,11 +80,13 @@ export default function AppHeader({ title, icon, subtitle }: AppHeaderProps) {
   };
 
   return (
-    <View>
-      <View style={[styles.flagStripe, { paddingTop: insets.top }]}>
-        <View style={[styles.flagBand, { backgroundColor: colors.flag.orange }]} />
-        <View style={[styles.flagBand, { backgroundColor: colors.flag.white }]} />
-        <View style={[styles.flagBand, { backgroundColor: colors.flag.green }]} />
+    <View style={styles.headerShell}>
+      <View style={{ paddingTop: insets.top }}>
+        <View style={styles.flagStripe}>
+          <View style={[styles.flagBand, { backgroundColor: colors.flag.orange }]} />
+          <View style={[styles.flagBand, { backgroundColor: colors.flag.white }]} />
+          <View style={[styles.flagBand, { backgroundColor: colors.flag.green }]} />
+        </View>
       </View>
       <View style={styles.header}>
         <View style={styles.identity}>
@@ -137,6 +139,7 @@ export default function AppHeader({ title, icon, subtitle }: AppHeaderProps) {
 }
 
 const styles = StyleSheet.create({
+  headerShell: { backgroundColor: colors.white },
   flagStripe: {
     flexDirection: 'row',
     height: 3,

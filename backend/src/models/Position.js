@@ -27,6 +27,11 @@ const Position = sequelize.define('Position', {
     type: DataTypes.DECIMAL(8, 2),
     allowNull: true
   },
+  client_event_id: {
+    type: DataTypes.STRING(180),
+    allowNull: true,
+    unique: true
+  },
   horodatage: {
     type: DataTypes.DATE,
     allowNull: false,
@@ -41,7 +46,8 @@ const Position = sequelize.define('Position', {
   tableName: 'positions',
   indexes: [
     { fields: ['pdv_id'] },
-    { fields: ['horodatage'] }
+    { fields: ['horodatage'] },
+    { fields: ['pdv_id', 'horodatage'], name: 'positions_pdv_horodatage' }
   ]
 });
 

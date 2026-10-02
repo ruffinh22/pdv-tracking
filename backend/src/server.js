@@ -112,6 +112,7 @@ app.use(
 const apiLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 15 * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 10) || 1000,
+  skip: (req) => req.originalUrl.split('?')[0] === '/api/positions/mobile/create',
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.' },

@@ -1,8 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
+const rateLimit = require('express-rate-limit');
 const positionController = require('../controllers/positionController');
 const authMiddleware = require('../middleware/authMiddleware');
+const mobilePositionAuth = require('../middleware/mobilePositionAuth');
+
+const mobilePositionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 120,
+  keyGenerator: (req) => `pdv-${req.mobilePdvId}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de positions reçues pour ce terminal. Réessayez plus tard.' },
+});
 
 // Validation middleware
 const createPositionValidation = [
@@ -12,7 +23,8 @@ const createPositionValidation = [
 ];
 
 // Routes publiques pour l'application mobile
-router.post('/mobile/create', positionController.mobileCreatePosition);
+router.post('/mobile/create', mobilePositionAuth, mobilePositionLimiter, positionController.mobileCreatePosition);
+router.post('/mobile/batch', mobilePositionAuth, mobilePositionLimiter, positionController.mobileCreatePositionsBatch);
 
 // Routes protégées (require auth)
 router.post('/', authMiddleware, createPositionValidation, positionController.createPosition);

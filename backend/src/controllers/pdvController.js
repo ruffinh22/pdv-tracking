@@ -1,5 +1,6 @@
 const { PDV, Position, Vente, Alerte, Produit, Agence, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const geocodingService = require('../services/geocodingService');
 const pdvAttributService = require('../services/pdvAttributService');
@@ -20,8 +21,37 @@ const PREFIXE_NOM_BROUILLON = 'PDV (brouillon)';
 // simple imprécision GPS.
 const SEUIL_REAFFECTATION_SUSPECTE_M = 500;
 
+const precisionGpsValide = (valeur) => {
+  if (valeur === null || valeur === undefined || valeur === '') return null;
+  const precision = Number(valeur);
+  return Number.isFinite(precision) && precision >= 0 ? precision : null;
+};
+
 const estNomProvisoire = (nom) =>
   !nom || String(nom).trim() === '' || String(nom).startsWith(PREFIXE_NOM_BROUILLON);
+
+function genererIdUniquePdv(id) {
+  return `CI-PDV-${String(id).padStart(4, '0')}`;
+}
+
+async function assurerIdUniquePdv(pdv) {
+  if (!pdv.id_unique) {
+    await pdv.update({ id_unique: genererIdUniquePdv(pdv.id) });
+  }
+}
+
+function reponseEnrolement(pdv, agent, extra = {}) {
+  return {
+    ...pdv.toJSON(),
+    ...extra,
+    position_token: jwt.sign(
+      { type: 'mobile-position', pdvId: pdv.id, terminalId: pdv.id_terminal },
+      process.env.JWT_SECRET,
+      { expiresIn: '365d' }
+    ),
+    agent: { id: agent.id, nom: agent.nom, prenom: agent.prenom, matricule: agent.matricule }
+  };
+}
 
 /**
  * Liste les informations manquantes d'un dossier PDV : champs fixes de la
@@ -190,7 +220,7 @@ const pdvController = {
    */
   async mobileEnroll(req, res) {
     try {
-      const { matricule, terminal_id, latitude, longitude, device_info, nom_pdv } = req.body;
+      const { matricule, terminal_id, latitude, longitude, precision, device_info, nom_pdv } = req.body;
 
       if (!matricule || !String(matricule).trim()) {
         return res.status(400).json({ error: 'Le numéro matricule est requis' });
@@ -225,7 +255,8 @@ const pdvController = {
       const positionDuJour = {
         derniere_position_latitude: latitude,
         derniere_position_longitude: longitude,
-        derniere_position_date: new Date()
+        derniere_position_date: new Date(),
+        derniere_position_precision: precisionGpsValide(precision)
       };
 
       // Terminal déjà enrôlé : on rafraîchit sa position et on renvoie le
@@ -239,6 +270,7 @@ const pdvController = {
       // une confirmation explicite plutôt que d'écraser.
       const existant = await PDV.findOne({ where: { id_terminal: terminal_id } });
       if (existant) {
+        await assurerIdUniquePdv(existant);
         const ancrageLat = Number(existant.latitude_creation);
         const ancrageLng = Number(existant.longitude_creation);
         const ecart =
@@ -291,22 +323,13 @@ const pdvController = {
             `Terminal ${terminal_id} réaffecté par ${agent.matricule} : PDV #${existant.id} ` +
               `déplacé de ${Math.round(ecart)} m (ancien: "${existant.nom_pdv}").`
           );
-          return res.json({
-            ...existant.toJSON(),
-            _existing: true,
-            _reassigned: true,
-            agent: { id: agent.id, nom: agent.nom, prenom: agent.prenom, matricule: agent.matricule }
-          });
+          return res.json(reponseEnrolement(existant, agent, { _existing: true, _reassigned: true }));
         }
 
         // Écart normal (dérive GPS sur place, ou pas d'ancrage connu) :
         // comportement d'origine, on rafraîchit juste la position courante.
         await existant.update(positionDuJour);
-        return res.json({
-          ...existant.toJSON(),
-          _existing: true,
-          agent: { id: agent.id, nom: agent.nom, prenom: agent.prenom, matricule: agent.matricule }
-        });
+        return res.json(reponseEnrolement(existant, agent, { _existing: true }));
       }
 
       const payload = await completerLocalisation({
@@ -336,6 +359,7 @@ const pdvController = {
       let pdv;
       try {
         pdv = await PDV.create(payload);
+        await assurerIdUniquePdv(pdv);
       } catch (error) {
         // Deux requêtes d'enrôlement parties en parallèle (double appui sur
         // "Se connecter", rejeu après un timeout réseau) passent toutes les
@@ -345,12 +369,9 @@ const pdvController = {
         if (error?.name === 'SequelizeUniqueConstraintError') {
           const concurrent = await PDV.findOne({ where: { id_terminal: terminal_id } });
           if (concurrent) {
+            await assurerIdUniquePdv(concurrent);
             await concurrent.update(positionDuJour);
-            return res.json({
-              ...concurrent.toJSON(),
-              _existing: true,
-              agent: { id: agent.id, nom: agent.nom, prenom: agent.prenom, matricule: agent.matricule }
-            });
+            return res.json(reponseEnrolement(concurrent, agent, { _existing: true }));
           }
         }
         throw error;
@@ -360,11 +381,7 @@ const pdvController = {
         `PDV enrôlé en brouillon depuis le mobile: terminal ${terminal_id} par ${agent.matricule}`
       );
 
-      res.status(201).json({
-        ...pdv.toJSON(),
-        _existing: false,
-        agent: { id: agent.id, nom: agent.nom, prenom: agent.prenom, matricule: agent.matricule }
-      });
+      res.status(201).json(reponseEnrolement(pdv, agent, { _existing: false }));
     } catch (error) {
       logger.error("Erreur lors de l'enrôlement mobile du PDV:", error);
       res.status(500).json({ error: 'Erreur serveur' });
@@ -515,6 +532,7 @@ const pdvController = {
       // ailleurs plutôt que de le laisser artificiellement en brouillon.
       const manquants = await informationsManquantes(pdv);
       if (manquants.length === 0) {
+        await assurerIdUniquePdv(pdv);
         await pdv.update({
           statut_dossier: 'complet',
           date_completion: new Date(),
@@ -674,6 +692,9 @@ const pdvController = {
       // dossier ne puisse pas être marqué "complet" alors qu'il ne l'est pas.
       const manquants = await informationsManquantes(pdv);
       const nouvelEtat = manquants.length === 0 ? 'complet' : 'brouillon';
+      if (nouvelEtat === 'complet') {
+        await assurerIdUniquePdv(pdv);
+      }
       if (nouvelEtat !== pdv.statut_dossier) {
         await pdv.update({
           statut_dossier: nouvelEtat,
@@ -739,6 +760,10 @@ const pdvController = {
       await pdv.reload();
       const manquants = await informationsManquantes(pdv);
       const estComplet = manquants.length === 0;
+
+      if (estComplet) {
+        await assurerIdUniquePdv(pdv);
+      }
 
       await pdv.update({
         statut_dossier: estComplet ? 'complet' : 'brouillon',

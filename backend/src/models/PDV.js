@@ -103,6 +103,11 @@ const PDV = sequelize.define('PDV', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  derniere_position_precision: {
+    type: DataTypes.DECIMAL(8, 2),
+    allowNull: true,
+    comment: 'Rayon estimé de précision GPS en mètres pour la dernière position'
+  },
 
   // Informations de tagging (concessionnaire / vendeur)
   concessionnaire_nom: {

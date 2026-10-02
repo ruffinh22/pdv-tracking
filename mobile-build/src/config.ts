@@ -24,7 +24,7 @@ export const CONFIG = {
 
   LOCATION: {
     // Intervalle entre deux remontées de position en arrière-plan (ms)
-    TRACKING_INTERVAL: 30000,
+    TRACKING_INTERVAL: 15000,
     // Déplacement minimal déclenchant une nouvelle remontée (m)
     TRACKING_DISTANCE: 5,
     TIMEOUT: 10000,
@@ -34,7 +34,7 @@ export const CONFIG = {
   GEOFENCE_DEFAULT_RADIUS_METERS: 500,
 
   SYNC: {
-    AUTO_SYNC_INTERVAL_SECONDS: 300,
+    AUTO_SYNC_INTERVAL_SECONDS: 60,
     MAX_RETRY_ATTEMPTS: 3,
   },
 

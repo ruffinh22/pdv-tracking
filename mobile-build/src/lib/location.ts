@@ -132,7 +132,7 @@ async function acquerir(): Promise<ResultatLocalisation> {
 
   // 1. Permission. Un refus est un état stable : inutile de lancer une
   //    acquisition qui échouerait silencieusement derrière.
-  let permission;
+  let permission: { status?: string } | null;
   try {
     permission = await avecDelai(Location.requestForegroundPermissionsAsync(), 15000);
   } catch {
@@ -165,11 +165,9 @@ async function acquerir(): Promise<ResultatLocalisation> {
     cache = null;
   }
 
-  // 4. Position fraîche, strictement bornée. `Balanced` (assisté réseau)
-  //    converge en quelques secondes là où `High` peut mettre 30 s en
-  //    intérieur, pour une précision dont on n'a pas besoin ici.
+  // 4. Position fraîche avec la meilleure précision native disponible.
   const fraiche = await avecDelai(
-    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
     DELAI_POSITION_FRAICHE_MS
   );
   const pointFrais = versPoint(fraiche);
@@ -225,7 +223,7 @@ export async function suivrePosition(
     if (permission.status !== 'granted') return () => {};
 
     const abonnement = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 5 },
+      { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 5 },
       (position: any) => {
         const point = versPoint(position);
         if (point) surPosition(point);

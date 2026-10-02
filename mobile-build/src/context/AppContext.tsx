@@ -1,11 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { initDatabase, clearAllData } from '@/lib/database';
 import { api } from '@/lib/api';
 import { CONFIG } from '@/config';
 import { syncService } from '@/services/syncService';
-import { startBackgroundLocationTracking, stopBackgroundLocationTracking } from '@/tasks/locationTask';
+import { LOCATION_TASK_NAME, startBackgroundLocationTracking, stopBackgroundLocationTracking } from '@/tasks/locationTask';
 import { getOrCreateTerminalId } from '@/lib/terminalId';
 import { EchecLocalisation, obtenirPosition, suivrePosition } from '@/lib/location';
 import { GPSPoint, SyncStatus } from '@/types';
@@ -56,6 +56,7 @@ export interface AgentInfo {
 
 export interface PDVInfo {
   id: number;
+  id_unique?: string | null;
   nom_pdv?: string;
   msisdn_responsable?: string;
   concessionnaire_nom?: string;
@@ -238,6 +239,61 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const verifierSuivi = useCallback(async () => {
+    if (Platform.OS === 'web' || !Location) return;
+    try {
+      const [premierPlan, arrierePlan, servicesActifs, tacheDemarree] = await Promise.all([
+        Location.getForegroundPermissionsAsync(),
+        Location.getBackgroundPermissionsAsync(),
+        Location.hasServicesEnabledAsync(),
+        Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME).catch(() => false),
+      ]);
+      setPermissionArrierePlan(arrierePlan.status === 'granted');
+
+      if (premierPlan.status !== 'granted' || arrierePlan.status !== 'granted') {
+        setIsTracking(false);
+        setEtatGPS({ statut: 'echec', raison: 'permission_refusee', message: 'Autorisez la localisation en arrière-plan dans les réglages du téléphone.' });
+        return;
+      }
+      if (!servicesActifs) {
+        setIsTracking(false);
+        setEtatGPS({ statut: 'echec', raison: 'service_desactive', message: 'Le GPS du téléphone est désactivé.' });
+        return;
+      }
+      if (!tacheDemarree) {
+        await startBackgroundLocationTracking(CONFIG.LOCATION.TRACKING_INTERVAL, CONFIG.LOCATION.TRACKING_DISTANCE);
+      }
+      setIsTracking(true);
+    } catch (error) {
+      console.warn('[app] Vérification du suivi impossible:', error);
+      setIsTracking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOnboarded || Platform.OS === 'web') return;
+    let intervalle: ReturnType<typeof setInterval> | undefined;
+    const synchroniser = () => {
+      syncService.autoSync().then(refreshQueue).catch((error) => {
+        console.warn('[app] Synchronisation périodique impossible:', error);
+      });
+    };
+    const handleAppState = (state: string) => {
+      if (intervalle) clearInterval(intervalle);
+      if (state === 'active') {
+        verifierSuivi();
+        synchroniser();
+        intervalle = setInterval(synchroniser, CONFIG.SYNC.AUTO_SYNC_INTERVAL_SECONDS * 1000);
+      }
+    };
+    const subscription = AppState.addEventListener('change', handleAppState);
+    handleAppState(AppState.currentState);
+    return () => {
+      if (intervalle) clearInterval(intervalle);
+      subscription.remove();
+    };
+  }, [isOnboarded, refreshQueue, verifierSuivi]);
+
   // --- Démarrage de l'application ---------------------------------------
   useEffect(() => {
     (async () => {
@@ -379,26 +435,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!pdv?.id) {
           return { ok: false, message: 'Réponse invalide du serveur.' };
         }
+        if (!pdv.position_token) {
+          return { ok: false, message: 'Le serveur ne fournit pas le jeton sécurisé du terminal. Mettez à jour le serveur puis réessayez.' };
+        }
+
+        const { position_token: positionToken, ...pdvSansJeton } = pdv;
 
         const lat = Number(pdv.latitude_creation ?? point.latitude);
         const lng = Number(pdv.longitude_creation ?? point.longitude);
 
         await Promise.all([
           setSecureItem('pdvId', String(pdv.id)),
+          setSecureItem('mobilePositionToken', positionToken),
           setSecureItem('terminalId', deviceTerminalId),
           setSecureItem('matricule', matriculeNormalise),
           setSecureItem('isOnboarded', 'true'),
           setSecureItem('initialLat', String(lat)),
           setSecureItem('initialLng', String(lng)),
           pdv.agent ? setSecureItem('agent', JSON.stringify(pdv.agent)) : Promise.resolve(),
-          setSecureItem('pdv', JSON.stringify(pdv)),
+          setSecureItem('pdv', JSON.stringify(pdvSansJeton)),
         ]);
 
         setPdvId(String(pdv.id));
         setTerminalId(deviceTerminalId);
         setMatricule(matriculeNormalise);
         if (pdv.agent) setAgent(pdv.agent);
-        setPdv(pdv);
+        setPdv(pdvSansJeton);
         setInitialLocation({ latitude: lat, longitude: lng });
         setIsOnboarded(true);
 
@@ -463,6 +525,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       await Promise.all([
         deleteSecureItem('pdvId'),
+        deleteSecureItem('mobilePositionToken'),
         deleteSecureItem('msisdn'),
             deleteSecureItem('pdv'),
         deleteSecureItem('matricule'),

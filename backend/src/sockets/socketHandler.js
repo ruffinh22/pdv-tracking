@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const geofencingService = require('../services/geofencingService');
+const { PDV } = require('../models');
 
 let ioInstance = null;
 
@@ -25,47 +26,15 @@ const socketHandler = (io) => {
 
   io.on('connection', (socket) => {
     logger.info(`Client connecté: ${socket.id} (user ${socket.user?.userId})`);
+    socket.join(`user-${socket.user.userId}`);
+    if (socket.user.role === 'admin') socket.join('role-admin');
+    if (socket.user.role === 'agence' && socket.user.agence_id) {
+      socket.join(`agence-${socket.user.agence_id}`);
+    }
 
-    // Join a room for PDV updates
-    socket.on('join-pdv-updates', (pdvId) => {
-      socket.join(`pdv-${pdvId}`);
-      logger.info(`Socket ${socket.id} joint pdv-${pdvId}`);
-    });
-
-    // Leave a room
-    socket.on('leave-pdv-updates', (pdvId) => {
-      socket.leave(`pdv-${pdvId}`);
-      logger.info(`Socket ${socket.id} a quitté pdv-${pdvId}`);
-    });
-
-    // Handle position updates emitted directly via socket (ex: app mobile
-    // connectée en socket plutôt qu'en REST). Nom d'événement aligné sur
-    // 'position_update', celui utilisé par la carte de suivi côté frontend
-    // (auparavant 'position-update' avec un tiret, jamais reçu). Diffusion
-    // globale plutôt qu'à une room 'pdv-{id}' : le frontend ne rejoint aucune
-    // room, donc un envoi scopé à une room n'était jamais reçu non plus.
-    socket.on('position_update', async (data) => {
-      try {
-        const { pdv_id, latitude, longitude, precision, horodatage } = data || {};
-        // Validation minimale : on ne rediffuse jamais une position incohérente.
-        if (!Number.isFinite(Number(pdv_id)) || Math.abs(Number(latitude)) > 90 || Math.abs(Number(longitude)) > 180 ||
-            !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) {
-          return;
-        }
-
-        io.emit('position_update', {
-          pdv_id,
-          latitude,
-          longitude,
-          precision,
-          horodatage: horodatage || new Date()
-        });
-
-        logger.debug(`Position reçue pour PDV ${pdv_id}: ${latitude}, ${longitude}`);
-      } catch (error) {
-        logger.error('Erreur lors du traitement de la position:', error);
-      }
-    });
+    // Les clients ne peuvent pas injecter de points directement par socket.
+    // Les positions live sont diffusées uniquement par positionController après
+    // authentification, validation, enregistrement et contrôle anti-retour.
 
     // Pause/reprise du suivi demandée par un client (bouton play/pause de la
     // carte). On ne fait qu'acquitter pour l'instant : le filtrage réel se

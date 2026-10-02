@@ -71,11 +71,41 @@ cd android && ./gradlew assembleRelease   # build release local (.apk dans andro
 Modifiez `src/config.ts` :
 
 ```ts
-API_BASE_URL: 'http://VOTRE_IP_LOCALE:3001/api'
+API_BASE_URL: 'http://IP_LAN_DU_PC:3001/api'
 ```
 
 En développement, utilisez l'IP locale de votre machine (pas `localhost`) pour que le téléphone/
 émulateur puisse atteindre le backend Node.js.
+## Configuration
+
+### Développement local
+
+Copiez `.env.example` vers `.env.local` et remplacez l'IP par l'adresse LAN
+de la machine qui exécute le backend :
+
+```bash
+cp .env.example .env.local
+# EXPO_PUBLIC_API_URL=http://IP_LAN_DU_PC:3001/api
+yarn start
+```
+
+Sur un vrai téléphone, `localhost` désigne le téléphone lui-même. Il faut donc une IP
+joignable sur le réseau local pour le développement, ou le domaine HTTPS public.
+
+### Production sur EAS
+
+L'API de production est `https://pdvtrack.afrochicluxe.com/api`. Définissez
+`EXPO_PUBLIC_API_URL` dans l'environnement EAS `production` :
+
+```bash
+eas env:create --name EXPO_PUBLIC_API_URL --value https://pdvtrack.afrochicluxe.com/api --environment production --visibility plaintext
+eas env:list --environment production
+eas build --platform android --profile production
+```
+
+Une URL d'API n'est pas un secret ; ne placez jamais de mot de passe ou de clé privée
+dans une variable `EXPO_PUBLIC_*`. Cette variable est intégrée au binaire au moment du
+build : après un changement d'URL, il faut générer et distribuer un nouvel APK.
 
 ## 📁 Structure
 

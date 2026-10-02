@@ -3,8 +3,14 @@ import { Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, F
 import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { colors, radius, shadow } from '@/theme/colors';
-import { Produit } from '@/types';
 import Button from './ui/Button';
+
+interface Produit {
+  id: number;
+  nom_produit: string;
+  categorie?: string | null;
+  prix_unitaire?: number | null;
+}
 
 interface Props {
   visible: boolean;

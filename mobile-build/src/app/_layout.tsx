@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { AppProvider, useApp } from '@/context/AppContext';
 import { colors } from '@/theme/colors';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -34,11 +35,16 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  const segments = useSegments();
+  const statusBarStyle = segments[0] === 'onboarding' ? 'light' : 'dark';
+
   return (
-    <AppProvider>
-      <StatusBar style="light" />
-      <RootNavigator />
-    </AppProvider>
+    <SafeAreaProvider>
+      <AppProvider>
+        <StatusBar style={statusBarStyle} />
+        <RootNavigator />
+      </AppProvider>
+    </SafeAreaProvider>
   );
 }
 

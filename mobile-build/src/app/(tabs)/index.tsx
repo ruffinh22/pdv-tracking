@@ -12,6 +12,7 @@ import Badge from '@/components/ui/Badge';
 import AppHeader from '@/components/AppHeader';
 import { CONFIG } from '@/config';
 import { formatTerminalIdShort } from '@/lib/terminalId';
+import { formatIdUniquePdv } from '@/lib/pdvId';
 
 /**
  * Écran de suivi. Il ne présente plus de compteurs de ventes ni de montants :
@@ -22,6 +23,7 @@ export default function SuiviScreen() {
   const {
     terminalId,
     pdvId,
+    pdv,
     isTracking,
     permissionArrierePlan,
     currentLocation,
@@ -138,7 +140,7 @@ export default function SuiviScreen() {
         <Animated.View entering={FadeInDown.delay(180).duration(380)}>
           <Card>
             <Text style={styles.sectionTitre}>Point de vente</Text>
-            <Ligne label="Identifiant" valeur={pdvId ? `PDV #${pdvId}` : 'Non associé'} />
+            <Ligne label="Identifiant" valeur={formatIdUniquePdv(pdv?.id_unique, pdvId)} />
             <Ligne label="Terminal" valeur={terminalId || '—'} />
             <Ligne
               label="Point de tagging"

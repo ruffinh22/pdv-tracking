@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { colors } from '@/theme/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
  * Deux onglets seulement : l'app suit la position d'un point de vente, elle
@@ -41,6 +42,8 @@ function AnimatedTabIcon({
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -49,8 +52,8 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: colors.ink[400],
         tabBarStyle: {
           borderTopColor: colors.ink[100],
-          height: 62,
-          paddingBottom: 8,
+          height: 62 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 6,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },

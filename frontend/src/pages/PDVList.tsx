@@ -356,13 +356,18 @@ const PDVList = () => {
   const columns: ColumnDef<PDV>[] = [
     {
       id: 'pdv',
-      header: 'ID Terminal / PDV',
+      header: 'PDV / Identifiants',
       accessorFn: (p) => p.nom_pdv,
       meta: { label: 'PDV', mobileTitle: true },
       cell: ({ row }) => (
         <div className="min-w-[170px]">
           <div className="font-bold text-ink-950">{row.original.nom_pdv}</div>
-          <div className="text-xs font-semibold text-ink-500 break-all">{row.original.id_terminal || '—'}</div>
+          <div className="text-xs font-semibold text-primary-700 break-all">
+            ID unique : {row.original.id_unique || 'En attente de complétion'}
+          </div>
+          <div className="text-xs font-medium text-ink-500 break-all">
+            ID terminal : {row.original.id_terminal || '—'}
+          </div>
           {row.original.matricule_agent ? (
             <div className="text-xs font-medium text-ink-500">Agent {row.original.matricule_agent}</div>
           ) : null}

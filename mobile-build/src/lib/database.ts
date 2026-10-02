@@ -51,13 +51,14 @@ const createMockDatabase = () => ({
       const ids = idsRaw && !Array.isArray(idsRaw) ? idsRaw : { positions: 0 };
       const insertId = (ids.positions || 0) + 1;
       ids.positions = insertId;
-      const [latitude, longitude, horodatage, precision] = params || [];
+      const [latitude, longitude, horodatage, precision, clientEventId] = params || [];
       positions.push({
         id: insertId,
         latitude,
         longitude,
         horodatage,
         precision,
+        client_event_id: clientEventId,
         synchronise: 0,
         created_at: new Date().toISOString(),
       });
@@ -75,8 +76,17 @@ const createMockDatabase = () => ({
     }
 
     if (sql.startsWith('DELETE FROM positions')) {
+      const positions = readStore(POSITIONS_KEY);
+      if (sql.includes('synchronise = 1')) {
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const remaining = positions.filter(
+          (position: any) => Number(position.synchronise) !== 1 || Date.parse(position.horodatage) >= cutoff
+        );
+        writeStore(POSITIONS_KEY, remaining);
+        return { changes: positions.length - remaining.length };
+      }
       writeStore(POSITIONS_KEY, []);
-      return { changes: 0 };
+      return { changes: positions.length };
     }
 
     return { insertId: 0 };
@@ -143,10 +153,18 @@ export async function initDatabase(): Promise<any> {
       longitude REAL NOT NULL,
       horodatage TEXT NOT NULL,
       precision REAL,
+      client_event_id TEXT,
       synchronise INTEGER DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  if (Platform.OS !== 'web') {
+    const colonnes = await db.getAllAsync('PRAGMA table_info(positions)');
+    if (!colonnes.some((colonne: { name: string }) => colonne.name === 'client_event_id')) {
+      await db.execAsync('ALTER TABLE positions ADD COLUMN client_event_id TEXT;');
+    }
+  }
 
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS metadata (

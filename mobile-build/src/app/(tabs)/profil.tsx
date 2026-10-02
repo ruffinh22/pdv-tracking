@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { CONFIG } from '@/config';
 import { formatTerminalIdShort } from '@/lib/terminalId';
+import { formatIdUniquePdv } from '@/lib/pdvId';
 
 export default function ProfilScreen() {
   const {
@@ -66,7 +67,7 @@ export default function ProfilScreen() {
               <Ionicons name="storefront" size={26} color={colors.primary[600]} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.pdvId}>PDV #{pdvId ?? '—'}</Text>
+              <Text style={styles.pdvId}>{formatIdUniquePdv(pdv?.id_unique, pdvId)}</Text>
               <Text style={styles.sousTitre} numberOfLines={1} ellipsizeMode="middle">
                 ID terminal · {terminalId || '—'}
               </Text>

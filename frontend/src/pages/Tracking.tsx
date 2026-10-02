@@ -15,6 +15,7 @@ interface PDV {
   derniere_position_latitude?: number;
   derniere_position_longitude?: number;
   derniere_position_date?: string;
+  derniere_position_precision?: number | string | null;
   statut: string;
   zone_geofence_id?: number | null;
 }
@@ -24,7 +25,16 @@ interface Position {
   latitude: number;
   longitude: number;
   horodatage: string;
+  precision: number | null;
 }
+
+const SEUIL_POSITION_RECENTE_MS = 2 * 60 * 1000;
+
+const estPositionRecente = (date: string, maintenant: number): boolean => {
+  const horodatage = Date.parse(date);
+  const age = maintenant - horodatage;
+  return Number.isFinite(horodatage) && age >= -30_000 && age <= SEUIL_POSITION_RECENTE_MS;
+};
 
 // Le backend peut renvoyer l'historique de positions avec des noms de champs
 // légèrement différents selon l'endpoint ; on normalise ici plutôt que de
@@ -32,17 +42,21 @@ interface Position {
 const normalizePosition = (raw: any): Position | null => {
   const lat = Number(raw?.latitude ?? raw?.lat);
   const lng = Number(raw?.longitude ?? raw?.lng ?? raw?.lon);
-  if (isNaN(lat) || isNaN(lng)) return null;
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) return null;
+  const rawPrecision = raw?.precision ?? raw?.accuracy;
   return {
     pdv_id: Number(raw?.pdv_id ?? raw?.pdvId),
     latitude: lat,
     longitude: lng,
     horodatage: raw?.horodatage ?? raw?.date ?? raw?.timestamp ?? raw?.created_at ?? '',
+    precision: rawPrecision !== null && rawPrecision !== undefined && Number.isFinite(Number(rawPrecision))
+      ? Number(rawPrecision)
+      : null,
   };
 };
 
-const createIcon = (statut: string, isSelected: boolean) => {
-  const color = couleurStatut(statut);
+const createIcon = (statut: string, isSelected: boolean, positionRecente: boolean) => {
+  const color = positionRecente ? couleurStatut(statut) : '#8B929B';
   const size = isSelected ? 40 : 32;
   const borderSize = isSelected ? 4 : 3;
   return L.divIcon({
@@ -71,17 +85,24 @@ const createIcon = (statut: string, isSelected: boolean) => {
 const toCoord = (v: unknown): number | null => {
   if (v === null || v === undefined || v === '') return null;
   const n = Number(v);
-  return Number.isFinite(n) && n !== 0 ? n : null;
+  return Number.isFinite(n) ? n : null;
 };
 
 const echapper = (t: unknown) =>
   String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
-const popupHtml = (pdv: PDV, pos: { lat: number; lng: number; date: string; live: boolean }, suivi: boolean) => `
+const popupHtml = (
+  pdv: PDV,
+  pos: { lat: number; lng: number; date: string; live: boolean; precision: number | null },
+  suivi: boolean,
+  positionRecente: boolean
+) => `
   <div style="min-width: 240px;">
     <h3 style="margin: 0 0 8px 0; font-weight: bold;">${echapper(pdv.nom_pdv)}</h3>
-    <p style="margin: 4px 0;"><strong>Statut :</strong> ${echapper(pdv.statut)}</p>
+    <p style="margin: 4px 0;"><strong>Statut PDV :</strong> ${echapper(pdv.statut)}</p>
+    <p style="margin: 4px 0;"><strong>Suivi GPS :</strong> ${positionRecente ? 'Position récente' : 'Aucune position depuis plus de 2 min'}</p>
     <p style="margin: 4px 0;"><strong>Position :</strong> ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}</p>
+    <p style="margin: 4px 0;"><strong>Précision GPS estimée :</strong> ${pos.precision !== null ? `±${Math.round(pos.precision)} m` : 'indisponible'}</p>
     <p style="margin: 4px 0;"><strong>Dernière mise à jour :</strong> ${echapper(pos.date ? new Date(pos.date).toLocaleString('fr-FR') : 'Inconnue')}</p>
     ${
       suivi
@@ -95,6 +116,7 @@ const Tracking = () => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<Map<number, L.Marker>>(new Map());
+  const accuracyCirclesRef = useRef<Map<number, L.Circle>>(new Map());
   const polylinesRef = useRef<Map<number, L.Polyline>>(new Map());
   const socketRef = useRef<Socket | null>(null);
   
@@ -105,23 +127,28 @@ const Tracking = () => {
   const [statutFilter, setStatutFilter] = useState<string>('all');
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [isConnected, setIsConnected] = useState(false);
+  const [maintenant, setMaintenant] = useState(Date.now());
+
+  useEffect(() => {
+    const intervalle = setInterval(() => setMaintenant(Date.now()), 15_000);
+    return () => clearInterval(intervalle);
+  }, []);
 
   const { data: pdvsResponse } = useQuery({
     queryKey: ['pdvsForTracking'],
     queryFn: () => pdvService.getAllPDVsNoPagination(),
     // On revalide périodiquement au cas où le socket serait momentanément
     // coupé, pour ne pas rester bloqué sur des positions figées.
-    refetchInterval: 60_000,
+    refetchInterval: isConnected ? false : 60_000,
   });
 
   // Historique réel des positions du PDV suivi (pour tracer la trajectoire),
   // au lieu de points générés aléatoirement.
   const { data: selectedPdvPositions } = useQuery({
     queryKey: ['pdvPositions', selectedPDV],
-    queryFn: () => (selectedPDV ? pdvService.getPDVPositions(selectedPDV) : Promise.resolve([])),
+    queryFn: () => (selectedPDV ? pdvService.getPDVPositions(selectedPDV, { limit: 500 }) : Promise.resolve([])),
     enabled: !!selectedPDV,
-    staleTime: 5_000,
-    refetchInterval: selectedPDV && isTracking ? 10_000 : false,
+    staleTime: 60_000,
   });
 
   const allPdvs: PDV[] = useMemo(() => pdvsResponse?.data || [], [pdvsResponse]);
@@ -157,6 +184,8 @@ const Tracking = () => {
 
     return () => {
       markersRef.current.clear();
+      accuracyCirclesRef.current.forEach((circle) => circle.remove());
+      accuracyCirclesRef.current.clear();
       polylinesRef.current.clear();
       if (mapRef.current) {
         mapRef.current.remove();
@@ -231,27 +260,35 @@ const Tracking = () => {
   // Position affichée de chaque PDV : la plus récente parmi le temps réel,
   // l'historique interrogé (PDV suivi) et la dernière position connue.
   const positions = useMemo(() => {
-    const out = new Map<number, { lat: number; lng: number; date: string; live: boolean }>();
+    const out = new Map<number, { lat: number; lng: number; date: string; live: boolean; precision: number | null }>();
     const temps = (d?: string) => (d ? new Date(d).getTime() || 0 : 0);
     pdvs.forEach((pdv) => {
-      const candidats: { lat: unknown; lng: unknown; date: string; live: boolean }[] = [];
+      const candidats: { lat: unknown; lng: unknown; date: string; live: boolean; precision: unknown }[] = [];
       const live = livePositions.get(pdv.id);
-      if (live) candidats.push({ lat: live.latitude, lng: live.longitude, date: live.horodatage, live: true });
+      if (live) candidats.push({ lat: live.latitude, lng: live.longitude, date: live.horodatage, live: true, precision: live.precision });
       if (selectedPDV === pdv.id && historique.length) {
         const h = historique[historique.length - 1];
-        candidats.push({ lat: h.latitude, lng: h.longitude, date: h.horodatage, live: true });
+        candidats.push({ lat: h.latitude, lng: h.longitude, date: h.horodatage, live: true, precision: h.precision });
       }
       candidats.push({
         lat: pdv.derniere_position_latitude,
         lng: pdv.derniere_position_longitude,
         date: pdv.derniere_position_date || '',
         live: false,
+        precision: pdv.derniere_position_precision,
       });
-      candidats.push({ lat: pdv.latitude_creation, lng: pdv.longitude_creation, date: '', live: false });
+      candidats.push({ lat: pdv.latitude_creation, lng: pdv.longitude_creation, date: '', live: false, precision: null });
 
       const valides = candidats
-        .map((c) => ({ ...c, lat: toCoord(c.lat), lng: toCoord(c.lng) }))
-        .filter((c): c is { lat: number; lng: number; date: string; live: boolean } => c.lat !== null && c.lng !== null);
+        .map((c) => ({
+          ...c,
+          lat: toCoord(c.lat),
+          lng: toCoord(c.lng),
+          precision: c.precision !== null && c.precision !== undefined && Number.isFinite(Number(c.precision))
+            ? Number(c.precision)
+            : null,
+        }))
+        .filter((c): c is { lat: number; lng: number; date: string; live: boolean; precision: number | null } => c.lat !== null && c.lng !== null);
       if (!valides.length) return;
       // Le candidat daté le plus récent gagne ; à défaut, l'ordre de priorité ci-dessus.
       const meilleur = valides.reduce((m, c) => (temps(c.date) > temps(m.date) ? c : m), valides[0]);
@@ -259,6 +296,11 @@ const Tracking = () => {
     });
     return out;
   }, [pdvs, livePositions, historique, selectedPDV]);
+
+  const positionsRecentes = useMemo(
+    () => Array.from(positions.values()).filter((position) => estPositionRecente(position.date, maintenant)).length,
+    [positions, maintenant]
+  );
 
   // Synchronisation incrémentale des marqueurs : on déplace/met à jour ceux qui
   // existent au lieu de tout supprimer à chaque position reçue (ce qui fermait
@@ -274,29 +316,63 @@ const Tracking = () => {
         markersRef.current.delete(id);
       }
     });
+    accuracyCirclesRef.current.forEach((circle, id) => {
+      if (!voulus.has(id)) {
+        map.removeLayer(circle);
+        accuracyCirclesRef.current.delete(id);
+      }
+    });
 
     pdvs.forEach((pdv) => {
       const pos = positions.get(pdv.id);
       if (!pos) return;
-      const cle = `${pdv.statut}|${selectedPDV === pdv.id}`;
+      const positionRecente = estPositionRecente(pos.date, maintenant);
+      const cle = `${pdv.statut}|${selectedPDV === pdv.id}|${positionRecente}`;
+      const accuracyCircle = accuracyCirclesRef.current.get(pdv.id);
+      if (pos.precision !== null && pos.precision > 0) {
+        if (accuracyCircle) {
+          accuracyCircle
+            .setLatLng([pos.lat, pos.lng])
+            .setRadius(pos.precision)
+            .setStyle({
+              color: positionRecente ? BRAND.green : '#8B929B',
+              fillColor: positionRecente ? BRAND.green : '#8B929B',
+            });
+        } else {
+          accuracyCirclesRef.current.set(
+            pdv.id,
+            L.circle([pos.lat, pos.lng], {
+              radius: pos.precision,
+              color: positionRecente ? BRAND.green : '#8B929B',
+              weight: 1,
+              fillColor: positionRecente ? BRAND.green : '#8B929B',
+              fillOpacity: 0.12,
+              interactive: false,
+            }).addTo(map)
+          );
+        }
+      } else if (accuracyCircle) {
+        map.removeLayer(accuracyCircle);
+        accuracyCirclesRef.current.delete(pdv.id);
+      }
       let marker = markersRef.current.get(pdv.id) as (L.Marker & { __cle?: string; __html?: string }) | undefined;
 
       if (!marker) {
-        marker = L.marker([pos.lat, pos.lng], { icon: createIcon(pdv.statut, selectedPDV === pdv.id) }) as L.Marker & { __cle?: string; __html?: string };
+        marker = L.marker([pos.lat, pos.lng], { icon: createIcon(pdv.statut, selectedPDV === pdv.id, positionRecente) }) as L.Marker & { __cle?: string; __html?: string };
         marker.__cle = cle;
         marker.addTo(map);
-        marker.__html = popupHtml(pdv, pos, selectedPDV === pdv.id);
+        marker.__html = popupHtml(pdv, pos, selectedPDV === pdv.id, positionRecente);
         marker.bindPopup(marker.__html);
         markersRef.current.set(pdv.id, marker);
       } else {
         marker.setLatLng([pos.lat, pos.lng]);
         if (marker.__cle !== cle) {
-          marker.setIcon(createIcon(pdv.statut, selectedPDV === pdv.id));
+          marker.setIcon(createIcon(pdv.statut, selectedPDV === pdv.id, positionRecente));
           marker.__cle = cle;
         }
         // Le contenu n'est remplacé que s'il a changé : sinon le bouton serait
         // recréé sous le doigt de l'utilisateur et le clic perdu.
-        const html = popupHtml(pdv, pos, selectedPDV === pdv.id);
+        const html = popupHtml(pdv, pos, selectedPDV === pdv.id, positionRecente);
         if (marker.__html !== html) {
           marker.__html = html;
           marker.setPopupContent(html);
@@ -319,7 +395,7 @@ const Tracking = () => {
         );
       }
     }
-  }, [pdvs, positions, selectedPDV, historique]);
+  }, [pdvs, positions, selectedPDV, historique, maintenant]);
 
   // Cadrage global : uniquement quand l'ensemble des PDV affichés change
   // (chargement, filtre) ou quand on arrête le suivi, jamais à chaque position.
@@ -397,19 +473,19 @@ const Tracking = () => {
               <Radio className="w-[18px] h-[18px]" />
             </span>
             <div className="leading-tight">
-              <h1 className="text-[17px] font-bold tracking-tight">Suivi en temps réel</h1>
+              <h1 className="text-[17px] font-bold tracking-tight text-white">Suivi en temps réel</h1>
               <p className="text-[11.5px] font-medium text-white/80">Position des points de vente</p>
             </div>
           </div>
 
           <div className="flex items-stretch gap-2">
             <div className="px-3.5 py-1.5 rounded-[4px] bg-white/10 border border-white/20 leading-tight">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80">PDV actifs</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80">Statut PDV actif</p>
               <p className="text-[20px] font-bold tabular-nums">{allPdvs.filter((p) => p.statut === 'actif').length || 0}</p>
             </div>
             <div className="px-3.5 py-1.5 rounded-[4px] bg-white/10 border border-white/20 leading-tight">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80">En mouvement</p>
-              <p className="text-[20px] font-bold tabular-nums">{livePositions.size}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80">Positions récentes (&lt; 2 min)</p>
+              <p className="text-[20px] font-bold tabular-nums">{positionsRecentes}</p>
             </div>
             <div
               className="px-3.5 py-1.5 rounded-[4px] bg-white text-ink-800 flex items-center gap-2.5 leading-tight"

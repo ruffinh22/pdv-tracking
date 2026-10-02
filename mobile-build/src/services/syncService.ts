@@ -38,6 +38,7 @@ if (Platform.OS !== 'web') {
 const getSecureItem = async (key: string): Promise<string | null> => SecureStore.getItemAsync(key);
 
 class SyncService {
+  private static readonly SYNC_BATCH_SIZE = 25;
   private ready = false;
 
   private async ensureDb() {
@@ -57,9 +58,11 @@ class SyncService {
   }): Promise<boolean> {
     try {
       const db = await this.ensureDb();
+      const terminalId = await getSecureItem('terminalId');
+      const clientEventId = `${terminalId || 'terminal'}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       await db.runAsync(
-        `INSERT INTO positions (latitude, longitude, horodatage, precision, synchronise) VALUES (?, ?, ?, ?, 0)`,
-        [position.latitude, position.longitude, position.horodatage, position.accuracy || 0]
+        `INSERT INTO positions (latitude, longitude, horodatage, precision, client_event_id, synchronise) VALUES (?, ?, ?, ?, ?, 0)`,
+        [position.latitude, position.longitude, position.horodatage, position.accuracy ?? null, clientEventId]
       );
       return true;
     } catch (error) {
@@ -68,33 +71,22 @@ class SyncService {
     }
   }
 
-  /** Limite de requêtes simultanées pour ne pas saturer un réseau mobile. */
-  private static readonly SYNC_CONCURRENCY = 5;
+  private syncPromise: Promise<{ success: boolean; synced: number }> | null = null;
 
-  private async runWithConcurrency<T>(
-    items: T[],
-    worker: (item: T) => Promise<boolean>
-  ): Promise<number> {
-    let cursor = 0;
-    let synced = 0;
-
-    const runNext = async (): Promise<void> => {
-      while (cursor < items.length) {
-        const item = items[cursor++];
-        if (await worker(item)) synced++;
-      }
-    };
-
-    await Promise.all(
-      Array.from({ length: Math.min(SyncService.SYNC_CONCURRENCY, items.length) }, runNext)
-    );
-    return synced;
+  syncPositions(): Promise<{ success: boolean; synced: number }> {
+    if (this.syncPromise) return this.syncPromise;
+    this.syncPromise = this.syncPendingPositions().finally(() => {
+      this.syncPromise = null;
+    });
+    return this.syncPromise;
   }
 
-  async syncPositions(): Promise<{ success: boolean; synced: number }> {
+  private async syncPendingPositions(): Promise<{ success: boolean; synced: number }> {
     try {
       const db = await this.ensureDb();
-      const positions = await db.getAllAsync('SELECT * FROM positions WHERE synchronise = 0');
+      const positions = await db.getAllAsync(
+        'SELECT * FROM positions WHERE synchronise = 0 ORDER BY horodatage ASC, id ASC LIMIT 100'
+      );
       if (positions.length === 0) return { success: true, synced: 0 };
 
       const pdvId = await getSecureItem('pdvId');
@@ -104,25 +96,47 @@ class SyncService {
         return { success: false, synced: 0 };
       }
 
-      const synced = await this.runWithConcurrency(positions, async (position: any) => {
+      let synced = 0;
+      const enAttente = positions as any[];
+      for (let offset = 0; offset < enAttente.length; offset += SyncService.SYNC_BATCH_SIZE) {
+        const lot = enAttente.slice(offset, offset + SyncService.SYNC_BATCH_SIZE);
+        const payload = lot.map((position) => ({
+          client_event_id:
+            position.client_event_id ||
+            `${pdvId}-legacy-${position.id}-${new Date(position.horodatage).getTime()}`,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          precision: position.precision,
+          horodatage: position.horodatage,
+        }));
         try {
-          await api.post(
-            '/positions/mobile/create',
-            {
-              pdv_id: Number(pdvId),
-              latitude: position.latitude,
-              longitude: position.longitude,
-              horodatage: position.horodatage,
-            },
-            { timeout: 6000 }
+          const { data } = await api.post(
+            '/positions/mobile/batch',
+            { pdv_id: Number(pdvId), positions: payload },
+            { timeout: 15000 }
           );
-          await db.runAsync('UPDATE positions SET synchronise = 1 WHERE id = ?', [position.id]);
-          return true;
+          const accepted = new Set(data?.accepted || []);
+          if (!payload.every((position) => accepted.has(position.client_event_id))) {
+            throw new Error('Accusé de réception incomplet pour le lot de positions');
+          }
+
+          const ids = lot.map((position) => position.id);
+          const placeholders = ids.map(() => '?').join(', ');
+          await db.runAsync(
+            `UPDATE positions SET synchronise = 1 WHERE id IN (${placeholders})`,
+            ids
+          );
+          synced += lot.length;
         } catch (error) {
-          console.warn(`[sync] Échec sync position ${position.id}:`, error);
-          return false;
+          console.warn(`[sync] Échec sync du lot à partir de la position ${lot[0]?.id}:`, error);
+          // Keep FIFO order; retries are idempotent if the server committed before a timeout.
+          return { success: false, synced };
         }
-      });
+      }
+
+      await db.runAsync(
+        "DELETE FROM positions WHERE synchronise = 1 AND julianday(horodatage) < julianday('now', '-7 days')"
+      );
 
       return { success: true, synced };
     } catch (error) {
@@ -153,8 +167,6 @@ class SyncService {
   }
 
   async autoSync(): Promise<{ success: boolean; synced: number }> {
-    const online = await this.checkConnection();
-    if (!online) return { success: false, synced: 0 };
     return this.syncPositions();
   }
 }
