@@ -8,6 +8,11 @@
     --field-border: #e1e5e2;
     --field-border-hover: #cbd1cd;
     --field-radius: 4px;
+    /* Vert du logo : unique couleur verte des surfaces (en-têtes de tableaux, boutons, bandeaux) */
+    --brand-green: #008840;
+    --brand-green-hover: #006d34;
+    /* Fond de la barre latérale uniquement : ne pas réutiliser ailleurs */
+    --sidebar-bg: #0a2a19;
   }
 
   html {
@@ -25,9 +30,6 @@
   body {
     @apply text-ink-900 font-sans font-medium bg-ink-50;
     font-variant-numeric: tabular-nums;
-    /* Une seule lueur discrète en haut : sobre, sans bruit visuel */
-    background-image: radial-gradient(1100px 380px at 100% -8%, rgba(255, 130, 0, 0.07), transparent 65%);
-    background-attachment: fixed;
   }
 
   ::selection { @apply bg-primary-200 text-primary-900; }
@@ -48,27 +50,12 @@
   .flag-stripe > span:nth-child(3) { background-color: theme('colors.flag.green'); }
 
   /* Vert du logo (#008840) approfondi : surfaces sombres « nationales » */
-  .bg-nation {
-    background-color: #00441f;
-    background-image:
-      radial-gradient(520px 320px at 0% 0%, rgba(36, 171, 98, 0.30), transparent 70%),
-      radial-gradient(420px 300px at 100% 100%, rgba(255, 130, 0, 0.12), transparent 70%),
-      linear-gradient(170deg, #00552a 0%, #00441f 55%, #003119 100%);
-  }
-  .bg-nation-deep {
-    background-color: #00301a;
-    background-image:
-      radial-gradient(460px 280px at 0% 0%, rgba(36, 171, 98, 0.20), transparent 70%),
-      radial-gradient(380px 260px at 100% 100%, rgba(255, 130, 0, 0.08), transparent 70%),
-      linear-gradient(170deg, #003d1e 0%, #00301a 55%, #00220f 100%);
-  }
-  .bg-nation-flat { background-color: #00552a; }
+  .bg-nation { background-color: var(--brand-green); }
+  .bg-nation-deep { background-color: var(--brand-green); }
+  .bg-nation-flat { background-color: var(--brand-green); }
 
   .text-gradient-brand {
-    background: linear-gradient(100deg, theme('colors.primary.500'), theme('colors.success.600'));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: theme('colors.success.600');
   }
   .num { font-variant-numeric: tabular-nums; }
 }
@@ -84,9 +71,9 @@
     position: absolute;
     left: 0;
     bottom: -1px;
-    width: 96px;
+    width: 48px;
     height: 3px;
-    background: linear-gradient(90deg, #ff8200 0 36%, transparent 36% 64%, #009a44 64% 100%);
+    background-color: #ff8200;
   }
   .page-subtitle { @apply text-[0.9rem] font-medium text-ink-600 mt-1.5; }
 
@@ -190,15 +177,15 @@
            focus:outline-none focus-visible:shadow-ring;
   }
   .choice--active {
-    @apply bg-success-700 border-success-700 text-white shadow-[0_4px_10px_-4px_rgba(0,109,52,0.7)]
-           hover:bg-success-800 hover:border-success-800 hover:text-white;
+    @apply bg-success-600 border-success-600 text-white
+           hover:bg-success-700 hover:border-success-700 hover:text-white;
   }
 
   /* ---------- Tableaux ---------- */
   .table { @apply w-full border-collapse text-sm; }
   .table thead th {
     @apply px-4 py-3 text-left text-[11px] font-extrabold uppercase tracking-[0.08em] text-success-50 whitespace-nowrap;
-    background-color: #00552a;
+    background-color: var(--brand-green);
     box-shadow: inset 0 -2px 0 theme('colors.primary.500');
   }
   .table thead th:first-child { @apply pl-6; }
@@ -215,7 +202,7 @@
   .dt-table { @apply w-full border-collapse text-sm; }
   .dt-table thead th {
     @apply px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-success-50 whitespace-nowrap;
-    background-color: #00552a;
+    background-color: var(--brand-green);
     box-shadow: inset 0 -2px 0 theme('colors.primary.500');
   }
   .dt-table thead th:first-child { @apply pl-6; }
@@ -286,7 +273,7 @@
 
   .empty-state { @apply flex flex-col items-center justify-center gap-2 py-16 text-center; }
   .empty-state-icon {
-    @apply w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-50 to-success-50 text-success-600
+    @apply w-16 h-16 rounded-[4px] bg-success-50 text-success-600
            flex items-center justify-center mb-1 ring-1 ring-ink-200;
   }
 

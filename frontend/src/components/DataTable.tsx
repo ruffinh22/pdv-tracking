@@ -99,7 +99,7 @@ export default function DataTable<T>({
 
   const empty = (
     <div className="flex flex-col items-center justify-center gap-2 py-14 text-center px-4" role="status">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-50 to-success-50 ring-1 ring-ink-200 flex items-center justify-center text-success-600">
+      <div className="w-14 h-14 rounded-[4px] bg-success-50 ring-1 ring-ink-200 flex items-center justify-center text-success-600">
         {emptyIcon ?? <Inbox className="w-6 h-6" aria-hidden />}
       </div>
       <p className="font-bold text-ink-800">{emptyMessage}</p>

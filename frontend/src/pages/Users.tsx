@@ -188,7 +188,7 @@ const UsersPage = () => {
       meta: { mobileTitle: true },
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-primary-100 to-primary-200 rounded-full flex items-center justify-center text-primary-800 text-[11px] font-extrabold shrink-0 ring-2 ring-white shadow-sm">
+          <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-800 text-[11px] font-extrabold shrink-0 ring-2 ring-white shadow-sm">
             {initialsOf(row.original)}
           </div>
           <div className="min-w-0">

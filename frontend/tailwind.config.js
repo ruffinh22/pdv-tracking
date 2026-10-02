@@ -58,7 +58,6 @@ export default {
       },
       borderRadius: { xl: '0.75rem', '2xl': '1rem', '3xl': '1.5rem' },
       backgroundImage: {
-        'flag-gradient': 'linear-gradient(90deg,#ff8200 0%,#ff8200 33%,#fff 33%,#fff 66%,#009a44 66%,#009a44 100%)',
       },
       keyframes: {
         shimmer: { '100%': { transform: 'translateX(100%)' } },

@@ -299,7 +299,7 @@ const Tracking = () => {
   return (
     <div className="h-[calc(100vh-4rem)] w-full bg-brand-950 flex flex-col">
       {/* Barre de contrôle principale */}
-      <div className="bg-success-900 text-white px-6 py-4 flex items-center justify-between shadow-lg border-b border-success-800" style={{ position: 'relative', zIndex: 100 }}>
+      <div className="bg-success-600 text-white px-6 py-4 flex items-center justify-between shadow-lg border-b border-success-700" style={{ position: 'relative', zIndex: 100 }}>
         <div className="flex items-center space-x-6">
           <h1 className="text-lg font-bold tracking-tight">Suivi en temps réel</h1>
           <div className="h-6 w-px bg-success-700"></div>
@@ -326,7 +326,7 @@ const Tracking = () => {
           
           <button
             onClick={refreshMap}
-            className="p-2 bg-success-700 rounded-lg hover:bg-success-600 transition-all"
+            className="p-2 bg-success-700 rounded-[4px] hover:bg-success-800 transition-all"
             title="Rafraîchir"
           >
             <RefreshCw className="w-5 h-5" />
@@ -334,7 +334,7 @@ const Tracking = () => {
           
           <button
             onClick={toggleFullscreen}
-            className="p-2 bg-success-700 rounded-lg hover:bg-success-600 transition-all"
+            className="p-2 bg-success-700 rounded-[4px] hover:bg-success-800 transition-all"
             title="Plein écran"
           >
             {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
@@ -352,7 +352,7 @@ const Tracking = () => {
       </div>
 
       {/* Barre de filtres incorporée */}
-      <div className="bg-success-900/70 px-6 py-3 flex items-center space-x-6 border-b border-success-800" style={{ position: 'relative', zIndex: 90 }}>
+      <div className="bg-success-600 px-6 py-3 flex items-center space-x-6 border-b border-success-700" style={{ position: 'relative', zIndex: 90 }}>
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-ink-400" />
           <span className="text-sm font-medium text-ink-300">Filtres:</span>
@@ -363,7 +363,7 @@ const Tracking = () => {
             <label className="text-xs text-ink-400">Statut:</label>
             <select 
               value={statutFilter}
-              className="bg-success-800 text-white text-sm px-3 py-1.5 rounded border border-success-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="bg-success-700 text-white text-sm px-3 py-1.5 rounded-[4px] border border-success-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               onChange={(e) => setStatutFilter(e.target.value)}
             >
               <option value="all">Tous</option>
@@ -377,7 +377,7 @@ const Tracking = () => {
             <label className="text-xs text-ink-400">Zone:</label>
             <select 
               value={zoneFilter}
-              className="bg-success-800 text-white text-sm px-3 py-1.5 rounded border border-success-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="bg-success-700 text-white text-sm px-3 py-1.5 rounded-[4px] border border-success-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               onChange={(e) => setZoneFilter(e.target.value)}
             >
               <option value="all">Toutes les zones</option>

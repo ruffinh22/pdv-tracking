@@ -49,10 +49,6 @@ const Login = () => {
         <div className="absolute -top-32 -left-32 w-[34rem] h-[34rem] rounded-full bg-success-400/30 blur-3xl animate-floaty" />
         <div className="absolute -bottom-40 -right-24 w-[32rem] h-[32rem] rounded-full bg-primary-500/35 blur-3xl animate-floaty" style={{ animationDelay: '-3s' }} />
         <div className="absolute top-1/2 right-10 w-56 h-56 rounded-full bg-danger-500/25 blur-3xl" />
-        <div
-          className="absolute inset-0 opacity-[0.07]"
-          style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1.5px, transparent 0)', backgroundSize: '30px 30px' }}
-        />
 
         <div className="relative z-10 flex flex-col justify-between p-14 text-white w-full flex-1">
           <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex items-center gap-4">
@@ -109,7 +105,7 @@ const Login = () => {
       </div>
 
       {/* Formulaire */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 bg-gradient-to-br from-white via-ink-50 to-success-50/60">
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 bg-white">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
             <div className="bg-white rounded-xl px-2.5 py-2 shadow-card ring-1 ring-ink-200">
@@ -119,7 +115,7 @@ const Login = () => {
           </div>
 
           <div className="bg-white rounded-3xl shadow-lift border border-ink-100 p-8 sm:p-10 relative overflow-hidden">
-            <div className="absolute inset-x-0 top-0 h-1.5 bg-flag-gradient" />
+            <div className="absolute inset-x-0 top-0 flag-stripe !h-1.5"><span /><span /><span /></div>
             <h1 className="font-display text-4xl font-extrabold text-ink-950">Connexion</h1>
             <p className="text-base font-medium text-ink-600 mt-2 mb-8">Accédez à votre espace de suivi des points de vente.</p>
 

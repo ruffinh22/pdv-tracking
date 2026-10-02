@@ -6,9 +6,9 @@ export default function InstitutionFooter() {
   return (
     <footer className="mt-10 border-t border-ink-200 bg-white print:hidden">
       <div className="flag-stripe"><span /><span /><span /></div>
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-5 grid gap-4 md:grid-cols-[1fr_auto_1fr] items-center text-[12px]">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4 grid gap-4 md:grid-cols-[1fr_auto_1fr] items-center text-[12px]">
         <div className="flex items-center gap-3 min-w-0">
-          <img src="/assets/lonaci-logo.png" alt="" className="h-8 w-auto shrink-0" />
+          <img src="/assets/lonaci-logo.png" alt="" className="h-5 w-auto shrink-0" />
           <div className="leading-tight min-w-0">
             <p className="font-extrabold text-ink-900 truncate">{INSTITUTION.nom}</p>
             <p className="font-medium text-ink-500 truncate">{INSTITUTION.systeme}</p>

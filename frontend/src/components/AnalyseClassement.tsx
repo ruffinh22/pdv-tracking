@@ -150,7 +150,7 @@ export default function AnalyseClassement({ data, loading = false, dimensionLabe
                       >
                         <motion.div
                           className="h-full rounded-full"
-                          style={{ background: `linear-gradient(90deg, ${BRAND.green}, ${BRAND.greenLight})` }}
+                          style={{ background: BRAND.green }}
                           initial={{ width: 0 }}
                           animate={{ width: `${partActifs}%` }}
                           transition={{ duration: 0.8, delay: 0.25 + i * 0.05, ease: 'easeOut' }}
