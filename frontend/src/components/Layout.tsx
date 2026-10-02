@@ -179,7 +179,7 @@ const Layout = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden shadow-2xl bg-nation ${
+        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden shadow-2xl bg-nation-deep ${
           isSidebarOpen ? 'w-64' : 'w-0'
         }`}
       >

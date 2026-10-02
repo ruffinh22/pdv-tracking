@@ -919,7 +919,7 @@ const PDVDetail = () => {
                     className={actif ? 'choice choice--active' : 'choice'}
                     aria-pressed={actif}
                   >
-                    {actif ? <Check className="w-4 h-4" aria-hidden /> : <span className="w-4 h-4 rounded-[4px] border-2 border-ink-300 bg-white" aria-hidden />}
+                    {actif ? <Check className="w-4 h-4" aria-hidden /> : <span className="w-4 h-4 rounded-[4px] border border-ink-400 bg-white" aria-hidden />}
                     {p.nom_produit}
                   </button>
                 );

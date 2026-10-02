@@ -48,6 +48,13 @@
       radial-gradient(420px 300px at 100% 100%, rgba(255, 130, 0, 0.12), transparent 70%),
       linear-gradient(170deg, #00552a 0%, #00441f 55%, #003119 100%);
   }
+  .bg-nation-deep {
+    background-color: #00301a;
+    background-image:
+      radial-gradient(460px 280px at 0% 0%, rgba(36, 171, 98, 0.20), transparent 70%),
+      radial-gradient(380px 260px at 100% 100%, rgba(255, 130, 0, 0.08), transparent 70%),
+      linear-gradient(170deg, #003d1e 0%, #00301a 55%, #00220f 100%);
+  }
   .bg-nation-flat { background-color: #00552a; }
 
   .text-gradient-brand {
@@ -124,9 +131,9 @@
   /* ---------- Champs de formulaire ---------- */
   .input {
     @apply w-full h-11 px-3.5 bg-white rounded-lg text-[0.95rem] font-semibold text-ink-950
-           border-2 border-ink-300 shadow-[inset_0_1px_2px_rgba(10,12,11,0.05)]
+           border border-[#a3aaa6] shadow-[inset_0_1px_2px_rgba(10,12,11,0.04)]
            placeholder:text-ink-400 placeholder:font-medium transition-[border-color,box-shadow] duration-150
-           hover:border-ink-400
+           hover:border-ink-500
            focus:outline-none focus:border-success-600 focus:shadow-ring focus:ring-0;
   }
   textarea.input { @apply h-auto min-h-[96px] py-2.5 leading-relaxed resize-y; }
@@ -154,7 +161,7 @@
 
   /* Cases à cocher et boutons radio */
   input[type='checkbox'], input[type='radio'] {
-    @apply w-[18px] h-[18px] border-2 border-ink-400 text-success-600 bg-white cursor-pointer
+    @apply w-[18px] h-[18px] border border-ink-500 text-success-600 bg-white cursor-pointer
            focus:ring-2 focus:ring-success-500/30 focus:ring-offset-0 transition-colors;
   }
   input[type='checkbox'] { @apply rounded-[5px]; }
@@ -171,7 +178,7 @@
   /* Choix multiple (produits, options) : cartes cliquables avec coche */
   .choice {
     @apply inline-flex items-center gap-2 h-10 px-3.5 rounded-lg bg-white text-[13px] font-bold text-ink-700
-           border-2 border-ink-300 transition-all duration-150 cursor-pointer select-none
+           border border-[#a3aaa6] transition-all duration-150 cursor-pointer select-none
            hover:border-success-600 hover:bg-success-50 hover:text-success-800
            focus:outline-none focus-visible:shadow-ring;
   }
@@ -261,8 +268,8 @@
   /* ---------- Barre d'outils ---------- */
   .toolbar { @apply flex flex-wrap items-center gap-3 px-6 py-3.5 border-b border-ink-100 bg-ink-50/60; }
   .toolbar-select {
-    @apply h-10 pl-3.5 text-sm font-bold border-2 border-ink-300 rounded-lg bg-white text-ink-900
-           transition-[border-color,box-shadow] duration-150 hover:border-ink-400
+    @apply h-10 pl-3.5 text-sm font-bold border border-[#a3aaa6] rounded-lg bg-white text-ink-900
+           transition-[border-color,box-shadow] duration-150 hover:border-ink-500
            focus:outline-none focus:shadow-ring focus:border-success-600;
   }
 
@@ -368,3 +375,7 @@
   table { width: 100%; }
   a { color: inherit; text-decoration: none; }
 }
+
+/* Les couches internes de Leaflet (z-index jusqu'à 700) ne doivent pas passer
+   au-dessus de la barre du haut ni du menu : on isole la carte. */
+.leaflet-container { isolation: isolate; z-index: 0; }
