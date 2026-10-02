@@ -49,7 +49,7 @@ const PAGE_SUBTITLE: Record<string, string> = {
   reporting: 'Analyse et exportation des données',
   users: 'Gestion des comptes et rôles',
   agences: 'Référentiel des agences',
-  produits: 'Catalogue de produits pour les ventes',
+  produits: 'Catalogue des produits vendus par les PDV',
   geofence: 'Zones géographiques et assignations',
 };
 

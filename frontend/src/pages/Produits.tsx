@@ -177,7 +177,7 @@ const Produits = () => {
       {/* Header */}
       <PageHeader
         title={'Gestion des Produits'}
-        subtitle={'Catalogue de produits pour les ventes'}
+        subtitle={'Catalogue des produits vendus par les PDV'}
         actions={<><button
           onClick={() => {
             resetForm();

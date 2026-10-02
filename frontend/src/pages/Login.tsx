@@ -9,7 +9,7 @@ import DocumentTitle from '../components/DocumentTitle';
 const ATOUTS = [
   { icon: MapPin, titre: 'Suivi terrain en direct', texte: 'Localisez vos équipes et vos points de vente.' },
   { icon: BellRing, titre: 'Alertes géographiques', texte: 'Soyez prévenu dès qu’un agent sort de sa zone.' },
-  { icon: BarChart3, titre: 'Reporting des ventes', texte: 'Des chiffres clairs, exportables en un clic.' },
+  { icon: BarChart3, titre: 'Reporting des PDV', texte: 'Des états clairs sur vos points de vente, exportables en un clic.' },
 ];
 
 const Login = () => {
