@@ -6,7 +6,7 @@ import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
 import { io, Socket } from 'socket.io-client';
 import { pdvService } from '../services/pdvService';
 import { Maximize2, Minimize2, RefreshCw, Filter, Play, Pause, Radio, X } from 'lucide-react';
-import MapStatusOverlay from '../components/MapStatusOverlay';
+// import MapStatusOverlay from '../components/MapStatusOverlay';
 
 interface PDV {
   id: number;
