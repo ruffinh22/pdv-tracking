@@ -4,13 +4,13 @@
     "slug": "houns-rufin",
     "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/lonaci-app-icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "trackingpdv",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/lonaci-app-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#5641D6"
+      "backgroundColor": "#008840"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -25,8 +25,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundColor": "#5641D6"
+        "foregroundImage": "./assets/images/lonaci-adaptive-foreground.png",
+        "backgroundColor": "#008840"
       },
       "package": "com.trackingpdv.mobile",
       "permissions": [

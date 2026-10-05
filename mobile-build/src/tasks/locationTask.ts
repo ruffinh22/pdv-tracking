@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { syncService } from '@/services/syncService';
+import { CONFIG } from '@/config';
 
 // Mock modules for web
 const mockLocation = {
@@ -40,25 +41,25 @@ if (Platform.OS !== 'web' && !TaskManager.isTaskDefined(LOCATION_TASK_NAME)) {
     };
     if (!locations || locations.length === 0) return;
 
-    const last = locations[locations.length - 1];
-    try {
-      const sauvegardee = await syncService.savePositionLocally({
-        latitude: last.coords.latitude,
-        longitude: last.coords.longitude,
-        horodatage: new Date(last.timestamp).toISOString(),
-        accuracy: last.coords.accuracy,
-      });
-      if (!sauvegardee) return;
-      // Synchronisation opportuniste en arrière-plan, SANS l'attendre : cette
-      // tâche tourne à chaque tick GPS (potentiellement toutes les 30s), et le
-      // système d'exploitation peut throttle/tuer une tâche background trop
-      // lente. L'écriture locale (rapide) suffit pour que le tick soit "fait" ;
-      // syncPositions() gère elle-même les tentatives suivantes de toute façon.
-      syncService.syncPositions().catch((e) => {
-        console.warn('[locationTask] Sync positions différée (non-bloquant):', e);
-      });
-    } catch (e) {
-      console.error('[locationTask] Erreur sauvegarde position:', e);
+    // Tous les points reçus sont conservés (le système peut les livrer par
+    // paquet) ; la synchro part en tâche de fond sans être attendue, car l'OS
+    // peut limiter ou tuer une tâche d'arrière-plan trop lente.
+    // Un paquet de plusieurs points est un rattrapage : on ne le filtre pas.
+    const ecartMin = locations.length > 1 ? 0 : CONFIG.LOCATION.MIN_SAVE_GAP_MS;
+    for (const location of locations) {
+      try {
+        await syncService.enregistrerEtEnvoyer(
+          {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            accuracy: location.coords.accuracy,
+            timestamp: location.timestamp,
+          },
+          ecartMin
+        );
+      } catch (e) {
+        console.error('[locationTask] Erreur sauvegarde position:', e);
+      }
     }
   });
 }
@@ -79,6 +80,9 @@ export async function startBackgroundLocationTracking(intervalMs: number, distan
     timeInterval: intervalMs,
     distanceInterval: distanceM,
     showsBackgroundLocationIndicator: true,
+    // iOS suspend sinon les mises à jour dès que l'appareil est immobile : le
+    // PDV deviendrait muet alors que l'agent est simplement posé.
+    pausesUpdatesAutomatically: false,
     foregroundService: {
       notificationTitle: 'Tracking PDV actif',
       notificationBody: 'Votre position est enregistrée en arrière-plan.',
@@ -98,4 +102,14 @@ export async function stopBackgroundLocationTracking() {
   if (started) {
     await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
   }
+}
+
+/**
+ * Redémarrage forcé : certains téléphones laissent la tâche « démarrée » mais
+ * silencieuse après une coupure/réactivation du GPS. Un stop+start la relance.
+ */
+export async function restartBackgroundLocationTracking(intervalMs: number, distanceM: number) {
+  if (Platform.OS === 'web') return;
+  await stopBackgroundLocationTracking().catch(() => {});
+  await startBackgroundLocationTracking(intervalMs, distanceM);
 }

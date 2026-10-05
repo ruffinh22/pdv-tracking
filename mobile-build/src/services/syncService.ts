@@ -40,6 +40,8 @@ const getSecureItem = async (key: string): Promise<string | null> => SecureStore
 class SyncService {
   private static readonly SYNC_BATCH_SIZE = 25;
   private ready = false;
+  /** Instant (horloge locale) du dernier enregistrement de position, tous canaux confondus. */
+  private derniereEcritureMs = 0;
 
   private async ensureDb() {
     if (!this.ready) {
@@ -64,11 +66,41 @@ class SyncService {
         `INSERT INTO positions (latitude, longitude, horodatage, precision, client_event_id, synchronise) VALUES (?, ?, ?, ?, ?, 0)`,
         [position.latitude, position.longitude, position.horodatage, position.accuracy ?? null, clientEventId]
       );
+      this.derniereEcritureMs = Date.now();
       return true;
     } catch (error) {
       console.error('[sync] Erreur enregistrement position locale:', error);
       return false;
     }
+  }
+
+  /** Millisecondes écoulées depuis le dernier enregistrement (Infinity si aucun depuis le lancement). */
+  msDepuisDerniereEcriture(): number {
+    return this.derniereEcritureMs ? Date.now() - this.derniereEcritureMs : Number.POSITIVE_INFINITY;
+  }
+
+  /**
+   * Point d'entrée UNIQUE des positions (arrière-plan, premier plan, battement
+   * de cœur) : enregistre localement puis lance la synchro sans l'attendre.
+   * `ecartMinMs` évite d'empiler des doublons quand plusieurs canaux tournent
+   * en même temps.
+   */
+  async enregistrerEtEnvoyer(
+    point: { latitude: number; longitude: number; accuracy?: number | null; timestamp?: number },
+    ecartMinMs = 0
+  ): Promise<boolean> {
+    if (ecartMinMs > 0 && this.msDepuisDerniereEcriture() < ecartMinMs) return false;
+    const sauvegardee = await this.savePositionLocally({
+      latitude: point.latitude,
+      longitude: point.longitude,
+      horodatage: new Date(point.timestamp || Date.now()).toISOString(),
+      accuracy: point.accuracy ?? null,
+    });
+    if (!sauvegardee) return false;
+    this.syncPositions().catch((error) => {
+      console.warn('[sync] Envoi différé (non bloquant):', error);
+    });
+    return true;
   }
 
   private syncPromise: Promise<{ success: boolean; synced: number }> | null = null;

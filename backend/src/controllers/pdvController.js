@@ -601,19 +601,9 @@ const pdvController = {
       // Périmètre de données : chaque rôle ne voit que les PDV de son espace.
       const whereScoped = withScope(where, pdvScope(req.user));
 
-      // NB: l'historique complet des positions n'est volontairement PAS inclus
-      // ici. Chaque terminal pousse une position toutes les ~30 s ; charger la
-      // relation `positions` en entier pour chaque PDV de la liste (jusqu'à
-      // 1000 lignes pour la carte de suivi, rechargées en continu) fait
-      // exploser le volume chargé au fil des semaines et ralentit — voire
-      // fait échouer — l'endpoint que le suivi temps réel interroge le plus.
-      // Le frontend n'utilise d'ailleurs jamais `pdv.positions` : la carte de
-      // suivi (Tracking.tsx) se base sur `derniere_position_*`, et la carte de
-      // détail (PDVTrackingMap.tsx) sur l'historique échantillonné renvoyé par
-      // `getPDVPositions`/`getPDVTrajet`.
-      const include = [...INCLUDE_PDV_COMPLET];
+      const include = [...INCLUDE_PDV_COMPLET, 'positions'];
       if (produit_id) {
-        include[include.length - 1] = {
+        include[include.length - 2] = {
           model: Produit,
           as: 'produits',
           attributes: ['id', 'nom_produit'],
@@ -647,10 +637,8 @@ const pdvController = {
 
   async getPDVById(req, res) {
     try {
-      // Même raison que dans getAllPDVs : pas d'historique de positions complet
-      // ici, le trajet de la carte de détail vient de getPDVPositions/getPDVTrajet.
       const pdv = await PDV.findByPk(req.params.id, {
-        include: [...INCLUDE_PDV_COMPLET, 'ventes', 'alertes']
+        include: [...INCLUDE_PDV_COMPLET, 'positions', 'ventes', 'alertes']
       });
       if (!pdv) {
         return res.status(404).json({ error: 'PDV non trouvé' });

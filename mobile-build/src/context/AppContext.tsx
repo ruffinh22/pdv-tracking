@@ -5,9 +5,14 @@ import { initDatabase, clearAllData } from '@/lib/database';
 import { api } from '@/lib/api';
 import { CONFIG } from '@/config';
 import { syncService } from '@/services/syncService';
-import { LOCATION_TASK_NAME, startBackgroundLocationTracking, stopBackgroundLocationTracking } from '@/tasks/locationTask';
+import {
+  LOCATION_TASK_NAME,
+  restartBackgroundLocationTracking,
+  startBackgroundLocationTracking,
+  stopBackgroundLocationTracking,
+} from '@/tasks/locationTask';
 import { getOrCreateTerminalId } from '@/lib/terminalId';
-import { EchecLocalisation, obtenirPosition, suivrePosition } from '@/lib/location';
+import { EchecLocalisation, lirePositionFraiche, obtenirPosition, suivrePosition } from '@/lib/location';
 import { GPSPoint, SyncStatus } from '@/types';
 
 const webStorage: Record<string, string> = {};
@@ -239,6 +244,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Mémoire du chien de garde : état du GPS au passage précédent et dernier
+  // redémarrage forcé (pour ne pas relancer la tâche en boucle).
+  const servicesActifsAvant = useRef<boolean | null>(null);
+  const dernierRedemarrage = useRef(0);
+
   const verifierSuivi = useCallback(async () => {
     if (Platform.OS === 'web' || !Location) return;
     try {
@@ -249,6 +259,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME).catch(() => false),
       ]);
       setPermissionArrierePlan(arrierePlan.status === 'granted');
+      const gpsRallume = servicesActifsAvant.current === false && servicesActifs === true;
+      servicesActifsAvant.current = servicesActifs;
 
       if (premierPlan.status !== 'granted' || arrierePlan.status !== 'granted') {
         setIsTracking(false);
@@ -260,16 +272,75 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setEtatGPS({ statut: 'echec', raison: 'service_desactive', message: 'Le GPS du téléphone est désactivé.' });
         return;
       }
+
+      // Le GPS vient d'être rallumé : la tâche peut rester « démarrée » mais
+      // muette. On la relance de force, sans attendre que l'agent rouvre l'app.
+      // Même remède si, GPS et permissions OK, plus rien n'est enregistré
+      // depuis trop longtemps.
+      const silenceAnormal =
+        syncService.msDepuisDerniereEcriture() > CONFIG.LOCATION.SILENCE_REDEMARRAGE_MS &&
+        Date.now() - dernierRedemarrage.current > CONFIG.LOCATION.REDEMARRAGE_MIN_GAP_MS;
       if (!tacheDemarree) {
         await startBackgroundLocationTracking(CONFIG.LOCATION.TRACKING_INTERVAL, CONFIG.LOCATION.TRACKING_DISTANCE);
+      } else if (gpsRallume || silenceAnormal) {
+        dernierRedemarrage.current = Date.now();
+        await restartBackgroundLocationTracking(CONFIG.LOCATION.TRACKING_INTERVAL, CONFIG.LOCATION.TRACKING_DISTANCE);
       }
       setIsTracking(true);
+      // Le message d'erreur GPS ne doit pas survivre à son correctif.
+      setEtatGPS((precedent) =>
+        precedent.statut === 'echec' &&
+        (precedent.raison === 'service_desactive' || precedent.raison === 'permission_refusee')
+          ? { statut: 'inconnu' }
+          : precedent
+      );
     } catch (error) {
       console.warn('[app] Vérification du suivi impossible:', error);
       setIsTracking(false);
     }
   }, []);
 
+  /**
+   * Battement de cœur : si rien n'a été enregistré récemment (agent immobile,
+   * pas de nouveau point d'arrière-plan), on lit une position FRAÎCHE et on
+   * l'envoie. Jamais de position inventée : sans fix, on n'envoie rien.
+   */
+  const battementDeCoeur = useCallback(async () => {
+    if (syncService.msDepuisDerniereEcriture() < CONFIG.LOCATION.HEARTBEAT_MIN_GAP_MS) return;
+    const point = await lirePositionFraiche(CONFIG.LOCATION.HEARTBEAT_FIX_TIMEOUT_MS);
+    if (!point) return;
+    await syncService.enregistrerEtEnvoyer(point, CONFIG.LOCATION.HEARTBEAT_MIN_GAP_MS);
+  }, []);
+
+  // Chien de garde + battement de cœur : tournent tant que l'app est
+  // enrôlée (premier plan ET arrière-plan tant que le processus vit, grâce au
+  // service de premier plan Android) et se déclenchent aussitôt au retour actif.
+  useEffect(() => {
+    if (!isOnboarded || Platform.OS === 'web') return;
+    let enCours = false;
+    const cycle = async () => {
+      if (enCours) return; // jamais deux cycles empilés
+      enCours = true;
+      try {
+        await verifierSuivi();
+        await battementDeCoeur();
+      } finally {
+        enCours = false;
+      }
+    };
+    cycle();
+    const minuteur = setInterval(cycle, CONFIG.LOCATION.HEARTBEAT_INTERVAL_MS);
+    const abonnement = AppState.addEventListener('change', (etat) => {
+      if (etat === 'active') cycle();
+    });
+    return () => {
+      clearInterval(minuteur);
+      abonnement.remove();
+    };
+  }, [isOnboarded, verifierSuivi, battementDeCoeur]);
+
+  // Synchronisation périodique de la file (filet de sécurité : l'envoi
+  // immédiat après chaque position reste le chemin principal).
   useEffect(() => {
     if (!isOnboarded || Platform.OS === 'web') return;
     let intervalle: ReturnType<typeof setInterval> | undefined;
@@ -281,7 +352,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const handleAppState = (state: string) => {
       if (intervalle) clearInterval(intervalle);
       if (state === 'active') {
-        verifierSuivi();
         synchroniser();
         intervalle = setInterval(synchroniser, CONFIG.SYNC.AUTO_SYNC_INTERVAL_SECONDS * 1000);
       }
@@ -292,7 +362,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (intervalle) clearInterval(intervalle);
       subscription.remove();
     };
-  }, [isOnboarded, refreshQueue, verifierSuivi]);
+  }, [isOnboarded, refreshQueue]);
 
   // --- Démarrage de l'application ---------------------------------------
   useEffect(() => {
@@ -372,6 +442,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setCurrentLocation(point);
         setEtatGPS({ statut: 'ok', source: 'fraiche' });
       }
+      // Les positions du premier plan partent AUSSI au serveur (avant, elles
+      // ne servaient qu'à l'affichage). Fonctionne même sans permission
+      // d'arrière-plan, tant que l'app est ouverte.
+      if (!annule && Platform.OS !== 'web') {
+        syncService
+          .enregistrerEtEnvoyer(point, CONFIG.LOCATION.MIN_SAVE_GAP_MS)
+          .then(refreshQueue)
+          .catch(() => {});
+      }
     }).then((stop) => {
       if (annule) stop();
       else arreter = stop;
@@ -381,7 +460,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       annule = true;
       if (arreter) arreter();
     };
-  }, [isOnboarded]);
+  }, [isOnboarded, refreshQueue]);
 
   const register = useCallback(
     async (

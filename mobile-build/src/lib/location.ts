@@ -242,6 +242,29 @@ export async function suivrePosition(
   }
 }
 
+/**
+ * Lecture ponctuelle destinée au battement de cœur : jamais de boîte de
+ * dialogue de permission, jamais d'attente non bornée. Renvoie null si la
+ * permission manque, si le GPS est coupé ou si aucun signal frais n'arrive à
+ * temps — on n'envoie alors RIEN plutôt qu'une position inventée ou périmée.
+ */
+export async function lirePositionFraiche(delaiMs = DELAI_POSITION_FRAICHE_MS): Promise<GPSPoint | null> {
+  if (Platform.OS === 'web' || !Location) return null;
+  try {
+    const permission = await avecDelai(Location.getForegroundPermissionsAsync(), 3000);
+    if (!permission || permission.status !== 'granted') return null;
+    const actif = await avecDelai(Location.hasServicesEnabledAsync(), 3000);
+    if (actif === false) return null;
+    const position = await avecDelai(
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+      delaiMs
+    );
+    return versPoint(position);
+  } catch {
+    return null;
+  }
+}
+
 /** Ouvre les réglages système, pour que l'utilisateur puisse corriger lui-même un refus. */
 export async function ouvrirReglages(): Promise<void> {
   try {

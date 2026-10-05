@@ -20,7 +20,7 @@ import {
 } from 'recharts';
 import { dashboardService, telechargerBlob, Periode, Dimension } from '../services/dashboardService';
 import { pdvService } from '../services/pdvService';
-import PDVOverviewMap from '../components/PDVOverviewMap';
+import LeafletMap from '../components/LeafletMap';
 import FiltresOrganisation, { ValeursFiltresOrganisation } from '../components/FiltresOrganisation';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../contexts/authContext';
@@ -520,7 +520,7 @@ const Dashboard = () => {
         </div>
         <div className="h-96 bg-ink-50">
           {allPDVs && allPDVs.length > 0 ? (
-            <PDVOverviewMap pdvs={allPDVs} />
+            <LeafletMap pdvs={allPDVs} />
           ) : (
             <div className="h-full flex items-center justify-center">
               <p className="text-ink-400 text-sm">Aucun PDV avec position GPS disponible</p>
