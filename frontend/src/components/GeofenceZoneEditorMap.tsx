@@ -3,6 +3,7 @@ import { BRAND } from '../lib/theme';
 import { chargerGoogleMaps } from '../lib/googleMapsLoader';
 import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
 import { Undo2, Trash2 } from 'lucide-react';
+import MapStatusOverlay from './MapStatusOverlay';
 
 type LatLng = [number, number];
 
@@ -37,6 +38,7 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
   const clickListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const prete = useRef(false);
   const [, forceRender] = useState(0);
+  const [erreur, setErreur] = useState<string | null>(null);
 
   const [center, setCenter] = useState<LatLng | null>(hasValidPoint(coordonnees) ? toLatLng(coordonnees.coordinates) : null);
   const [points, setPoints] = useState<LatLng[]>(
@@ -66,7 +68,10 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
         prete.current = true;
         forceRender((n) => n + 1); // redéclenche les effets ci-dessous une fois la carte prête
       })
-      .catch((err) => console.error('[GeofenceZoneEditorMap] Google Maps indisponible:', err));
+      .catch((err) => {
+        console.error('[GeofenceZoneEditorMap] Google Maps indisponible:', err);
+        if (!annule) setErreur(err?.message || 'Échec du chargement de Google Maps.');
+      });
 
     return () => {
       annule = true;
@@ -190,11 +195,14 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
 
   return (
     <div className="space-y-2">
-      <div
-        ref={containerRef}
-        style={{ height: '220px', width: '100%', borderRadius: '0.75rem' }}
-        className="border border-ink-200"
-      />
+      <div style={{ position: 'relative', height: '220px', width: '100%' }}>
+        <div
+          ref={containerRef}
+          style={{ height: '100%', width: '100%', borderRadius: '0.75rem' }}
+          className="border border-ink-200"
+        />
+        {!prete.current && <MapStatusOverlay erreur={erreur} />}
+      </div>
       <div className="flex items-center justify-between text-xs text-ink-500">
         <span>
           {type === 'cercle'

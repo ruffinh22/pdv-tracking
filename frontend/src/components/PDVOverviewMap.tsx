@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { couleurStatut } from '../lib/theme';
 import { chargerGoogleMaps } from '../lib/googleMapsLoader';
 import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
+import MapStatusOverlay from './MapStatusOverlay';
 
 interface PDV {
   id: number;
@@ -40,6 +41,8 @@ const PDVOverviewMap = ({ pdvs }: PDVOverviewMapProps) => {
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const pdvsRef = useRef(pdvs);
   pdvsRef.current = pdvs;
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [pret, setPret] = useState(false);
 
   useEffect(() => {
     let annule = false;
@@ -60,9 +63,13 @@ const PDVOverviewMap = ({ pdvs }: PDVOverviewMapProps) => {
           infoWindowRef.current = new g.maps.InfoWindow();
         }
 
+        setPret(true);
         dessiner(g);
       })
-      .catch((err) => console.error('[PDVOverviewMap] Google Maps indisponible:', err));
+      .catch((err) => {
+        console.error('[PDVOverviewMap] Google Maps indisponible:', err);
+        if (!annule) setErreur(err?.message || 'Échec du chargement de Google Maps.');
+      });
 
     function dessiner(g: typeof google) {
       const map = mapRef.current!;
@@ -116,14 +123,17 @@ const PDVOverviewMap = ({ pdvs }: PDVOverviewMapProps) => {
   }, [pdvs]);
 
   return (
-    <div
-      ref={mapContainerRef}
-      style={{
-        height: '100%',
-        width: '100%',
-        borderRadius: '0.5rem',
-      }}
-    />
+    <div style={{ position: 'relative', height: '100%', width: '100%' }}>
+      <div
+        ref={mapContainerRef}
+        style={{
+          height: '100%',
+          width: '100%',
+          borderRadius: '0.5rem',
+        }}
+      />
+      {!pret && <MapStatusOverlay erreur={erreur} />}
+    </div>
   );
 };
 

@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CHART_SERIES } from '../lib/theme';
 import { chargerGoogleMaps } from '../lib/googleMapsLoader';
 import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
 import { GeofenceZone } from '../services/geofenceService';
+import MapStatusOverlay from './MapStatusOverlay';
 
 interface GeofenceZonesMapProps {
   zones: GeofenceZone[];
@@ -24,6 +25,8 @@ const GeofenceZonesMap = ({ zones, selectedZoneId }: GeofenceZonesMapProps) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<Calque[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [pret, setPret] = useState(false);
 
   useEffect(() => {
     let annule = false;
@@ -44,9 +47,13 @@ const GeofenceZonesMap = ({ zones, selectedZoneId }: GeofenceZonesMapProps) => {
           infoWindowRef.current = new g.maps.InfoWindow();
         }
 
+        setPret(true);
         dessiner(g);
       })
-      .catch((err) => console.error('[GeofenceZonesMap] Google Maps indisponible:', err));
+      .catch((err) => {
+        console.error('[GeofenceZonesMap] Google Maps indisponible:', err);
+        if (!annule) setErreur(err?.message || 'Échec du chargement de Google Maps.');
+      });
 
     function dessiner(g: typeof google) {
       const map = mapRef.current!;
@@ -152,10 +159,10 @@ const GeofenceZonesMap = ({ zones, selectedZoneId }: GeofenceZonesMapProps) => {
   }, []);
 
   return (
-    <div
-      ref={mapContainerRef}
-      style={{ height: '100%', width: '100%', borderRadius: '0.75rem' }}
-    />
+    <div style={{ position: 'relative', height: '100%', width: '100%' }}>
+      <div ref={mapContainerRef} style={{ height: '100%', width: '100%', borderRadius: '0.75rem' }} />
+      {!pret && <MapStatusOverlay erreur={erreur} />}
+    </div>
   );
 };
 

@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BRAND } from '../lib/theme';
 import { chargerGoogleMaps } from '../lib/googleMapsLoader';
 import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
 import { PositionPDV } from '../services/pdvService';
+import MapStatusOverlay from './MapStatusOverlay';
 
 interface Props {
   /** Position relevée à l'enrôlement : le point de vente déclaré. */
@@ -64,6 +65,8 @@ const PDVTrackingMap = ({
   // avant de redessiner (équivalent du LayerGroup.clearLayers() de Leaflet).
   type Calque = google.maps.Marker | google.maps.Circle | google.maps.Polyline;
   const calquesRef = useRef<Calque[]>([]);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [pret, setPret] = useState(false);
 
   useEffect(() => {
     let annule = false;
@@ -84,9 +87,13 @@ const PDVTrackingMap = ({
           infoWindowRef.current = new g.maps.InfoWindow();
         }
 
+        setPret(true);
         dessiner(g);
       })
-      .catch((err) => console.error('[PDVTrackingMap] Google Maps indisponible:', err));
+      .catch((err) => {
+        console.error('[PDVTrackingMap] Google Maps indisponible:', err);
+        if (!annule) setErreur(err?.message || 'Échec du chargement de Google Maps.');
+      });
 
     function dessiner(g: typeof google) {
       const carte = carteRef.current!;
@@ -222,7 +229,12 @@ const PDVTrackingMap = ({
     };
   }, []);
 
-  return <div ref={conteneurRef} style={{ height: hauteur, width: '100%', borderRadius: '0.5rem' }} />;
+  return (
+    <div style={{ position: 'relative', height: hauteur, width: '100%' }}>
+      <div ref={conteneurRef} style={{ height: '100%', width: '100%', borderRadius: '0.5rem' }} />
+      {!pret && <MapStatusOverlay erreur={erreur} />}
+    </div>
+  );
 };
 
 export default PDVTrackingMap;
