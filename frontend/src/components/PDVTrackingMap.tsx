@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { BRAND } from '../lib/theme';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { chargerGoogleMaps } from '../lib/googleMapsLoader';
+import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
 import { PositionPDV } from '../services/pdvService';
 
 interface Props {
@@ -33,12 +33,21 @@ function distanceEnMetres(lat1: number, lon1: number, lat2: number, lon2: number
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+const pointIcon = (g: typeof google, couleur: string, taille: number) => ({
+  path: g.maps.SymbolPath.CIRCLE,
+  scale: taille,
+  fillColor: couleur,
+  fillOpacity: 1,
+  strokeColor: '#ffffff',
+  strokeWeight: 3,
+});
+
 /**
  * Carte de suivi d'un point de vente : le point d'ancrage, le cercle de
  * géofence, le trajet du terminal sur la période et sa position courante.
  *
- * Tous les calques sont regroupés dans un LayerGroup unique, vidé et redessiné
- * à chaque changement : c'est ce qui évite l'accumulation silencieuse de
+ * Tous les calques sont retirés et redessinés à chaque changement (au lieu
+ * d'un LayerGroup Leaflet) : c'est ce qui évite l'accumulation silencieuse de
  * polylignes fantômes quand l'utilisateur change de période plusieurs fois.
  */
 const PDVTrackingMap = ({
@@ -49,146 +58,167 @@ const PDVTrackingMap = ({
   hauteur = 380,
 }: Props) => {
   const conteneurRef = useRef<HTMLDivElement>(null);
-  const carteRef = useRef<L.Map | null>(null);
-  const calquesRef = useRef<L.LayerGroup | null>(null);
+  const carteRef = useRef<google.maps.Map | null>(null);
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  // Tous les calques actuellement sur la carte, pour pouvoir tout nettoyer
+  // avant de redessiner (équivalent du LayerGroup.clearLayers() de Leaflet).
+  type Calque = google.maps.Marker | google.maps.Circle | google.maps.Polyline;
+  const calquesRef = useRef<Calque[]>([]);
 
   useEffect(() => {
-    if (!conteneurRef.current) return;
+    let annule = false;
 
-    if (!carteRef.current) {
-      carteRef.current = L.map(conteneurRef.current, { zoomControl: true }).setView(
-        [ancrage.latitude, ancrage.longitude],
-        16
-      );
-      L.tileLayer(
-        'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-        {
-          attribution:
-            'Tiles &copy; <a href="https://www.esri.com">Esri</a> — Esri, HERE, Garmin, \u00a9 OpenStreetMap contributors',
-          maxZoom: 18,
+    chargerGoogleMaps()
+      .then((g) => {
+        if (annule || !conteneurRef.current) return;
+
+        if (!carteRef.current) {
+          carteRef.current = new g.maps.Map(conteneurRef.current, {
+            center: { lat: ancrage.latitude, lng: ancrage.longitude },
+            zoom: 16,
+            styles: GOOGLE_MAP_STYLE,
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false,
+          });
+          infoWindowRef.current = new g.maps.InfoWindow();
         }
-      ).addTo(carteRef.current);
-      calquesRef.current = L.layerGroup().addTo(carteRef.current);
-    }
 
-    const carte = carteRef.current;
-    const calques = calquesRef.current!;
-    calques.clearLayers();
-
-    // 1. Zone autorisée autour du point d'ancrage
-    L.circle([ancrage.latitude, ancrage.longitude], {
-      radius: rayonGeofence,
-      color: COULEUR_ANCRAGE,
-      weight: 1.5,
-      fillColor: COULEUR_ANCRAGE,
-      fillOpacity: 0.07,
-    }).addTo(calques);
-
-    // 2. Point d'ancrage (emplacement déclaré du PDV)
-    L.marker([ancrage.latitude, ancrage.longitude], {
-      icon: L.divIcon({
-        className: 'pdv-ancrage',
-        html: `<div style="width:16px;height:16px;border-radius:50%;background:${COULEUR_ANCRAGE};border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
-      }),
-    })
-      .bindPopup('<strong>Point de vente</strong><br/>Position relevée à l\'installation')
-      .addTo(calques);
-
-    // 3. Trajet du terminal
-    const points: [number, number][] = positions
-      .map((p) => [Number(p.latitude), Number(p.longitude)] as [number, number])
-      .filter(([lat, lng]) => !Number.isNaN(lat) && !Number.isNaN(lng));
-
-    if (points.length > 1) {
-      L.polyline(points, {
-        color: COULEUR_TRACE,
-        weight: 3,
-        opacity: 0.75,
-        lineJoin: 'round',
-      }).addTo(calques);
-    }
-
-    // Les points intermédiaires sont de simples repères discrets : afficher un
-    // marqueur complet par position rendrait la carte illisible dès quelques
-    // centaines de points.
-    positions.forEach((p, i) => {
-      if (i === positions.length - 1) return;
-      const lat = Number(p.latitude);
-      const lng = Number(p.longitude);
-      if (Number.isNaN(lat) || Number.isNaN(lng)) return;
-      L.circleMarker([lat, lng], {
-        radius: 2.5,
-        color: COULEUR_TRACE,
-        fillColor: COULEUR_TRACE,
-        fillOpacity: 0.8,
-        weight: 0,
+        dessiner(g);
       })
-        .bindPopup(new Date(p.horodatage).toLocaleString('fr-FR'))
-        .addTo(calques);
-    });
+      .catch((err) => console.error('[PDVTrackingMap] Google Maps indisponible:', err));
 
-    // 4. Position courante — celle du socket si elle est disponible, sinon le
-    // dernier point de l'historique.
-    const derniere = positions[positions.length - 1];
-    const courante = positionLive
-      ? { latitude: positionLive.latitude, longitude: positionLive.longitude, horodatage: positionLive.horodatage }
-      : derniere
-      ? { latitude: Number(derniere.latitude), longitude: Number(derniere.longitude), horodatage: derniere.horodatage }
-      : null;
+    function dessiner(g: typeof google) {
+      const carte = carteRef.current!;
 
-    if (courante && !Number.isNaN(courante.latitude)) {
-      const ecart = distanceEnMetres(
-        ancrage.latitude,
-        ancrage.longitude,
-        courante.latitude,
-        courante.longitude
-      );
-      const horsZone = ecart > rayonGeofence;
-      const couleur = horsZone ? COULEUR_HORS_ZONE : COULEUR_TRACE;
+      calquesRef.current.forEach((calque) => calque.setMap(null));
+      calquesRef.current = [];
 
-      L.marker([courante.latitude, courante.longitude], {
-        icon: L.divIcon({
-          className: 'pdv-courant',
-          html: `<div style="width:14px;height:14px;border-radius:50%;background:${couleur};border:3px solid #fff;box-shadow:0 0 0 4px ${couleur}33"></div>`,
-          iconSize: [14, 14],
-          iconAnchor: [7, 7],
-        }),
-        zIndexOffset: 500,
-      })
-        .bindPopup(
-          `<strong>Position actuelle</strong><br/>${new Date(courante.horodatage).toLocaleString('fr-FR')}<br/>` +
-            `${Math.round(ecart)} m du point de vente${horsZone ? ' — hors zone' : ''}`
-        )
-        .addTo(calques);
+      // 1. Zone autorisée autour du point d'ancrage
+      const zone = new g.maps.Circle({
+        center: { lat: ancrage.latitude, lng: ancrage.longitude },
+        radius: rayonGeofence,
+        strokeColor: COULEUR_ANCRAGE,
+        strokeWeight: 1.5,
+        fillColor: COULEUR_ANCRAGE,
+        fillOpacity: 0.07,
+        map: carte,
+        clickable: false,
+      });
+      calquesRef.current.push(zone);
+
+      // 2. Point d'ancrage (emplacement déclaré du PDV)
+      const markerAncrage = new g.maps.Marker({
+        position: { lat: ancrage.latitude, lng: ancrage.longitude },
+        map: carte,
+        icon: pointIcon(g, COULEUR_ANCRAGE, 8),
+        zIndex: 10,
+      });
+      markerAncrage.addListener('click', () => {
+        infoWindowRef.current?.setContent('<strong>Point de vente</strong><br/>Position relevée à l\'installation');
+        infoWindowRef.current?.open({ map: carte, anchor: markerAncrage });
+      });
+      calquesRef.current.push(markerAncrage);
+
+      // 3. Trajet du terminal
+      const points = positions
+        .map((p) => ({ lat: Number(p.latitude), lng: Number(p.longitude) }))
+        .filter((p) => !Number.isNaN(p.lat) && !Number.isNaN(p.lng));
+
+      if (points.length > 1) {
+        const trace = new g.maps.Polyline({
+          path: points,
+          strokeColor: COULEUR_TRACE,
+          strokeWeight: 3,
+          strokeOpacity: 0.75,
+          map: carte,
+          clickable: false,
+        });
+        calquesRef.current.push(trace);
+      }
+
+      // Les points intermédiaires sont de simples repères discrets : afficher
+      // un marqueur complet par position rendrait la carte illisible dès
+      // quelques centaines de points.
+      positions.forEach((p, i) => {
+        if (i === positions.length - 1) return;
+        const lat = Number(p.latitude);
+        const lng = Number(p.longitude);
+        if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+        const repere = new g.maps.Marker({
+          position: { lat, lng },
+          map: carte,
+          icon: pointIcon(g, COULEUR_TRACE, 3),
+          zIndex: 1,
+        });
+        repere.addListener('click', () => {
+          infoWindowRef.current?.setContent(new Date(p.horodatage).toLocaleString('fr-FR'));
+          infoWindowRef.current?.open({ map: carte, anchor: repere });
+        });
+        calquesRef.current.push(repere);
+      });
+
+      // 4. Position courante — celle du socket si elle est disponible, sinon
+      // le dernier point de l'historique.
+      const derniere = positions[positions.length - 1];
+      const courante = positionLive
+        ? { latitude: positionLive.latitude, longitude: positionLive.longitude, horodatage: positionLive.horodatage }
+        : derniere
+        ? { latitude: Number(derniere.latitude), longitude: Number(derniere.longitude), horodatage: derniere.horodatage }
+        : null;
+
+      let pointCourant: google.maps.LatLngLiteral | null = null;
+      if (courante && !Number.isNaN(courante.latitude)) {
+        const ecart = distanceEnMetres(ancrage.latitude, ancrage.longitude, courante.latitude, courante.longitude);
+        const horsZone = ecart > rayonGeofence;
+        const couleur = horsZone ? COULEUR_HORS_ZONE : COULEUR_TRACE;
+        pointCourant = { lat: courante.latitude, lng: courante.longitude };
+
+        const markerCourant = new g.maps.Marker({
+          position: pointCourant,
+          map: carte,
+          icon: pointIcon(g, couleur, 7),
+          zIndex: 20,
+        });
+        markerCourant.addListener('click', () => {
+          infoWindowRef.current?.setContent(
+            `<strong>Position actuelle</strong><br/>${new Date(courante.horodatage).toLocaleString('fr-FR')}<br/>` +
+              `${Math.round(ecart)} m du point de vente${horsZone ? ' — hors zone' : ''}`
+          );
+          infoWindowRef.current?.open({ map: carte, anchor: markerCourant });
+        });
+        calquesRef.current.push(markerCourant);
+      }
+
+      // 5. Cadrage : on englobe la zone et le trajet, sans zoomer à l'excès
+      // quand le terminal n'a pas bougé (cas normal d'un PDV sédentaire).
+      const bounds = new g.maps.LatLngBounds();
+      bounds.extend({ lat: ancrage.latitude, lng: ancrage.longitude });
+      points.forEach((p) => bounds.extend(p));
+      if (pointCourant) bounds.extend(pointCourant);
+
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+      if (ne.equals(sw)) {
+        carte.setCenter({ lat: ancrage.latitude, lng: ancrage.longitude });
+        carte.setZoom(16);
+      } else {
+        carte.fitBounds(bounds, 48);
+      }
     }
 
-    // 5. Cadrage : on englobe la zone et le trajet, sans zoomer à l'excès
-    // quand le terminal n'a pas bougé (cas normal d'un PDV sédentaire).
-    const aCadrer: [number, number][] = [
-      [ancrage.latitude, ancrage.longitude],
-      ...points,
-    ];
-    if (courante) aCadrer.push([courante.latitude, courante.longitude]);
-
-    if (aCadrer.length > 1) {
-      carte.fitBounds(L.latLngBounds(aCadrer).pad(0.25), { maxZoom: 17 });
-    } else {
-      carte.setView([ancrage.latitude, ancrage.longitude], 16);
-    }
-
-    // Leaflet calcule mal ses dimensions quand le conteneur est monté dans un
-    // onglet ou une carte qui vient d'apparaître : on force un recalcul.
-    setTimeout(() => carte.invalidateSize(), 80);
+    return () => {
+      annule = true;
+    };
   }, [ancrage, positions, rayonGeofence, positionLive]);
 
   // La carte n'est détruite qu'au démontage du composant, pas à chaque rendu.
   useEffect(() => {
     return () => {
-      carteRef.current?.remove();
+      calquesRef.current.forEach((calque) => calque.setMap(null));
+      calquesRef.current = [];
       carteRef.current = null;
-      calquesRef.current = null;
     };
   }, []);
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { CHART_SERIES } from '../lib/theme';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { chargerGoogleMaps } from '../lib/googleMapsLoader';
+import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
 import { GeofenceZone } from '../services/geofenceService';
 
 interface GeofenceZonesMapProps {
@@ -14,104 +14,139 @@ const ZONE_COLORS = CHART_SERIES;
 
 const colorForZone = (index: number) => ZONE_COLORS[index % ZONE_COLORS.length];
 
-// Les coordonnées stockées sont au format GeoJSON [lng, lat] : on convertit pour Leaflet [lat, lng]
-const toLatLng = (coord: [number, number]): [number, number] => [coord[1], coord[0]];
+// Les coordonnées stockées sont au format GeoJSON [lng, lat] : on convertit pour Google Maps {lat, lng}
+const toLatLng = (coord: [number, number]): google.maps.LatLngLiteral => ({ lat: coord[1], lng: coord[0] });
+
+type Calque = google.maps.Circle | google.maps.Polygon;
 
 const GeofenceZonesMap = ({ zones, selectedZoneId }: GeofenceZonesMapProps) => {
-  const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const layersRef = useRef<L.Layer[]>([]);
+  const layersRef = useRef<Calque[]>([]);
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
 
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    let annule = false;
 
-    if (!mapRef.current) {
-      mapRef.current = L.map(mapContainerRef.current).setView([0, 0], 2);
-      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; <a href="https://www.esri.com">Esri</a> — Esri, HERE, Garmin, \u00a9 OpenStreetMap contributors, GIS User Community',
-        maxZoom: 16
-      }).addTo(mapRef.current);
-    }
+    chargerGoogleMaps()
+      .then((g) => {
+        if (annule || !mapContainerRef.current) return;
 
-    // Nettoyer les contours existants avant de redessiner
-    layersRef.current.forEach((layer) => mapRef.current?.removeLayer(layer));
-    layersRef.current = [];
-
-    const boundsGroup: L.Layer[] = [];
-
-    zones.forEach((zone, index) => {
-      const color = colorForZone(index);
-      const isSelected = selectedZoneId != null && zone.id === selectedZoneId;
-      const weight = isSelected ? 4 : 2;
-      const fillOpacity = isSelected ? 0.25 : 0.12;
-
-      try {
-        if (zone.type === 'cercle' && zone.coordonnees?.coordinates) {
-          const center = toLatLng(zone.coordonnees.coordinates);
-          const radius = zone.coordonnees.radius ?? zone.rayon ?? 100;
-
-          if (!isNaN(center[0]) && !isNaN(center[1])) {
-            const circle = L.circle(center, {
-              radius,
-              color,
-              weight,
-              fillColor: color,
-              fillOpacity
-            }).addTo(mapRef.current!);
-
-            circle.bindPopup(`
-              <div style="min-width: 180px;">
-                <h3 style="margin: 0 0 6px 0; font-weight: bold;">${zone.nom_zone}</h3>
-                <p style="margin: 2px 0;">Cercle · rayon ${radius} m</p>
-                <p style="margin: 2px 0;">PDV assignés : ${zone.pdvs?.length ?? 0}</p>
-              </div>
-            `);
-
-            layersRef.current.push(circle);
-            boundsGroup.push(circle);
-          }
-        } else if (zone.type === 'polygone' && zone.coordonnees?.coordinates?.[0]) {
-          const points = zone.coordonnees.coordinates[0].map((c: [number, number]) => toLatLng(c));
-
-          if (points.length >= 3) {
-            const polygon = L.polygon(points, {
-              color,
-              weight,
-              fillColor: color,
-              fillOpacity
-            }).addTo(mapRef.current!);
-
-            polygon.bindPopup(`
-              <div style="min-width: 180px;">
-                <h3 style="margin: 0 0 6px 0; font-weight: bold;">${zone.nom_zone}</h3>
-                <p style="margin: 2px 0;">Polygone · ${points.length} sommets</p>
-                <p style="margin: 2px 0;">PDV assignés : ${zone.pdvs?.length ?? 0}</p>
-              </div>
-            `);
-
-            layersRef.current.push(polygon);
-            boundsGroup.push(polygon);
-          }
+        if (!mapRef.current) {
+          mapRef.current = new g.maps.Map(mapContainerRef.current, {
+            center: { lat: 0, lng: 0 },
+            zoom: 2,
+            styles: GOOGLE_MAP_STYLE,
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false,
+          });
+          infoWindowRef.current = new g.maps.InfoWindow();
         }
-      } catch {
-        // Coordonnées invalides pour cette zone : on l'ignore silencieusement
-      }
-    });
 
-    if (boundsGroup.length > 0) {
-      const group = L.featureGroup(boundsGroup);
-      mapRef.current.fitBounds(group.getBounds().pad(0.2));
+        dessiner(g);
+      })
+      .catch((err) => console.error('[GeofenceZonesMap] Google Maps indisponible:', err));
+
+    function dessiner(g: typeof google) {
+      const map = mapRef.current!;
+
+      // Nettoyer les contours existants avant de redessiner
+      layersRef.current.forEach((layer) => layer.setMap(null));
+      layersRef.current = [];
+
+      const bounds = new g.maps.LatLngBounds();
+      let aUnePointe = false;
+
+      zones.forEach((zone, index) => {
+        const color = colorForZone(index);
+        const isSelected = selectedZoneId != null && zone.id === selectedZoneId;
+        const weight = isSelected ? 4 : 2;
+        const fillOpacity = isSelected ? 0.25 : 0.12;
+
+        try {
+          if (zone.type === 'cercle' && zone.coordonnees?.coordinates) {
+            const center = toLatLng(zone.coordonnees.coordinates);
+            const radius = zone.coordonnees.radius ?? zone.rayon ?? 100;
+
+            if (!Number.isNaN(center.lat) && !Number.isNaN(center.lng)) {
+              const circle = new g.maps.Circle({
+                center,
+                radius,
+                strokeColor: color,
+                strokeWeight: weight,
+                fillColor: color,
+                fillOpacity,
+                map,
+              });
+
+              circle.addListener('click', () => {
+                infoWindowRef.current?.setContent(`
+                  <div style="min-width: 180px;">
+                    <h3 style="margin: 0 0 6px 0; font-weight: bold;">${zone.nom_zone}</h3>
+                    <p style="margin: 2px 0;">Cercle · rayon ${radius} m</p>
+                    <p style="margin: 2px 0;">PDV assignés : ${zone.pdvs?.length ?? 0}</p>
+                  </div>
+                `);
+                infoWindowRef.current?.setPosition(center);
+                infoWindowRef.current?.open({ map });
+              });
+
+              layersRef.current.push(circle);
+              bounds.union(circle.getBounds()!);
+              aUnePointe = true;
+            }
+          } else if (zone.type === 'polygone' && zone.coordonnees?.coordinates?.[0]) {
+            const points: google.maps.LatLngLiteral[] = zone.coordonnees.coordinates[0].map(
+              (c: [number, number]) => toLatLng(c)
+            );
+
+            if (points.length >= 3) {
+              const polygon = new g.maps.Polygon({
+                paths: points,
+                strokeColor: color,
+                strokeWeight: weight,
+                fillColor: color,
+                fillOpacity,
+                map,
+              });
+
+              polygon.addListener('click', (e: google.maps.PolyMouseEvent) => {
+                infoWindowRef.current?.setContent(`
+                  <div style="min-width: 180px;">
+                    <h3 style="margin: 0 0 6px 0; font-weight: bold;">${zone.nom_zone}</h3>
+                    <p style="margin: 2px 0;">Polygone · ${points.length} sommets</p>
+                    <p style="margin: 2px 0;">PDV assignés : ${zone.pdvs?.length ?? 0}</p>
+                  </div>
+                `);
+                if (e.latLng) infoWindowRef.current?.setPosition(e.latLng);
+                infoWindowRef.current?.open({ map });
+              });
+
+              layersRef.current.push(polygon);
+              points.forEach((pt: google.maps.LatLngLiteral) => bounds.extend(pt));
+              aUnePointe = true;
+            }
+          }
+        } catch {
+          // Coordonnées invalides pour cette zone : on l'ignore silencieusement
+        }
+      });
+
+      if (aUnePointe) {
+        map.fitBounds(bounds, 32);
+      }
     }
 
     return () => {
-      layersRef.current.forEach((layer) => mapRef.current?.removeLayer(layer));
-      layersRef.current = [];
+      annule = true;
     };
   }, [zones, selectedZoneId]);
 
   useEffect(() => {
     return () => {
-      mapRef.current?.remove();
+      layersRef.current.forEach((layer) => layer.setMap(null));
+      layersRef.current = [];
       mapRef.current = null;
     };
   }, []);

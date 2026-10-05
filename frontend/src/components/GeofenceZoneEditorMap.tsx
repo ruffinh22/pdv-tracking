@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BRAND } from '../lib/theme';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { chargerGoogleMaps } from '../lib/googleMapsLoader';
+import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
 import { Undo2, Trash2 } from 'lucide-react';
 
 type LatLng = [number, number];
@@ -13,7 +13,7 @@ interface GeofenceZoneEditorMapProps {
   onChange: (coordonnees: any) => void;
 }
 
-// GeoJSON stocke [lng, lat], Leaflet attend [lat, lng]
+// GeoJSON stocke [lng, lat], Google Maps attend {lat, lng}
 const toLatLng = (coord: [number, number]): LatLng => [coord[1], coord[0]];
 const toLngLat = (coord: LatLng): [number, number] => [coord[1], coord[0]];
 
@@ -28,12 +28,15 @@ const hasValidPolygon = (coordonnees: any) =>
   coordonnees.coordinates[0].length >= 4;
 
 const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZoneEditorMapProps) => {
-  const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const circleRef = useRef<L.Circle | null>(null);
-  const centerMarkerRef = useRef<L.Marker | null>(null);
-  const polygonRef = useRef<L.Polygon | null>(null);
-  const vertexMarkersRef = useRef<L.CircleMarker[]>([]);
+  const circleRef = useRef<google.maps.Circle | null>(null);
+  const centerMarkerRef = useRef<google.maps.Marker | null>(null);
+  const polygonRef = useRef<google.maps.Polygon | null>(null);
+  const vertexMarkersRef = useRef<google.maps.Marker[]>([]);
+  const clickListenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const prete = useRef(false);
+  const [, forceRender] = useState(0);
 
   const [center, setCenter] = useState<LatLng | null>(hasValidPoint(coordonnees) ? toLatLng(coordonnees.coordinates) : null);
   const [points, setPoints] = useState<LatLng[]>(
@@ -44,18 +47,29 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
 
   // Initialisation de la carte (une seule fois)
   useEffect(() => {
+    let annule = false;
     if (!containerRef.current || mapRef.current) return;
 
     const initialView: LatLng = center ?? (points[0] ?? [6.3703, 2.3912]); // fallback Cotonou
-    mapRef.current = L.map(containerRef.current).setView(initialView, center || points.length ? 14 : 6);
 
-    L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; <a href="https://www.esri.com">Esri</a> — Esri, HERE, Garmin, \u00a9 OpenStreetMap contributors, GIS User Community',
-        maxZoom: 16
-      }).addTo(mapRef.current);
+    chargerGoogleMaps()
+      .then((g) => {
+        if (annule || !containerRef.current || mapRef.current) return;
+        mapRef.current = new g.maps.Map(containerRef.current, {
+          center: { lat: initialView[0], lng: initialView[1] },
+          zoom: center || points.length ? 14 : 6,
+          styles: GOOGLE_MAP_STYLE,
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: false,
+        });
+        prete.current = true;
+        forceRender((n) => n + 1); // redéclenche les effets ci-dessous une fois la carte prête
+      })
+      .catch((err) => console.error('[GeofenceZoneEditorMap] Google Maps indisponible:', err));
 
     return () => {
-      mapRef.current?.remove();
+      annule = true;
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,93 +77,113 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
 
   // Gestion des clics : place le centre (cercle) ou ajoute un sommet (polygone)
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !prete.current) return;
     const map = mapRef.current;
 
-    const handleClick = (e: L.LeafletMouseEvent) => {
-      const latlng: LatLng = [e.latlng.lat, e.latlng.lng];
+    clickListenerRef.current?.remove();
+    clickListenerRef.current = map.addListener('click', (e: google.maps.MapMouseEvent) => {
+      if (!e.latLng) return;
+      const latlng: LatLng = [e.latLng.lat(), e.latLng.lng()];
       if (type === 'cercle') {
         setCenter(latlng);
       } else {
         setPoints((prev) => [...prev, latlng]);
       }
-    };
+    });
 
-    map.on('click', handleClick);
     return () => {
-      map.off('click', handleClick);
+      clickListenerRef.current?.remove();
+      clickListenerRef.current = null;
     };
-  }, [type]);
+  }, [type, prete.current]);
 
   // Dessin du cercle
   useEffect(() => {
-    if (!mapRef.current || type !== 'cercle') return;
+    if (!mapRef.current || !prete.current || type !== 'cercle') return;
+    const map = mapRef.current;
 
     if (circleRef.current) {
-      mapRef.current.removeLayer(circleRef.current);
+      circleRef.current.setMap(null);
       circleRef.current = null;
     }
     if (centerMarkerRef.current) {
-      mapRef.current.removeLayer(centerMarkerRef.current);
+      centerMarkerRef.current.setMap(null);
       centerMarkerRef.current = null;
     }
 
     if (center) {
-      circleRef.current = L.circle(center, {
+      circleRef.current = new google.maps.Circle({
+        center: { lat: center[0], lng: center[1] },
         radius: rayon || 100,
-        color: BRAND.orange,
-        weight: 2,
+        strokeColor: BRAND.orange,
+        strokeWeight: 2,
         fillColor: BRAND.orange,
-        fillOpacity: 0.18
-      }).addTo(mapRef.current);
+        fillOpacity: 0.18,
+        map,
+      });
 
-      centerMarkerRef.current = L.marker(center, { draggable: true }).addTo(mapRef.current);
-      centerMarkerRef.current.on('dragend', () => {
-        const pos = centerMarkerRef.current!.getLatLng();
-        setCenter([pos.lat, pos.lng]);
+      centerMarkerRef.current = new google.maps.Marker({
+        position: { lat: center[0], lng: center[1] },
+        map,
+        draggable: true,
+      });
+      centerMarkerRef.current.addListener('dragend', () => {
+        const pos = centerMarkerRef.current!.getPosition()!;
+        setCenter([pos.lat(), pos.lng()]);
       });
 
       onChange({ type: 'Point', coordinates: toLngLat(center), radius: rayon || 100 });
     }
-  }, [center, rayon, type]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [center, rayon, type, prete.current]);
 
   // Dessin du polygone
   useEffect(() => {
-    if (!mapRef.current || type !== 'polygone') return;
+    if (!mapRef.current || !prete.current || type !== 'polygone') return;
+    const map = mapRef.current;
 
     if (polygonRef.current) {
-      mapRef.current.removeLayer(polygonRef.current);
+      polygonRef.current.setMap(null);
       polygonRef.current = null;
     }
-    vertexMarkersRef.current.forEach((m) => mapRef.current?.removeLayer(m));
+    vertexMarkersRef.current.forEach((m) => m.setMap(null));
     vertexMarkersRef.current = [];
 
     points.forEach((pt, i) => {
-      const marker = L.circleMarker(pt, {
-        radius: 6,
-        color: BRAND.orange,
-        weight: 2,
-        fillColor: '#ffffff',
-        fillOpacity: 1
-      }).addTo(mapRef.current!);
-      marker.bindTooltip(`Sommet ${i + 1}`, { direction: 'top' });
+      const marker = new google.maps.Marker({
+        position: { lat: pt[0], lng: pt[1] },
+        map,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 6,
+          strokeColor: BRAND.orange,
+          strokeWeight: 2,
+          fillColor: '#ffffff',
+          fillOpacity: 1,
+        },
+        label: { text: `${i + 1}`, fontSize: '10px', color: BRAND.orange },
+        title: `Sommet ${i + 1}`,
+      });
       vertexMarkersRef.current.push(marker);
     });
 
     if (points.length >= 2) {
-      polygonRef.current = L.polygon(points, {
-        color: BRAND.orange,
-        weight: 2,
+      polygonRef.current = new google.maps.Polygon({
+        paths: points.map(([lat, lng]) => ({ lat, lng })),
+        strokeColor: BRAND.orange,
+        strokeWeight: 2,
         fillColor: BRAND.orange,
-        fillOpacity: 0.18
-      }).addTo(mapRef.current);
+        fillOpacity: 0.18,
+        map,
+      });
     }
 
     if (points.length >= 3) {
       const ring = [...points, points[0]].map(toLngLat);
       onChange({ type: 'Polygon', coordinates: [ring] });
     }
-  }, [points, type]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [points, type, prete.current]);
 
   const handleUndo = () => setPoints((prev) => prev.slice(0, -1));
   const handleClear = () => setPoints([]);

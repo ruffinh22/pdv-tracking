@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BRAND, couleurStatut } from '../lib/theme';
 import { useQuery } from '@tanstack/react-query';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { chargerGoogleMaps } from '../lib/googleMapsLoader';
+import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
 import { io, Socket } from 'socket.io-client';
 import { pdvService } from '../services/pdvService';
 import { Maximize2, Minimize2, RefreshCw, Filter, Play, Pause, Radio, X } from 'lucide-react';
@@ -55,31 +55,26 @@ const normalizePosition = (raw: any): Position | null => {
   };
 };
 
-const createIcon = (statut: string, isSelected: boolean, positionRecente: boolean) => {
+// Icône "téléphone" en SVG inline encodé en data URI : Google Maps Marker
+// n'accepte pas de HTML arbitraire comme icône (contrairement au L.divIcon de
+// Leaflet), seulement une URL/SVG. Le halo pulsé du PDV sélectionné est rendu
+// séparément par un cercle Google Maps additionnel (voir dessinerMarqueurs).
+const createIcon = (g: typeof google, statut: string, isSelected: boolean, positionRecente: boolean) => {
   const color = positionRecente ? couleurStatut(statut) : '#8B929B';
   const size = isSelected ? 40 : 32;
   const borderSize = isSelected ? 4 : 3;
-  return L.divIcon({
-    className: 'custom-marker',
-    html: `<div style="
-      background-color: ${color};
-      width: ${size}px;
-      height: ${size}px;
-      border-radius: 8px;
-      border: ${borderSize}px solid white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      ${isSelected ? 'animation: pulse 2s infinite;' : ''}
-    ">
-      <svg xmlns="http://www.w3.org/2000/svg" width="${size * 0.55}" height="${size * 0.55}" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-      </svg>
-    </div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2]
-  });
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <rect x="${borderSize / 2}" y="${borderSize / 2}" width="${size - borderSize}" height="${size - borderSize}" rx="8" ry="8" fill="${color}" stroke="white" stroke-width="${borderSize}"/>
+      <g transform="translate(${size * 0.225}, ${size * 0.225}) scale(${size * 0.55 / 24})">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new g.maps.Size(size, size),
+    anchor: new g.maps.Point(size / 2, size / 2),
+  };
 };
 
 const toCoord = (v: unknown): number | null => {
@@ -113,11 +108,14 @@ const popupHtml = (
   </div>`;
 
 const Tracking = () => {
-  const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<Map<number, L.Marker>>(new Map());
-  const accuracyCirclesRef = useRef<Map<number, L.Circle>>(new Map());
-  const polylinesRef = useRef<Map<number, L.Polyline>>(new Map());
+  const markersRef = useRef<Map<number, google.maps.Marker>>(new Map());
+  const accuracyCirclesRef = useRef<Map<number, google.maps.Circle>>(new Map());
+  const polylinesRef = useRef<Map<number, google.maps.Polyline>>(new Map());
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const googleRef = useRef<typeof google | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -168,29 +166,35 @@ const Tracking = () => {
   // Initialiser la carte
   useEffect(() => {
     if (!mapContainerRef.current) return;
+    let annule = false;
 
-    if (!mapRef.current) {
-      mapRef.current = L.map(mapContainerRef.current, {
-        center: [0, 0],
-        zoom: 2,
-        zoomControl: true
-      });
-
-      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; <a href="https://www.esri.com">Esri</a> — Esri, HERE, Garmin, \u00a9 OpenStreetMap contributors, GIS User Community',
-        maxZoom: 16
-      }).addTo(mapRef.current);
-    }
+    chargerGoogleMaps()
+      .then((g) => {
+        if (annule || !mapContainerRef.current || mapRef.current) return;
+        googleRef.current = g;
+        mapRef.current = new g.maps.Map(mapContainerRef.current, {
+          center: { lat: 0, lng: 0 },
+          zoom: 2,
+          styles: GOOGLE_MAP_STYLE,
+          zoomControl: true,
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: false,
+        });
+        infoWindowRef.current = new g.maps.InfoWindow();
+        setMapReady(true);
+      })
+      .catch((err) => console.error('[Tracking] Google Maps indisponible:', err));
 
     return () => {
+      annule = true;
+      markersRef.current.forEach((marker) => marker.setMap(null));
       markersRef.current.clear();
-      accuracyCirclesRef.current.forEach((circle) => circle.remove());
+      accuracyCirclesRef.current.forEach((circle) => circle.setMap(null));
       accuracyCirclesRef.current.clear();
+      polylinesRef.current.forEach((pl) => pl.setMap(null));
       polylinesRef.current.clear();
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
+      mapRef.current = null;
     };
   }, []);
 
@@ -307,18 +311,19 @@ const Tracking = () => {
   // la fenêtre d'information et réinitialisait la vue en permanence).
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    const g = googleRef.current;
+    if (!map || !g) return;
 
     const voulus = new Set(pdvs.filter((p) => positions.has(p.id)).map((p) => p.id));
     markersRef.current.forEach((marker, id) => {
       if (!voulus.has(id)) {
-        map.removeLayer(marker);
+        marker.setMap(null);
         markersRef.current.delete(id);
       }
     });
     accuracyCirclesRef.current.forEach((circle, id) => {
       if (!voulus.has(id)) {
-        map.removeLayer(circle);
+        circle.setMap(null);
         accuracyCirclesRef.current.delete(id);
       }
     });
@@ -330,72 +335,86 @@ const Tracking = () => {
       const cle = `${pdv.statut}|${selectedPDV === pdv.id}|${positionRecente}`;
       const accuracyCircle = accuracyCirclesRef.current.get(pdv.id);
       if (pos.precision !== null && pos.precision > 0) {
+        const couleur = positionRecente ? BRAND.green : '#8B929B';
         if (accuracyCircle) {
-          accuracyCircle
-            .setLatLng([pos.lat, pos.lng])
-            .setRadius(pos.precision)
-            .setStyle({
-              color: positionRecente ? BRAND.green : '#8B929B',
-              fillColor: positionRecente ? BRAND.green : '#8B929B',
-            });
+          accuracyCircle.setCenter({ lat: pos.lat, lng: pos.lng });
+          accuracyCircle.setRadius(pos.precision);
+          accuracyCircle.setOptions({ strokeColor: couleur, fillColor: couleur });
         } else {
           accuracyCirclesRef.current.set(
             pdv.id,
-            L.circle([pos.lat, pos.lng], {
+            new g.maps.Circle({
+              center: { lat: pos.lat, lng: pos.lng },
               radius: pos.precision,
-              color: positionRecente ? BRAND.green : '#8B929B',
-              weight: 1,
-              fillColor: positionRecente ? BRAND.green : '#8B929B',
+              strokeColor: couleur,
+              strokeWeight: 1,
+              fillColor: couleur,
               fillOpacity: 0.12,
-              interactive: false,
-            }).addTo(map)
+              clickable: false,
+              map,
+            })
           );
         }
       } else if (accuracyCircle) {
-        map.removeLayer(accuracyCircle);
+        accuracyCircle.setMap(null);
         accuracyCirclesRef.current.delete(pdv.id);
       }
-      let marker = markersRef.current.get(pdv.id) as (L.Marker & { __cle?: string; __html?: string }) | undefined;
+      let marker = markersRef.current.get(pdv.id) as (google.maps.Marker & { __cle?: string; __html?: string }) | undefined;
+      const html = popupHtml(pdv, pos, selectedPDV === pdv.id, positionRecente);
 
       if (!marker) {
-        marker = L.marker([pos.lat, pos.lng], { icon: createIcon(pdv.statut, selectedPDV === pdv.id, positionRecente) }) as L.Marker & { __cle?: string; __html?: string };
+        marker = new g.maps.Marker({
+          position: { lat: pos.lat, lng: pos.lng },
+          map,
+          icon: createIcon(g, pdv.statut, selectedPDV === pdv.id, positionRecente),
+        }) as google.maps.Marker & { __cle?: string; __html?: string };
         marker.__cle = cle;
-        marker.addTo(map);
-        marker.__html = popupHtml(pdv, pos, selectedPDV === pdv.id, positionRecente);
-        marker.bindPopup(marker.__html);
+        marker.__html = html;
+        // Le contenu est relu sur `marker.__html` au moment du clic (pas
+        // capturé en closure) : il reste donc à jour même si ce listener,
+        // attaché une seule fois à la création, n'est jamais recréé.
+        marker.addListener('click', () => {
+          infoWindowRef.current?.setContent(marker!.__html || '');
+          infoWindowRef.current?.open({ map, anchor: marker });
+        });
         markersRef.current.set(pdv.id, marker);
       } else {
-        marker.setLatLng([pos.lat, pos.lng]);
+        marker.setPosition({ lat: pos.lat, lng: pos.lng });
         if (marker.__cle !== cle) {
-          marker.setIcon(createIcon(pdv.statut, selectedPDV === pdv.id, positionRecente));
+          marker.setIcon(createIcon(g, pdv.statut, selectedPDV === pdv.id, positionRecente));
           marker.__cle = cle;
         }
-        // Le contenu n'est remplacé que s'il a changé : sinon le bouton serait
-        // recréé sous le doigt de l'utilisateur et le clic perdu.
-        const html = popupHtml(pdv, pos, selectedPDV === pdv.id, positionRecente);
-        if (marker.__html !== html) {
-          marker.__html = html;
-          marker.setPopupContent(html);
-        }
+        marker.__html = html;
       }
     });
 
     // Trajectoire du PDV suivi (historique réel + position actuelle)
-    polylinesRef.current.forEach((pl) => map.removeLayer(pl));
+    polylinesRef.current.forEach((pl) => pl.setMap(null));
     polylinesRef.current.clear();
     if (selectedPDV && positions.has(selectedPDV)) {
       const pos = positions.get(selectedPDV)!;
-      const points: [number, number][] = historique.map((h) => [h.latitude, h.longitude]);
+      const points: google.maps.LatLngLiteral[] = historique.map((h) => ({ lat: h.latitude, lng: h.longitude }));
       const dernier = points[points.length - 1];
-      if (!dernier || dernier[0] !== pos.lat || dernier[1] !== pos.lng) points.push([pos.lat, pos.lng]);
+      if (!dernier || dernier.lat !== pos.lat || dernier.lng !== pos.lng) points.push({ lat: pos.lat, lng: pos.lng });
       if (points.length > 1) {
         polylinesRef.current.set(
           selectedPDV,
-          L.polyline(points, { color: BRAND.orange, weight: 3, opacity: 0.8, dashArray: '10, 10' }).addTo(map)
+          new g.maps.Polyline({
+            path: points,
+            strokeOpacity: 0,
+            icons: [
+              {
+                icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, strokeColor: BRAND.orange, scale: 3 },
+                offset: '0',
+                repeat: '14px',
+              },
+            ],
+            map,
+          })
         );
       }
     }
-  }, [pdvs, positions, selectedPDV, historique, maintenant]);
+  }, [pdvs, positions, selectedPDV, historique, maintenant, mapReady]);
 
   // Cadrage global : uniquement quand l'ensemble des PDV affichés change
   // (chargement, filtre) ou quand on arrête le suivi, jamais à chaque position.
@@ -406,28 +425,39 @@ const Tracking = () => {
   const aucunSuivi = selectedPDV === null;
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !aucunSuivi || markersRef.current.size === 0) return;
-    const groupe = L.featureGroup(Array.from(markersRef.current.values()));
-    map.fitBounds(groupe.getBounds().pad(0.1), { maxZoom: 15 });
-  }, [cleCadrage, aucunSuivi]);
+    const g = googleRef.current;
+    if (!map || !g || !aucunSuivi || markersRef.current.size === 0) return;
+    const bounds = new g.maps.LatLngBounds();
+    markersRef.current.forEach((marker) => {
+      const pos = marker.getPosition();
+      if (pos) bounds.extend(pos);
+    });
+    if (!bounds.isEmpty()) map.fitBounds(bounds, 40);
+  }, [cleCadrage, aucunSuivi, mapReady]);
 
   // Suivi : zoom sur le PDV à la sélection, puis la carte le suit sans toucher au zoom.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !selectedPDV) return;
     const marker = markersRef.current.get(selectedPDV);
-    if (marker) map.setView(marker.getLatLng(), Math.max(map.getZoom(), 15));
+    const pos = marker?.getPosition();
+    if (pos) {
+      map.setCenter(pos);
+      map.setZoom(Math.max(map.getZoom() ?? 0, 15));
+    }
   }, [selectedPDV]);
 
   const posSuivie = selectedPDV ? positions.get(selectedPDV) : undefined;
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !posSuivie || !isTracking) return;
-    map.panTo([posSuivie.lat, posSuivie.lng], { animate: true });
+    map.panTo({ lat: posSuivie.lat, lng: posSuivie.lng });
   }, [posSuivie?.lat, posSuivie?.lng, isTracking]);
 
-  // Boutons de la fenêtre d'information. Écoute en phase de capture sur la carte :
-  // Leaflet stoppe la propagation des clics à l'intérieur des popups.
+  // Boutons de la fenêtre d'information. Écoute en phase de capture sur le
+  // conteneur de la carte : l'InfoWindow Google Maps est rendue à l'intérieur
+  // de ce conteneur, donc ses clics y remontent normalement — on les
+  // intercepte avant qu'ils n'atteignent autre chose.
   useEffect(() => {
     const el = mapContainerRef.current;
     if (!el) return;
@@ -437,10 +467,10 @@ const Tracking = () => {
       if (cible.dataset.action === 'suivre') {
         setSelectedPDV(Number(cible.dataset.pdv));
         setIsTracking(true);
-        mapRef.current?.closePopup();
+        infoWindowRef.current?.close();
       } else if (cible.dataset.action === 'arreter') {
         setSelectedPDV(null);
-        mapRef.current?.closePopup();
+        infoWindowRef.current?.close();
       }
     };
     el.addEventListener('click', surClic, true);
@@ -458,8 +488,10 @@ const Tracking = () => {
   };
 
   const refreshMap = () => {
-    if (mapRef.current) {
-      mapRef.current.invalidateSize();
+    const map = mapRef.current;
+    const g = googleRef.current;
+    if (map && g) {
+      g.maps.event.trigger(map, 'resize');
     }
   };
 
