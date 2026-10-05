@@ -296,8 +296,10 @@ const Dashboard = () => {
       <div className="panel-pro">
         <div className="panel-pro-head">
           <div>
-            <h2>Base PDV taguée</h2>
-            <p className="text-xs font-semibold text-ink-500 mt-0.5 pl-3.5">{PERIODE_LABEL[periode]}</p>
+            <h2>Statuts des PDV</h2>
+            <p className="text-xs font-semibold text-ink-500 mt-0.5 pl-3.5">
+              {PERIODE_LABEL[periode]} · statut de fiche, indépendant du GPS
+            </p>
           </div>
           <div className="flex items-center gap-1 bg-ink-50 rounded-lg p-1">
             {(['jour', 'semaine', 'mois', 'all'] as Periode[]).map((p) => (
@@ -329,7 +331,7 @@ const Dashboard = () => {
             </span>
             <div className="min-w-0">
               <p className="text-2xl font-bold text-ink-900 leading-none"><CountUp value={pdvStats?.actifs ?? 0} /></p>
-              <p className="text-xs text-ink-500 mt-1.5 truncate">PDV actifs</p>
+              <p className="text-xs text-ink-500 mt-1.5 truncate">Fiches actives</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-5">
@@ -338,7 +340,7 @@ const Dashboard = () => {
             </span>
             <div className="min-w-0">
               <p className="text-2xl font-bold text-ink-900 leading-none"><CountUp value={pdvStats?.inactifs ?? 0} /></p>
-              <p className="text-xs text-ink-500 mt-1.5 truncate">PDV inactifs</p>
+              <p className="text-xs text-ink-500 mt-1.5 truncate">Fiches inactives</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-5">
@@ -347,7 +349,7 @@ const Dashboard = () => {
             </span>
             <div className="min-w-0">
               <p className="text-2xl font-bold text-ink-900 leading-none"><CountUp value={pdvStats?.suspendus ?? 0} /></p>
-              <p className="text-xs text-ink-500 mt-1.5 truncate">PDV suspendus</p>
+              <p className="text-xs text-ink-500 mt-1.5 truncate">Fiches suspendues</p>
             </div>
           </div>
         </div>

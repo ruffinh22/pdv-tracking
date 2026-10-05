@@ -56,7 +56,7 @@ const normalizePosition = (raw: any): Position | null => {
 };
 
 const createIcon = (statut: string, isSelected: boolean, positionRecente: boolean) => {
-  const color = positionRecente ? couleurStatut(statut) : '#8B929B';
+  const color = couleurStatut(statut);
   const size = isSelected ? 40 : 32;
   const borderSize = isSelected ? 4 : 3;
   return L.divIcon({
@@ -66,8 +66,9 @@ const createIcon = (statut: string, isSelected: boolean, positionRecente: boolea
       width: ${size}px;
       height: ${size}px;
       border-radius: 8px;
-      border: ${borderSize}px solid white;
+      border: ${borderSize}px ${positionRecente ? 'solid' : 'dashed'} white;
       box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      opacity: ${positionRecente ? 1 : 0.58};
       display: flex;
       align-items: center;
       justify-content: center;
@@ -99,8 +100,8 @@ const popupHtml = (
 ) => `
   <div style="min-width: 240px;">
     <h3 style="margin: 0 0 8px 0; font-weight: bold;">${echapper(pdv.nom_pdv)}</h3>
-    <p style="margin: 4px 0;"><strong>Statut PDV :</strong> ${echapper(pdv.statut)}</p>
-    <p style="margin: 4px 0;"><strong>Suivi GPS :</strong> ${positionRecente ? 'Position récente' : 'Aucune position depuis plus de 2 min'}</p>
+    <p style="margin: 4px 0;"><strong>Statut de la fiche :</strong> ${echapper(pdv.statut)}</p>
+    <p style="margin: 4px 0;"><strong>État GPS :</strong> ${positionRecente ? 'Position reçue il y a moins de 2 min' : 'Dernière position ancienne ou inconnue'}</p>
     <p style="margin: 4px 0;"><strong>Position :</strong> ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}</p>
     <p style="margin: 4px 0;"><strong>Précision GPS estimée :</strong> ${pos.precision !== null ? `±${Math.round(pos.precision)} m` : 'indisponible'}</p>
     <p style="margin: 4px 0;"><strong>Dernière mise à jour :</strong> ${echapper(pos.date ? new Date(pos.date).toLocaleString('fr-FR') : 'Inconnue')}</p>
@@ -124,7 +125,7 @@ const Tracking = () => {
   const [isTracking, setIsTracking] = useState(true);
   const [selectedPDV, setSelectedPDV] = useState<number | null>(null);
   const [livePositions, setLivePositions] = useState<Map<number, Position>>(new Map());
-  const [statutFilter, setStatutFilter] = useState<string>('all');
+  const [statutFilter, setStatutFilter] = useState<string>('actif');
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [isConnected, setIsConnected] = useState(false);
   const [maintenant, setMaintenant] = useState(Date.now());
@@ -545,12 +546,12 @@ const Tracking = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold text-ink-600">Statut</label>
+          <label className="text-xs font-semibold text-ink-600">Statut de la fiche</label>
           <select value={statutFilter} className="toolbar-select !h-9 !w-40" onChange={(e) => setStatutFilter(e.target.value)}>
-            <option value="all">Tous</option>
-            <option value="actif">Actifs</option>
-            <option value="inactif">Inactifs</option>
-            <option value="suspendu">Suspendus</option>
+            <option value="all">Tous les PDV</option>
+            <option value="actif">Fiches actives</option>
+            <option value="inactif">Fiches inactives</option>
+            <option value="suspendu">Fiches suspendues</option>
           </select>
         </div>
 
@@ -570,13 +571,16 @@ const Tracking = () => {
 
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto text-xs font-semibold text-ink-700">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200">
-            <span className="w-2.5 h-2.5 rounded-full bg-success-600" />Actif
+            <span className="w-2.5 h-2.5 rounded-full bg-success-600" />Fiche active
           </span>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200">
-            <span className="w-2.5 h-2.5 rounded-full bg-ink-400" />Inactif
+            <span className="w-2.5 h-2.5 rounded-full bg-ink-400" />Fiche inactive
           </span>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200">
-            <span className="w-2.5 h-2.5 rounded-full bg-danger-500" />Suspendu
+            <span className="w-2.5 h-2.5 rounded-full bg-danger-500" />Fiche suspendue
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200">
+            <span className="w-2.5 h-2.5 rounded-full border-2 border-dashed border-ink-500 bg-white" />GPS ancien/inconnu (&gt; 2 min)
           </span>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200">
             <span className="w-4 h-0 border-t-2 border-dashed border-primary-500" />Trajectoire

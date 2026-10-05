@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
+const { calculerEtatSuivi } = require('../utils/etatSuivi');
 
 const PDV = sequelize.define('PDV', {
   id: {
@@ -107,6 +108,12 @@ const PDV = sequelize.define('PDV', {
     type: DataTypes.DECIMAL(8, 2),
     allowNull: true,
     comment: 'Rayon estimé de précision GPS en mètres pour la dernière position'
+  },
+  etat_suivi: {
+    type: DataTypes.VIRTUAL,
+    get() {
+      return calculerEtatSuivi(this.getDataValue('derniere_position_date'));
+    }
   },
 
   // Informations de tagging (concessionnaire / vendeur)
