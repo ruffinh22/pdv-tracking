@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "741777889159",
+    "project_id": "tracking-pdv",
+    "storage_bucket": "tracking-pdv.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:741777889159:android:9ff619803cc63df841a522",
+        "android_client_info": {
+          "package_name": "com.trackingpdv.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiow2BvtZ2U4MkKhL5R5oihoBLVe49gVo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

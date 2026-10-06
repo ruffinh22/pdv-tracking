@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { colors, radius } from '@/theme/colors';
 import StatCard from '@/components/ui/StatCard';
 import GPSStatusCard from '@/components/GPSStatusCard';
+import ProtectionSuiviCard from '@/components/ProtectionSuiviCard';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import AppHeader from '@/components/AppHeader';
@@ -111,6 +112,7 @@ export default function SuiviScreen() {
         </View>
 
         <View style={{ height: 10 }} />
+        <ProtectionSuiviCard />
         <GPSStatusCard current={currentLocation} initial={initialLocation} />
 
         {/* Avertissement explicite quand le suivi ne peut pas tourner en

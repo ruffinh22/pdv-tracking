@@ -13,6 +13,8 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import Pagination from '../components/Pagination';
 import { useAuthStore } from '../contexts/authContext';
+import { usePdvLiveRefresh } from '../hooks/usePdvLiveRefresh';
+import { CLASSE_ETAT_SUIVI, calculerEtatSuivi, LIBELLE_ETAT_SUIVI } from '../lib/etatSuivi';
 
 const STATUS_BADGE: Record<string, string> = {
   actif: 'badge badge-success',
@@ -63,6 +65,7 @@ const EMPTY_FORM: FormState = {
 };
 
 const PDVList = () => {
+  usePdvLiveRefresh();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   // Un commercial ne peut taguer/modifier que ses propres PDV (voir
@@ -91,6 +94,12 @@ const PDVList = () => {
   const [produitFilter, setProduitFilter] = useState<number | ''>('');
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [formData, setFormData] = useState<FormState>(EMPTY_FORM);
+  const [maintenant, setMaintenant] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setMaintenant(Date.now()), 15_000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Référentiels pour les listes déroulantes (Agence, Commercial, Superviseur, Chef de zone, Produits)
   const { data: agences = [] } = useQuery({
@@ -423,9 +432,18 @@ const PDVList = () => {
     },
     {
       id: 'statut',
-      header: 'Statut',
+      header: 'Statut de fiche',
       accessorFn: (p) => p.statut,
       cell: ({ row }) => <span className={STATUS_BADGE[row.original.statut] ?? 'badge badge-neutral'}>{row.original.statut}</span>,
+    },
+    {
+      id: 'etat_suivi',
+      header: 'Suivi GPS',
+      accessorFn: (p) => p.derniere_position_date || '',
+      cell: ({ row }) => {
+        const etat = calculerEtatSuivi(row.original.derniere_position_date, maintenant);
+        return <span className={CLASSE_ETAT_SUIVI[etat]}>{LIBELLE_ETAT_SUIVI[etat]}</span>;
+      },
     },
     {
       id: 'dossier',

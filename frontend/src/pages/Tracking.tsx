@@ -7,7 +7,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { io, Socket } from 'socket.io-client';
 import { pdvService } from '../services/pdvService';
-import { Maximize2, Minimize2, RefreshCw, Filter, Play, Pause, Radio, X } from 'lucide-react';
+import { Maximize2, Minimize2, RefreshCw, Filter, Play, Pause, Radio, X, AlertTriangle } from 'lucide-react';
 
 interface PDV {
   id: number;
@@ -72,6 +72,9 @@ const createIcon = (etat: StatutReel, isSelected: boolean) => {
   });
 };
 
+// Au-delà de ce silence, un terminal de fiche active nécessite un passage terrain.
+const SEUIL_A_INTERVENIR_MS = 30 * 60 * 1000;
+
 const toCoord = (v: unknown): number | null => {
   if (v === null || v === undefined || v === '') return null;
   const n = Number(v);
@@ -115,6 +118,7 @@ const Tracking = () => {
   const [livePositions, setLivePositions] = useState<Map<number, Position>>(new Map());
   const [statutFilter, setStatutFilter] = useState<string>('all');
   const [zoneFilter, setZoneFilter] = useState<string>('all');
+  const [panneauOuvert, setPanneauOuvert] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [maintenant, setMaintenant] = useState(Date.now());
 
@@ -154,6 +158,27 @@ const Tracking = () => {
     return m;
   }, [allPdvs, livePositions, maintenant]);
   const compteurs = useMemo(() => compterStatuts(Array.from(statuts.values()).map((v) => v.etat)), [statuts]);
+
+  // Terminaux muets : fiche active, jamais connectés ou sans signal depuis trop
+  // longtemps. Les plus silencieux d'abord.
+  const aIntervenir = useMemo(
+    () =>
+      allPdvs
+        .map((pdv) => ({ pdv, ...(statuts.get(pdv.id) ?? { etat: 'jamais_connecte' as StatutReel, signal: null as number | null }) }))
+        .filter(({ pdv, etat, signal }) =>
+          pdv.statut === 'actif' &&
+          (etat === 'jamais_connecte' || etat === 'hors_ligne' || (etat === 'en_retard' && signal !== null && maintenant - signal > SEUIL_A_INTERVENIR_MS))
+        )
+        .sort((a, b) => (a.signal ?? -Infinity) - (b.signal ?? -Infinity)),
+    [allPdvs, statuts, maintenant]
+  );
+
+  const localiser = (id: number) => {
+    const marker = markersRef.current.get(id);
+    if (!marker || !mapRef.current) return;
+    mapRef.current.setView(marker.getLatLng(), Math.max(mapRef.current.getZoom(), 16));
+    marker.openPopup();
+  };
 
   // Filtres statut / zone réellement appliqués à la carte (auparavant ces deux
   // sélecteurs ne faisaient qu'un console.log, sans le moindre effet visible).
@@ -562,6 +587,18 @@ const Tracking = () => {
           </span>
         )}
 
+        <button
+          type="button"
+          onClick={() => setPanneauOuvert((v) => !v)}
+          className={`inline-flex items-center gap-2 h-9 px-3 rounded-[4px] border text-[13px] font-semibold transition-colors ${
+            aIntervenir.length ? 'bg-danger-50 border-danger-200 text-danger-700 hover:bg-danger-100' : 'bg-ink-50 border-ink-200 text-ink-600'
+          }`}
+        >
+          <AlertTriangle className="w-4 h-4" />
+          À intervenir
+          <span className="tabular-nums">{aIntervenir.length}</span>
+        </button>
+
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           <PDVStatusLegend compteurs={compteurs} selection={statutFilter} onSelect={setStatutFilter} />
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200 text-xs font-semibold text-ink-700">
@@ -573,6 +610,35 @@ const Tracking = () => {
       {/* Carte en plein écran */}
       <div className="flex-1 relative z-0">
         <div ref={mapContainerRef} className="absolute inset-0 bg-ink-100" />
+        {panneauOuvert && (
+          <aside className="absolute top-3 right-3 bottom-3 w-80 max-w-[85vw] z-[500] flex flex-col bg-white border border-ink-300 rounded-[4px] shadow-popover">
+            <header className="flex items-center justify-between px-3.5 py-2.5 border-b border-ink-200">
+              <div className="leading-tight">
+                <p className="text-[13px] font-bold text-ink-900">Terminaux à intervenir</p>
+                <p className="text-[11px] text-ink-500">Fiche active, sans signal depuis plus de 30 min</p>
+              </div>
+              <button onClick={() => setPanneauOuvert(false)} className="p-1 text-ink-500 hover:text-ink-900" aria-label="Fermer">
+                <X className="w-4 h-4" />
+              </button>
+            </header>
+            <ul className="flex-1 overflow-y-auto divide-y divide-ink-100">
+              {aIntervenir.length === 0 && <li className="px-3.5 py-6 text-center text-[13px] text-ink-500">Aucun terminal muet.</li>}
+              {aIntervenir.map(({ pdv, etat, signal }) => (
+                <li key={pdv.id}>
+                  <button onClick={() => localiser(pdv.id)} className="w-full text-left px-3.5 py-2.5 hover:bg-ink-50 flex items-start gap-2.5">
+                    <span className="mt-1 w-2.5 h-2.5 rounded-full shrink-0" style={{ background: STATUTS[etat].couleur }} />
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-semibold text-ink-900 truncate">{pdv.nom_pdv}</span>
+                      <span className="block text-[11.5px] text-ink-500">
+                        {STATUTS[etat].libelle} · {signal === null ? 'aucun signal reçu' : `dernier signal ${ageLisible(signal, maintenant)}`}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        )}
         {selectedPDV && (
           <div className="absolute top-3 left-14 z-[500] flex items-center gap-3 bg-white border border-ink-300 rounded-[4px] shadow-popover px-3.5 py-2">
             <span className="w-2.5 h-2.5 rounded-full bg-success-600 animate-pulse" />

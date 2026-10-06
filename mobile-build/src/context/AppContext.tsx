@@ -11,6 +11,9 @@ import {
   startBackgroundLocationTracking,
   stopBackgroundLocationTracking,
 } from '@/tasks/locationTask';
+import { enregistrerWatchdog } from '@/tasks/watchdogTask';
+import { enregistrerReveil } from '@/tasks/reveilTask';
+import { enregistrerPushToken } from '@/services/pushService';
 import { getOrCreateTerminalId } from '@/lib/terminalId';
 import { EchecLocalisation, lirePositionFraiche, obtenirPosition, suivrePosition } from '@/lib/location';
 import { GPSPoint, SyncStatus } from '@/types';
@@ -238,6 +241,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         CONFIG.LOCATION.TRACKING_DISTANCE
       );
       setIsTracking(true);
+      enregistrerWatchdog();
+      enregistrerReveil();
+      enregistrerPushToken();
     } catch (error) {
       console.warn('[app] Démarrage du suivi impossible:', error);
       setIsTracking(false);

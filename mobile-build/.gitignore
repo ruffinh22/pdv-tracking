@@ -44,3 +44,4 @@ example
 # generated native folders
 /ios
 /android
+./mobile-build/google-services.json

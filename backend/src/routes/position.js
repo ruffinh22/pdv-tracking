@@ -3,6 +3,7 @@ const router = express.Router();
 const { body } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 const positionController = require('../controllers/positionController');
+const pushController = require('../controllers/pushController');
 const authMiddleware = require('../middleware/authMiddleware');
 const mobilePositionAuth = require('../middleware/mobilePositionAuth');
 
@@ -25,6 +26,7 @@ const createPositionValidation = [
 // Routes publiques pour l'application mobile
 router.post('/mobile/create', mobilePositionAuth, mobilePositionLimiter, positionController.mobileCreatePosition);
 router.post('/mobile/batch', mobilePositionAuth, mobilePositionLimiter, positionController.mobileCreatePositionsBatch);
+router.post('/mobile/push-token', mobilePositionAuth, mobilePositionLimiter, pushController.enregistrerPushToken);
 
 // Routes protégées (require auth)
 router.post('/', authMiddleware, createPositionValidation, positionController.createPosition);

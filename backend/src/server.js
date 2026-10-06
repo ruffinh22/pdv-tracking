@@ -25,6 +25,7 @@ const { runMigrations } = require('./database/runMigrations');
 const logger = require('./utils/logger');
 const socketHandler = require('./sockets/socketHandler');
 const { demarrerPurgePeriodique } = require('./services/positionRetentionService');
+const { demarrerReveilPeriodique } = require('./services/reveilService');
 
 // Import des routes
 const authRoutes = require('./routes/auth');
@@ -227,6 +228,7 @@ async function startServer() {
     // Fenêtre glissante sur l'historique de positions : sans elle, la table
     // `positions` croît indéfiniment (un point toutes les 30 s par terminal).
     demarrerPurgePeriodique();
+    demarrerReveilPeriodique();
     server.listen(PORT, '0.0.0.0', () => {
       logger.info(`Serveur démarré sur le port ${PORT}`);
       logger.info(`Environnement: ${NODE_ENV}`);

@@ -104,6 +104,19 @@ const PDV = sequelize.define('PDV', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  derniere_position_recue_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Heure serveur de réception de la dernière position'
+  },
+  push_token: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  dernier_reveil_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   derniere_position_precision: {
     type: DataTypes.DECIMAL(8, 2),
     allowNull: true,

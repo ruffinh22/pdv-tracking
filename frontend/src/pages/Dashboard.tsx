@@ -30,8 +30,8 @@ import { usePdvLiveRefresh } from '../hooks/usePdvLiveRefresh';
 const KPI_CARDS = [
   {
     key: 'pdv_actifs',
-    label: 'PDV Actifs',
-    caption: 'Points de vente en activité',
+    label: 'Fiches actives',
+    caption: 'Statut administratif du PDV, indépendant du GPS',
     icon: MapPin,
     iconBg: 'bg-success-50 ring-1 ring-success-200',
     iconColor: 'text-success-600',
@@ -125,7 +125,6 @@ const Dashboard = () => {
   const { data: allPDVsResponse } = useQuery({
     queryKey: ['pdvsAllForMap'],
     queryFn: () => pdvService.getAllPDVsNoPagination(),
-    refetchInterval: 60_000,
   });
 
   // Point 5 : PDV tagués / actifs / inactifs sur une période
