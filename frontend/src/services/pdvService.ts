@@ -155,6 +155,11 @@ export interface PDVFilters {
 }
 
 export const pdvService = {
+  /** Demande un réveil silencieux au terminal via le backend. */
+  reveillerTerminal: async (id: number): Promise<void> => {
+    await api.post(`/pdv/${id}/reveiller`);
+  },
+
   getAllPDVs: async (page: number = 1, limit: number = 10, filters: PDVFilters = {}) => {
     try {
       const response = await api.get('/pdv', { params: { page, limit, ...filters } });

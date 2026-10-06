@@ -3,7 +3,6 @@ const router = express.Router();
 const { body } = require('express-validator');
 const pdvController = require('../controllers/pdvController');
 const authMiddleware = require('../middleware/authMiddleware');
-const pushController = require('../controllers/pushController');
 
 // Validation middleware
 // `msisdn_responsable` n'est plus obligatoire : un PDV est désormais identifié
@@ -46,7 +45,6 @@ router.put('/:id/produits', authMiddleware, pdvController.updatePDVProduits);
 // Rejoue le géocodage inverse depuis les coordonnées d'enrôlement, quand le
 // remplissage automatique a échoué au moment de la pose du terminal.
 router.post('/:id/geocoder', authMiddleware, pdvController.regeocoderPDV);
-router.post('/:id/reveiller', authMiddleware, pushController.reveillerPdv);
 router.delete('/:id', authMiddleware, pdvController.deletePDV);
 router.get('/:id/positions', authMiddleware, pdvController.getPDVPositions);
 // Synthèse du déplacement du terminal sur une période (distance, eloignement)

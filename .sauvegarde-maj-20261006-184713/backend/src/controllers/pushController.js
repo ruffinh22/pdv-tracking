@@ -15,17 +15,3 @@ exports.enregistrerPushToken = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur' });
   }
 };
-
-const { reveillerUnPdv } = require('../services/reveilService');
-
-/** Réveil manuel d'un terminal depuis le tableau de bord (utilisateur authentifié). */
-exports.reveillerPdv = async (req, res) => {
-  try {
-    const r = await reveillerUnPdv(Number(req.params.id));
-    if (r.ok) return res.json({ ok: true });
-    return res.status(r.code).json({ error: r.erreur });
-  } catch (error) {
-    logger.error('Réveil manuel impossible', { message: error.message });
-    return res.status(500).json({ error: 'Erreur serveur' });
-  }
-};

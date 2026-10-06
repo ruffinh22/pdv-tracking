@@ -119,6 +119,7 @@ const Tracking = () => {
   const [statutFilter, setStatutFilter] = useState<string>('all');
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [panneauOuvert, setPanneauOuvert] = useState(false);
+  const [reveils, setReveils] = useState<Record<number, 'envoi' | 'ok' | 'erreur'>>({});
   const [isConnected, setIsConnected] = useState(false);
   const [maintenant, setMaintenant] = useState(Date.now());
 
@@ -178,6 +179,20 @@ const Tracking = () => {
     if (!marker || !mapRef.current) return;
     mapRef.current.setView(marker.getLatLng(), Math.max(mapRef.current.getZoom(), 16));
     marker.openPopup();
+  };
+
+  const reveiller = async (id: number) => {
+    setReveils((etat) => ({ ...etat, [id]: 'envoi' }));
+    try {
+      await pdvService.reveillerTerminal(id);
+      setReveils((etat) => ({ ...etat, [id]: 'ok' }));
+    } catch {
+      setReveils((etat) => ({ ...etat, [id]: 'erreur' }));
+    }
+  };
+
+  const reveillerTous = async () => {
+    for (const { pdv } of aIntervenir) await reveiller(pdv.id);
   };
 
   // Filtres statut / zone réellement appliqués à la carte (auparavant ces deux
@@ -621,11 +636,18 @@ const Tracking = () => {
                 <X className="w-4 h-4" />
               </button>
             </header>
+            {aIntervenir.length > 0 && (
+              <div className="px-3.5 py-2 border-b border-ink-200">
+                <button onClick={reveillerTous} className="w-full h-8 rounded-[4px] bg-primary-600 hover:bg-primary-700 text-white text-[12.5px] font-semibold">
+                  Réveiller tous les terminaux ({aIntervenir.length})
+                </button>
+              </div>
+            )}
             <ul className="flex-1 overflow-y-auto divide-y divide-ink-100">
               {aIntervenir.length === 0 && <li className="px-3.5 py-6 text-center text-[13px] text-ink-500">Aucun terminal muet.</li>}
               {aIntervenir.map(({ pdv, etat, signal }) => (
-                <li key={pdv.id}>
-                  <button onClick={() => localiser(pdv.id)} className="w-full text-left px-3.5 py-2.5 hover:bg-ink-50 flex items-start gap-2.5">
+                <li key={pdv.id} className="flex items-stretch">
+                  <button onClick={() => localiser(pdv.id)} className="flex-1 min-w-0 text-left px-3.5 py-2.5 hover:bg-ink-50 flex items-start gap-2.5">
                     <span className="mt-1 w-2.5 h-2.5 rounded-full shrink-0" style={{ background: STATUTS[etat].couleur }} />
                     <span className="min-w-0">
                       <span className="block text-[13px] font-semibold text-ink-900 truncate">{pdv.nom_pdv}</span>
@@ -633,6 +655,14 @@ const Tracking = () => {
                         {STATUTS[etat].libelle} · {signal === null ? 'aucun signal reçu' : `dernier signal ${ageLisible(signal, maintenant)}`}
                       </span>
                     </span>
+                  </button>
+                  <button
+                    onClick={() => reveiller(pdv.id)}
+                    disabled={reveils[pdv.id] === 'envoi'}
+                    title="Demander un réveil silencieux au terminal"
+                    className="shrink-0 px-3 text-[12px] font-semibold text-primary-700 hover:bg-primary-50 border-l border-ink-100 disabled:opacity-50"
+                  >
+                    {reveils[pdv.id] === 'envoi' ? '…' : reveils[pdv.id] === 'ok' ? 'Demandé ✓' : reveils[pdv.id] === 'erreur' ? 'Échec' : 'Réveiller'}
                   </button>
                 </li>
               ))}
