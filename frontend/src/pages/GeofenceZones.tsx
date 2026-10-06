@@ -3,13 +3,17 @@ import PageHeader from '../components/PageHeader';
 import { Plus, Edit, Trash2, MapPin, Layers, UserPlus, UserMinus, X } from 'lucide-react';
 import { geofenceService, GeofenceZone } from '../services/geofenceService';
 import { pdvService, PDV } from '../services/pdvService';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import GeofenceZonesMap from '../components/GeofenceZonesMap';
 import GeofenceZoneEditorMap from '../components/GeofenceZoneEditorMap';
+import { CLASSE_ETAT_SUIVI, calculerEtatSuivi, LIBELLE_ETAT_SUIVI } from '../lib/etatSuivi';
+import { usePdvLiveRefresh } from '../hooks/usePdvLiveRefresh';
 
 const GeofenceZones = () => {
+  usePdvLiveRefresh();
   const queryClient = useQueryClient();
+  const [maintenant, setMaintenant] = useState(Date.now());
   const [showModal, setShowModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [editingZone, setEditingZone] = useState<GeofenceZone | null>(null);
@@ -33,6 +37,11 @@ const GeofenceZones = () => {
   });
 
   const pdvs: PDV[] = pdvsResponse?.data || [];
+
+  useEffect(() => {
+    const timer = setInterval(() => setMaintenant(Date.now()), 15_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const createMutation = useMutation({
     mutationFn: geofenceService.createZone,
@@ -265,15 +274,20 @@ const GeofenceZones = () => {
               {zone.pdvs && zone.pdvs.length > 0 ? (
                 <div className="space-y-1 max-h-32 overflow-y-auto">
                   {zone.pdvs.map((pdv: any) => (
-                    <div key={pdv.id} className="flex items-center justify-between text-sm bg-ink-50 px-3 py-2 rounded-lg">
+                    <div key={pdv.id} className="flex items-center justify-between gap-2 text-sm bg-ink-50 px-3 py-2 rounded-lg">
                       <span className="text-ink-700 truncate">{pdv.nom_pdv}</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleRemovePDV(zone.id, pdv.id); }}
-                        className="p-1 hover:bg-danger-50 rounded text-danger-500 shrink-0"
-                        title="Retirer"
-                      >
-                        <UserMinus className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={CLASSE_ETAT_SUIVI[calculerEtatSuivi(pdv.derniere_position_date, maintenant)]}>
+                          {LIBELLE_ETAT_SUIVI[calculerEtatSuivi(pdv.derniere_position_date, maintenant)]}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRemovePDV(zone.id, pdv.id); }}
+                          className="p-1 hover:bg-danger-50 rounded text-danger-500 shrink-0"
+                          title="Retirer"
+                        >
+                          <UserMinus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

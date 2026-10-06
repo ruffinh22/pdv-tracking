@@ -25,6 +25,7 @@ import FiltresOrganisation, { ValeursFiltresOrganisation } from '../components/F
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../contexts/authContext';
 import { ROLE_DASHBOARD_SUBTITLE, ROLE_DIMENSIONS, Role } from '../config/permissions';
+import { usePdvLiveRefresh } from '../hooks/usePdvLiveRefresh';
 
 const KPI_CARDS = [
   {
@@ -85,6 +86,7 @@ const ALL_DIMENSION_OPTIONS: { value: Dimension; label: string }[] = [
 const PIE_COLORS = CHART_SERIES;
 
 const Dashboard = () => {
+  usePdvLiveRefresh();
   const { user } = useAuthStore();
   const role = (user?.role as Role) ?? 'commercial';
 
@@ -109,6 +111,7 @@ const Dashboard = () => {
   const { data: kpis, isLoading } = useQuery({
     queryKey: ['kpis', filtresOrg],
     queryFn: () => dashboardService.getKPIs(filtresOrg),
+    refetchInterval: 30_000,
   });
 
   const { data: alertesActives } = useQuery({
@@ -122,6 +125,7 @@ const Dashboard = () => {
   const { data: allPDVsResponse } = useQuery({
     queryKey: ['pdvsAllForMap'],
     queryFn: () => pdvService.getAllPDVsNoPagination(),
+    refetchInterval: 60_000,
   });
 
   // Point 5 : PDV tagués / actifs / inactifs sur une période
@@ -190,6 +194,12 @@ const Dashboard = () => {
     alertes_actives: kpis?.alertes_actives || 0,
     pdv_muets: kpis?.pdv_muets || 0,
   };
+  const etatsGps = [
+    { label: 'En ligne', value: kpis?.pdv_en_ligne ?? 0, classes: 'text-success-700 bg-success-50 border-success-200' },
+    { label: 'Position en retard', value: kpis?.pdv_en_retard ?? 0, classes: 'text-warning-800 bg-warning-50 border-warning-200' },
+    { label: 'Hors ligne · +48 h', value: kpis?.pdv_hors_ligne ?? 0, classes: 'text-ink-700 bg-ink-50 border-ink-200' },
+    { label: 'Jamais connecté', value: kpis?.pdv_jamais_connectes ?? 0, classes: 'text-danger-700 bg-danger-50 border-danger-200' },
+  ];
 
   const produitsChartData = useMemo(() => {
     return (pdvParProduit || []).map((p: any) => ({ name: p.produit, total: p.total_pdv }));
@@ -292,7 +302,25 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Point 5 : PDV tagués / inactifs par période */}
+      <section className="panel-pro" aria-label="État GPS en direct">
+        <div className="panel-pro-head">
+          <div>
+            <h2>État GPS en direct</h2>
+            <p className="text-xs font-semibold text-ink-500 mt-0.5">Basé sur la dernière position reçue, indépendant du statut de fiche</p>
+          </div>
+          <span className="text-xs font-semibold text-ink-500">En ligne si reçu depuis moins de 2 min</span>
+        </div>
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 px-4 pb-4">
+          {etatsGps.map((etat) => (
+            <div key={etat.label} className={`flex items-center justify-between gap-2 rounded-md border px-3 py-2.5 ${etat.classes}`}>
+              <span className="text-xs font-semibold">{etat.label}</span>
+              <span className="text-lg font-bold tabular-nums">{etat.value.toLocaleString('fr-FR')}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Statuts administratifs des fiches PDV */}
       <div className="panel-pro">
         <div className="panel-pro-head">
           <div>

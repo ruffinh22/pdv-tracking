@@ -13,6 +13,10 @@ export interface KPIs {
   alertes_actives: number;
   pdv_vus_24h: number;
   pdv_muets: number;
+  pdv_en_ligne: number;
+  pdv_en_retard: number;
+  pdv_hors_ligne: number;
+  pdv_jamais_connectes: number;
   seuil_inactivite_heures: number;
 }
 

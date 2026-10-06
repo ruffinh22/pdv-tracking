@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BRAND, couleurStatut } from '../lib/theme';
+import { BRAND } from '../lib/theme';
+import { STATUTS, StatutReel, ORDRE_STATUTS, calculerStatutReel, compterStatuts, dernierSignal, ageLisible, badgeStatutHtml, echapperHtml as echapper } from '../lib/pdvStatus';
+import PDVStatusLegend from '../components/PDVStatusLegend';
 import { useQuery } from '@tanstack/react-query';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -15,6 +17,7 @@ interface PDV {
   derniere_position_latitude?: number;
   derniere_position_longitude?: number;
   derniere_position_date?: string;
+  derniere_position_recue_at?: string | null;
   derniere_position_precision?: number | string | null;
   statut: string;
   zone_geofence_id?: number | null;
@@ -26,15 +29,8 @@ interface Position {
   longitude: number;
   horodatage: string;
   precision: number | null;
+  recu_at?: string | null;
 }
-
-const SEUIL_POSITION_RECENTE_MS = 2 * 60 * 1000;
-
-const estPositionRecente = (date: string, maintenant: number): boolean => {
-  const horodatage = Date.parse(date);
-  const age = maintenant - horodatage;
-  return Number.isFinite(horodatage) && age >= -30_000 && age <= SEUIL_POSITION_RECENTE_MS;
-};
 
 // Le backend peut renvoyer l'historique de positions avec des noms de champs
 // légèrement différents selon l'endpoint ; on normalise ici plutôt que de
@@ -49,31 +45,24 @@ const normalizePosition = (raw: any): Position | null => {
     latitude: lat,
     longitude: lng,
     horodatage: raw?.horodatage ?? raw?.date ?? raw?.timestamp ?? raw?.created_at ?? '',
+    recu_at: raw?.recu_at ?? null,
     precision: rawPrecision !== null && rawPrecision !== undefined && Number.isFinite(Number(rawPrecision))
       ? Number(rawPrecision)
       : null,
   };
 };
 
-const createIcon = (statut: string, isSelected: boolean, positionRecente: boolean) => {
-  const color = couleurStatut(statut);
+const createIcon = (etat: StatutReel, isSelected: boolean) => {
+  const color = STATUTS[etat].couleur;
   const size = isSelected ? 40 : 32;
   const borderSize = isSelected ? 4 : 3;
+  const enLigne = etat === 'en_ligne';
   return L.divIcon({
     className: 'custom-marker',
-    html: `<div style="
-      background-color: ${color};
-      width: ${size}px;
-      height: ${size}px;
-      border-radius: 8px;
-      border: ${borderSize}px ${positionRecente ? 'solid' : 'dashed'} white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-      opacity: ${positionRecente ? 1 : 0.58};
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      ${isSelected ? 'animation: pulse 2s infinite;' : ''}
-    ">
+    html: `<div style="background-color: ${color}; width: ${size}px; height: ${size}px; border-radius: 8px;
+      border: ${borderSize}px ${enLigne ? 'solid' : 'dashed'} white; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center;
+      ${isSelected ? 'animation: pulse 2s infinite;' : ''}">
       <svg xmlns="http://www.w3.org/2000/svg" width="${size * 0.55}" height="${size * 0.55}" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
       </svg>
@@ -89,22 +78,21 @@ const toCoord = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-const echapper = (t: unknown) =>
-  String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
-
 const popupHtml = (
   pdv: PDV,
   pos: { lat: number; lng: number; date: string; live: boolean; precision: number | null },
   suivi: boolean,
-  positionRecente: boolean
+  etat: StatutReel,
+  signal: number | null
 ) => `
-  <div style="min-width: 240px;">
-    <h3 style="margin: 0 0 8px 0; font-weight: bold;">${echapper(pdv.nom_pdv)}</h3>
-    <p style="margin: 4px 0;"><strong>Statut de la fiche :</strong> ${echapper(pdv.statut)}</p>
-    <p style="margin: 4px 0;"><strong>État GPS :</strong> ${positionRecente ? 'Position reçue il y a moins de 2 min' : 'Dernière position ancienne ou inconnue'}</p>
-    <p style="margin: 4px 0;"><strong>Position :</strong> ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}</p>
-    <p style="margin: 4px 0;"><strong>Précision GPS estimée :</strong> ${pos.precision !== null ? `±${Math.round(pos.precision)} m` : 'indisponible'}</p>
-    <p style="margin: 4px 0;"><strong>Dernière mise à jour :</strong> ${echapper(pos.date ? new Date(pos.date).toLocaleString('fr-FR') : 'Inconnue')}</p>
+  <div style="min-width: 250px;">
+    <h3 style="margin: 0 0 6px 0; font-weight: bold;">${echapper(pdv.nom_pdv)}</h3>
+    <p style="margin: 0 0 8px 0;">${badgeStatutHtml(etat)}</p>
+    <p style="margin: 4px 0;"><strong>Dernier signal reçu :</strong> ${signal === null ? 'jamais' : `${ageLisible(signal)} (${new Date(signal).toLocaleString('fr-FR')})`}</p>
+    <p style="margin: 4px 0;"><strong>Position relevée :</strong> ${echapper(pos.date ? new Date(pos.date).toLocaleString('fr-FR') : 'Inconnue')}</p>
+    <p style="margin: 4px 0;"><strong>Coordonnées :</strong> ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}</p>
+    <p style="margin: 4px 0;"><strong>Précision GPS :</strong> ${pos.precision !== null ? `±${Math.round(pos.precision)} m` : 'indisponible'}</p>
+    <p style="margin: 4px 0;"><strong>Fiche :</strong> ${echapper(pdv.statut)}</p>
     ${
       suivi
         ? `<p style="margin: 8px 0 0 0; color: ${BRAND.green}; font-weight: 600;">Suivi en cours</p>
@@ -125,7 +113,7 @@ const Tracking = () => {
   const [isTracking, setIsTracking] = useState(true);
   const [selectedPDV, setSelectedPDV] = useState<number | null>(null);
   const [livePositions, setLivePositions] = useState<Map<number, Position>>(new Map());
-  const [statutFilter, setStatutFilter] = useState<string>('actif');
+  const [statutFilter, setStatutFilter] = useState<string>('all');
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [isConnected, setIsConnected] = useState(false);
   const [maintenant, setMaintenant] = useState(Date.now());
@@ -154,16 +142,29 @@ const Tracking = () => {
 
   const allPdvs: PDV[] = useMemo(() => pdvsResponse?.data || [], [pdvsResponse]);
 
+  // Statut réel de chaque PDV : fiche + âge du dernier signal (heure serveur
+  // de préférence, sinon horloge du terminal).
+  const statuts = useMemo(() => {
+    const m = new Map<number, { etat: StatutReel; signal: number | null }>();
+    allPdvs.forEach((pdv) => {
+      const live = livePositions.get(pdv.id);
+      const signal = dernierSignal(maintenant, live?.recu_at, live?.horodatage, pdv.derniere_position_recue_at, pdv.derniere_position_date);
+      m.set(pdv.id, { etat: calculerStatutReel(pdv.statut, signal, maintenant), signal });
+    });
+    return m;
+  }, [allPdvs, livePositions, maintenant]);
+  const compteurs = useMemo(() => compterStatuts(Array.from(statuts.values()).map((v) => v.etat)), [statuts]);
+
   // Filtres statut / zone réellement appliqués à la carte (auparavant ces deux
   // sélecteurs ne faisaient qu'un console.log, sans le moindre effet visible).
   const pdvs: PDV[] = useMemo(
     () =>
       allPdvs.filter((pdv) => {
-        if (statutFilter !== 'all' && pdv.statut !== statutFilter) return false;
+        if (statutFilter !== 'all' && statuts.get(pdv.id)?.etat !== statutFilter) return false;
         if (zoneFilter === 'none' && pdv.zone_geofence_id) return false;
         return true;
       }),
-    [allPdvs, statutFilter, zoneFilter]
+    [allPdvs, statutFilter, zoneFilter, statuts]
   );
 
   // Initialiser la carte
@@ -298,11 +299,6 @@ const Tracking = () => {
     return out;
   }, [pdvs, livePositions, historique, selectedPDV]);
 
-  const positionsRecentes = useMemo(
-    () => Array.from(positions.values()).filter((position) => estPositionRecente(position.date, maintenant)).length,
-    [positions, maintenant]
-  );
-
   // Synchronisation incrémentale des marqueurs : on déplace/met à jour ceux qui
   // existent au lieu de tout supprimer à chaque position reçue (ce qui fermait
   // la fenêtre d'information et réinitialisait la vue en permanence).
@@ -327,8 +323,9 @@ const Tracking = () => {
     pdvs.forEach((pdv) => {
       const pos = positions.get(pdv.id);
       if (!pos) return;
-      const positionRecente = estPositionRecente(pos.date, maintenant);
-      const cle = `${pdv.statut}|${selectedPDV === pdv.id}|${positionRecente}`;
+      const { etat, signal } = statuts.get(pdv.id) ?? { etat: 'jamais_connecte' as StatutReel, signal: null };
+      const couleurEtat = STATUTS[etat].couleur;
+      const cle = `${etat}|${selectedPDV === pdv.id}`;
       const accuracyCircle = accuracyCirclesRef.current.get(pdv.id);
       if (pos.precision !== null && pos.precision > 0) {
         if (accuracyCircle) {
@@ -336,17 +333,17 @@ const Tracking = () => {
             .setLatLng([pos.lat, pos.lng])
             .setRadius(pos.precision)
             .setStyle({
-              color: positionRecente ? BRAND.green : '#8B929B',
-              fillColor: positionRecente ? BRAND.green : '#8B929B',
+              color: couleurEtat,
+              fillColor: couleurEtat,
             });
         } else {
           accuracyCirclesRef.current.set(
             pdv.id,
             L.circle([pos.lat, pos.lng], {
               radius: pos.precision,
-              color: positionRecente ? BRAND.green : '#8B929B',
+              color: couleurEtat,
               weight: 1,
-              fillColor: positionRecente ? BRAND.green : '#8B929B',
+              fillColor: couleurEtat,
               fillOpacity: 0.12,
               interactive: false,
             }).addTo(map)
@@ -359,21 +356,21 @@ const Tracking = () => {
       let marker = markersRef.current.get(pdv.id) as (L.Marker & { __cle?: string; __html?: string }) | undefined;
 
       if (!marker) {
-        marker = L.marker([pos.lat, pos.lng], { icon: createIcon(pdv.statut, selectedPDV === pdv.id, positionRecente) }) as L.Marker & { __cle?: string; __html?: string };
+        marker = L.marker([pos.lat, pos.lng], { icon: createIcon(etat, selectedPDV === pdv.id) }) as L.Marker & { __cle?: string; __html?: string };
         marker.__cle = cle;
         marker.addTo(map);
-        marker.__html = popupHtml(pdv, pos, selectedPDV === pdv.id, positionRecente);
+        marker.__html = popupHtml(pdv, pos, selectedPDV === pdv.id, etat, signal);
         marker.bindPopup(marker.__html);
         markersRef.current.set(pdv.id, marker);
       } else {
         marker.setLatLng([pos.lat, pos.lng]);
         if (marker.__cle !== cle) {
-          marker.setIcon(createIcon(pdv.statut, selectedPDV === pdv.id, positionRecente));
+          marker.setIcon(createIcon(etat, selectedPDV === pdv.id));
           marker.__cle = cle;
         }
         // Le contenu n'est remplacé que s'il a changé : sinon le bouton serait
         // recréé sous le doigt de l'utilisateur et le clic perdu.
-        const html = popupHtml(pdv, pos, selectedPDV === pdv.id, positionRecente);
+        const html = popupHtml(pdv, pos, selectedPDV === pdv.id, etat, signal);
         if (marker.__html !== html) {
           marker.__html = html;
           marker.setPopupContent(html);
@@ -396,7 +393,7 @@ const Tracking = () => {
         );
       }
     }
-  }, [pdvs, positions, selectedPDV, historique, maintenant]);
+  }, [pdvs, positions, selectedPDV, historique, statuts]);
 
   // Cadrage global : uniquement quand l'ensemble des PDV affichés change
   // (chargement, filtre) ou quand on arrête le suivi, jamais à chaque position.
@@ -481,12 +478,8 @@ const Tracking = () => {
 
           <div className="flex items-stretch gap-2">
             <div className="px-3.5 py-1.5 rounded-[4px] bg-white/10 border border-white/20 leading-tight">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80">Statut PDV actif</p>
-              <p className="text-[20px] font-bold tabular-nums">{allPdvs.filter((p) => p.statut === 'actif').length || 0}</p>
-            </div>
-            <div className="px-3.5 py-1.5 rounded-[4px] bg-white/10 border border-white/20 leading-tight">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80">Positions récentes (&lt; 2 min)</p>
-              <p className="text-[20px] font-bold tabular-nums">{positionsRecentes}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80">PDV en ligne (&lt; 2 min)</p>
+              <p className="text-[20px] font-bold tabular-nums">{compteurs.en_ligne}<span className="text-[13px] font-semibold text-white/70"> / {allPdvs.length}</span></p>
             </div>
             <div
               className="px-3.5 py-1.5 rounded-[4px] bg-white text-ink-800 flex items-center gap-2.5 leading-tight"
@@ -546,12 +539,12 @@ const Tracking = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold text-ink-600">Statut de la fiche</label>
-          <select value={statutFilter} className="toolbar-select !h-9 !w-40" onChange={(e) => setStatutFilter(e.target.value)}>
-            <option value="all">Tous les PDV</option>
-            <option value="actif">Fiches actives</option>
-            <option value="inactif">Fiches inactives</option>
-            <option value="suspendu">Fiches suspendues</option>
+          <label className="text-xs font-semibold text-ink-600">Statut</label>
+          <select value={statutFilter} className="toolbar-select !h-9 !w-44" onChange={(e) => setStatutFilter(e.target.value)}>
+            <option value="all">Tous les statuts</option>
+            {ORDRE_STATUTS.map((st) => (
+              <option key={st} value={st}>{STATUTS[st].libelle} ({compteurs[st]})</option>
+            ))}
           </select>
         </div>
 
@@ -569,20 +562,9 @@ const Tracking = () => {
           </span>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 sm:ml-auto text-xs font-semibold text-ink-700">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200">
-            <span className="w-2.5 h-2.5 rounded-full bg-success-600" />Fiche active
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200">
-            <span className="w-2.5 h-2.5 rounded-full bg-ink-400" />Fiche inactive
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200">
-            <span className="w-2.5 h-2.5 rounded-full bg-danger-500" />Fiche suspendue
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200">
-            <span className="w-2.5 h-2.5 rounded-full border-2 border-dashed border-ink-500 bg-white" />GPS ancien/inconnu (&gt; 2 min)
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200">
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+          <PDVStatusLegend compteurs={compteurs} selection={statutFilter} onSelect={setStatutFilter} />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200 text-xs font-semibold text-ink-700">
             <span className="w-4 h-0 border-t-2 border-dashed border-primary-500" />Trajectoire
           </span>
         </div>

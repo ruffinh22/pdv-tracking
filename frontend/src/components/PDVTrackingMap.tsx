@@ -4,6 +4,7 @@ import { chargerGoogleMaps } from '../lib/googleMapsLoader';
 import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
 import { PositionPDV } from '../services/pdvService';
 import MapStatusOverlay from './MapStatusOverlay';
+import { STATUTS, ageLisible, badgeStatutHtml, calculerStatutReel, dernierSignal } from '../lib/pdvStatus';
 
 interface Props {
   /** Position relevée à l'enrôlement : le point de vente déclaré. */
@@ -14,12 +15,16 @@ interface Props {
   rayonGeofence?: number;
   /** Position poussée en direct par le socket, si plus récente que l'historique. */
   positionLive?: { latitude: number; longitude: number; horodatage: string } | null;
+  /** Statut de la fiche (actif / inactif / suspendu). */
+  statutFiche?: string | null;
+  /** Dernier signal reçu du terminal (heure serveur de préférence). */
+  dernierSignal?: string | null;
   hauteur?: number;
 }
 
 const COULEUR_ANCRAGE = BRAND.orange;
 const COULEUR_TRACE = BRAND.green;
-const COULEUR_HORS_ZONE = BRAND.red;
+const COULEUR_HORS_ZONE = BRAND.red; // anneau d'alerte, distinct de la couleur du statut
 
 /** Distance en mètres entre deux points (Haversine), pour colorer le marqueur
  *  courant selon qu'il est dans la géofence ou non. */
@@ -56,6 +61,8 @@ const PDVTrackingMap = ({
   positions,
   rayonGeofence = 500,
   positionLive = null,
+  statutFiche = null,
+  dernierSignal: signalRecu = null,
   hauteur = 380,
 }: Props) => {
   const conteneurRef = useRef<HTMLDivElement>(null);
@@ -179,7 +186,10 @@ const PDVTrackingMap = ({
       if (courante && !Number.isNaN(courante.latitude)) {
         const ecart = distanceEnMetres(ancrage.latitude, ancrage.longitude, courante.latitude, courante.longitude);
         const horsZone = ecart > rayonGeofence;
-        const couleur = horsZone ? COULEUR_HORS_ZONE : COULEUR_TRACE;
+        const maintenant = Date.now();
+        const signal = dernierSignal(maintenant, signalRecu, courante.horodatage);
+        const etat = calculerStatutReel(statutFiche, signal, maintenant);
+        const couleur = STATUTS[etat].couleur;
         pointCourant = { lat: courante.latitude, lng: courante.longitude };
 
         const markerCourant = new g.maps.Marker({
@@ -190,12 +200,25 @@ const PDVTrackingMap = ({
         });
         markerCourant.addListener('click', () => {
           infoWindowRef.current?.setContent(
-            `<strong>Position actuelle</strong><br/>${new Date(courante.horodatage).toLocaleString('fr-FR')}<br/>` +
+            `${badgeStatutHtml(etat)}<br/><strong>Position actuelle</strong><br/>${new Date(courante.horodatage).toLocaleString('fr-FR')}<br/>` +
+              `Dernier signal : ${signal === null ? 'jamais' : ageLisible(signal, maintenant)}<br/>` +
               `${Math.round(ecart)} m du point de vente${horsZone ? ' — hors zone' : ''}`
           );
           infoWindowRef.current?.open({ map: carte, anchor: markerCourant });
         });
         calquesRef.current.push(markerCourant);
+
+        if (horsZone) {
+          calquesRef.current.push(
+            new g.maps.Marker({
+              position: pointCourant,
+              map: carte,
+              clickable: false,
+              zIndex: 19,
+              icon: { path: g.maps.SymbolPath.CIRCLE, scale: 13, fillOpacity: 0, strokeColor: COULEUR_HORS_ZONE, strokeWeight: 3 },
+            })
+          );
+        }
       }
 
       // 5. Cadrage : on englobe la zone et le trajet, sans zoomer à l'excès
@@ -218,7 +241,7 @@ const PDVTrackingMap = ({
     return () => {
       annule = true;
     };
-  }, [ancrage, positions, rayonGeofence, positionLive]);
+  }, [ancrage, positions, rayonGeofence, positionLive, statutFiche, signalRecu]);
 
   // La carte n'est détruite qu'au démontage du composant, pas à chaque rendu.
   useEffect(() => {

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { couleurStatut } from '../lib/theme';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { STATUTS, ageLisible, badgeStatutHtml, compterStatuts, dernierSignal, echapperHtml, iconeTabletteSvg, statutDuPdv } from '../lib/pdvStatus';
+import PDVStatusLegend from './PDVStatusLegend';
 import { chargerGoogleMaps } from '../lib/googleMapsLoader';
 import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
 import MapStatusOverlay from './MapStatusOverlay';
@@ -10,29 +11,19 @@ interface PDV {
   latitude_creation: number;
   longitude_creation: number;
   statut: string;
+  derniere_position_date?: string | null;
+  derniere_position_recue_at?: string | null;
 }
 
 interface PDVOverviewMapProps {
   pdvs: PDV[];
 }
 
-// Icône "tablette" en SVG encodé en data URI, équivalent du L.divIcon
-// d'origine — Google Maps Marker n'accepte pas de HTML arbitraire comme icône,
-// seulement une URL ou un SVG inline via data:image/svg+xml.
-const iconeTablette = (statut: string) => {
-  const color = couleurStatut(statut);
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
-      <rect x="1.5" y="1.5" width="33" height="41" rx="6" ry="6" fill="${color}" stroke="white" stroke-width="3"/>
-      <rect x="11" y="7" width="14" height="20" rx="1.4" ry="1.4" fill="none" stroke="white" stroke-width="2"/>
-      <circle cx="18" cy="30.5" r="0.9" fill="white"/>
-    </svg>`;
-  return {
-    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new google.maps.Size(36, 44),
-    anchor: new google.maps.Point(18, 22),
-  };
-};
+const iconeTablette = (couleur: string) => ({
+  url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(iconeTabletteSvg(couleur))}`,
+  scaledSize: new google.maps.Size(36, 44),
+  anchor: new google.maps.Point(18, 22),
+});
 
 const PDVOverviewMap = ({ pdvs }: PDVOverviewMapProps) => {
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -43,6 +34,7 @@ const PDVOverviewMap = ({ pdvs }: PDVOverviewMapProps) => {
   pdvsRef.current = pdvs;
   const [erreur, setErreur] = useState<string | null>(null);
   const [pret, setPret] = useState(false);
+  const compteurs = useMemo(() => compterStatuts(pdvs.map((p) => statutDuPdv(p))), [pdvs]);
 
   useEffect(() => {
     let annule = false;
@@ -79,6 +71,7 @@ const PDVOverviewMap = ({ pdvs }: PDVOverviewMapProps) => {
 
       const bounds = new g.maps.LatLngBounds();
       let aUnPoint = false;
+      const maintenant = Date.now();
 
       pdvsRef.current.forEach((pdv) => {
         if (!pdv.latitude_creation || !pdv.longitude_creation) return;
@@ -90,16 +83,20 @@ const PDVOverviewMap = ({ pdvs }: PDVOverviewMapProps) => {
         const marker = new g.maps.Marker({
           position,
           map,
-          icon: iconeTablette(pdv.statut),
+          icon: iconeTablette(STATUTS[statutDuPdv(pdv, maintenant)].couleur),
           title: pdv.nom_pdv,
         });
 
         marker.addListener('click', () => {
+          const etat = statutDuPdv(pdv, maintenant);
+          const signal = dernierSignal(maintenant, pdv.derniere_position_recue_at, pdv.derniere_position_date);
           infoWindowRef.current?.setContent(`
-            <div style="min-width: 200px;">
-              <h3 style="margin: 0 0 10px 0; font-weight: bold;">${pdv.nom_pdv}</h3>
-              <p style="margin: 5px 0;"><strong>Statut:</strong> ${pdv.statut}</p>
-              <p style="margin: 5px 0;"><strong>Position:</strong> ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
+            <div style="min-width: 220px;">
+              <h3 style="margin: 0 0 6px 0; font-weight: bold;">${echapperHtml(pdv.nom_pdv)}</h3>
+              <p style="margin: 0 0 8px 0;">${badgeStatutHtml(etat)}</p>
+              <p style="margin: 4px 0;"><strong>Dernier signal :</strong> ${signal === null ? 'jamais' : ageLisible(signal, maintenant)}</p>
+              <p style="margin: 4px 0;"><strong>Fiche :</strong> ${echapperHtml(pdv.statut)}</p>
+              <p style="margin: 4px 0;"><strong>Point de vente :</strong> ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
             </div>
           `);
           infoWindowRef.current?.open({ map, anchor: marker });
@@ -133,6 +130,9 @@ const PDVOverviewMap = ({ pdvs }: PDVOverviewMapProps) => {
         }}
       />
       {!pret && <MapStatusOverlay erreur={erreur} />}
+      <div className="absolute bottom-2 left-2 right-2 z-10 pointer-events-none">
+        <PDVStatusLegend compteurs={compteurs} className="pointer-events-auto [&>*]:shadow-sm" />
+      </div>
     </div>
   );
 };

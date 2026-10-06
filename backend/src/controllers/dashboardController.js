@@ -141,8 +141,14 @@ const dashboardController = {
       const scopeEtFiltres = combinerWhere(scope, filtres);
       const minuit = new Date(new Date().setHours(0, 0, 0, 0));
       const seuilMuet = new Date(Date.now() - SEUIL_INACTIVITE_HEURES * 3600 * 1000);
+      const seuilEnLigne = new Date(Date.now() - 2 * 60 * 1000);
+      const seuilHorsLigne = seuilMuet;
+      const whereSuivi = (condition) => withScope(combinerWhere(filtres, condition), scope);
 
-      const [totalPdv, pdvActifs, taguesAujourdhui, dossiersBrouillon, alertesActives, pdvVus24h] =
+      const [
+        totalPdv, pdvActifs, taguesAujourdhui, dossiersBrouillon, alertesActives, pdvVus24h,
+        pdvEnLigne, pdvEnRetard, pdvJamaisConnectes
+      ] =
         await Promise.all([
           PDV.count({ where: withScope(filtres, scope) }),
           PDV.count({ where: withScope({ statut: 'actif', ...filtres }, scope) }),
@@ -160,7 +166,17 @@ const dashboardController = {
               { derniere_position_date: { [Op.gte]: new Date(Date.now() - 24 * 3600 * 1000) }, ...filtres },
               scope
             )
-          })
+          }),
+          PDV.count({ where: whereSuivi({ derniere_position_date: { [Op.gte]: seuilEnLigne } }) }),
+          PDV.count({
+            where: whereSuivi({
+              [Op.and]: [
+                { derniere_position_date: { [Op.lt]: seuilEnLigne } },
+                { derniere_position_date: { [Op.gte]: seuilHorsLigne } },
+              ],
+            })
+          }),
+          PDV.count({ where: whereSuivi({ derniere_position_date: null }) })
         ]);
 
       const pdvMuets = await PDV.count({
@@ -184,6 +200,10 @@ const dashboardController = {
         alertes_actives: alertesActives,
         pdv_vus_24h: pdvVus24h,
         pdv_muets: pdvMuets,
+        pdv_en_ligne: pdvEnLigne,
+        pdv_en_retard: pdvEnRetard,
+        pdv_hors_ligne: pdvMuets,
+        pdv_jamais_connectes: pdvJamaisConnectes,
         seuil_inactivite_heures: SEUIL_INACTIVITE_HEURES
       });
     } catch (error) {

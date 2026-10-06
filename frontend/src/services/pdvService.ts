@@ -59,6 +59,7 @@ export interface PDV {
   derniere_position_latitude?: number;
   derniere_position_longitude?: number;
   derniere_position_date?: string;
+  derniere_position_recue_at?: string | null;
 
   // Tagging
   concessionnaire_nom?: string;

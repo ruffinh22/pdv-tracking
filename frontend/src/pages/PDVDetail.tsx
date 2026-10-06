@@ -554,6 +554,8 @@ const PDVDetail = () => {
           }}
           positions={historique?.data || []}
           positionLive={positionLive}
+          statutFiche={pdv.statut}
+          dernierSignal={pdv.derniere_position_recue_at ?? pdv.derniere_position_date ?? null}
         />
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 text-sm">
