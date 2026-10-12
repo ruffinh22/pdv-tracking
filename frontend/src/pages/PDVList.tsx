@@ -148,7 +148,7 @@ const PDVList = () => {
   const champLibelle = (code: string, defaut: string) =>
     champsFixesParCode.get(code)?.libelle || defaut;
   const etoile = (code: string) =>
-    champObligatoire(code) ? <span className="text-danger-500 font-extrabold ml-0.5" title="Champ obligatoire">*</span> : null;
+    champObligatoire(code) ? <span className="text-danger-500 font-bold ml-0.5" title="Champ obligatoire">*</span> : null;
 
   useEffect(() => {
     const minuteur = setTimeout(() => {
@@ -781,7 +781,7 @@ const PDVList = () => {
                 {/* Produits (choix multiples) */}
                 {champVisible('produits') && (
                 <div>
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-ink-500 mb-2.5 flex items-center gap-1.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-ink-500 mb-2.5 flex items-center gap-1.5">
                     <Tag className="w-3.5 h-3.5" />
                     {champLibelle('produits', 'Type(s) de produit vendu')}{etoile('produits')}
                   </h3>

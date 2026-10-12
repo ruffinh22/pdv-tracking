@@ -20,7 +20,7 @@ const PDVStatusLegend = ({ compteurs, selection = 'all', onSelect, className = '
           key={s}
           {...(onSelect ? { type: 'button' as const, onClick: () => onSelect(actif ? 'all' : s) } : {})}
           title={STATUTS[s].description}
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] border transition-colors ${
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border transition-colors ${
             actif ? 'bg-ink-800 text-white border-ink-800' : 'bg-white border-ink-200 hover:bg-ink-50'
           }`}
         >

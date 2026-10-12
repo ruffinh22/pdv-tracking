@@ -11,8 +11,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Plus Jakarta Sans Variable"', '"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ['"Bricolage Grotesque Variable"', '"Bricolage Grotesque"', '"Plus Jakarta Sans Variable"', 'ui-sans-serif', 'sans-serif'],
+        /* Même duo typographique que Boussole : Roboto (interface) + Barlow Condensed (titres) */
+        sans: ['Roboto', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['"Barlow Condensed"', '"Arial Narrow"', 'Roboto', 'ui-sans-serif', 'sans-serif'],
       },
       colors: {
         /* Orange du drapeau — actions, éléments actifs */
@@ -44,19 +45,23 @@ export default {
           50: '#eef2f0', 100: '#d5dcd8', 200: '#aab6b0', 300: '#7b8a83', 400: '#52615a',
           500: '#37433d', 600: '#27312c', 700: '#1c2420', 800: '#141a17', 900: '#0d1210', 950: '#070a09',
         },
-        zebra: '#e8ebe9',
+        zebra: '#f3f7f4',
+        /* Surfaces teintées vert — équivalent des « ciel / azur » de Boussole */
+        mist: { 50: '#f4f8f5', 100: '#e8f1ea', 200: '#d6e5da', 300: '#bccac1' },
+        deep: '#062316',
         flag: { orange: '#ff8200', white: '#ffffff', green: '#009a44' },
         logo: { green: '#008840', red: '#c82828', black: '#000000' },
       },
       boxShadow: {
-        card: '0 1px 2px rgba(10,12,11,.05), 0 2px 8px -2px rgba(10,12,11,.06)',
-        lift: '0 2px 4px rgba(10,12,11,.05), 0 12px 28px -10px rgba(10,12,11,.16)',
-        ring: '0 0 0 3px rgba(0,136,64,.10)',
-        popover: '0 16px 40px -8px rgba(10,12,11,.24), 0 4px 12px -4px rgba(10,12,11,.1)',
+        card: '0 1px 2px rgba(6,35,22,.05), 0 2px 8px rgba(6,35,22,.05)',
+        lift: '0 1px 2px rgba(6,35,22,.06), 0 10px 28px rgba(0,109,52,.14)',
+        ring: '0 0 0 .2rem rgba(0,136,64,.22)',
+        popover: '0 12px 40px rgba(6,35,22,.20)',
+        nav: '0 6px 24px rgba(6,35,22,.28)',
         glow: '0 6px 16px -4px rgba(255,130,0,.45)',
         'glow-green': '0 6px 16px -4px rgba(0,136,64,.4)',
       },
-      borderRadius: { xl: '0.75rem', '2xl': '1rem', '3xl': '1.5rem' },
+      borderRadius: { xl: '0.75rem', '2xl': '1rem', '3xl': '1.25rem' },
       backgroundImage: {
       },
       keyframes: {

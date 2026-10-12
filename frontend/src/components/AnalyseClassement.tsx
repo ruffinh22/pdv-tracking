@@ -91,7 +91,7 @@ export default function AnalyseClassement({ data, loading = false, dimensionLabe
       {/* Sélecteur de tri */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <p className="text-[12px] font-semibold text-ink-500">
-          <span className="font-extrabold text-ink-800">{data.length}</span> {dimensionLabel}
+          <span className="font-bold text-ink-800">{data.length}</span> {dimensionLabel}
           {data.length > 1 ? 's' : ''} analysée{data.length > 1 ? 's' : ''}
         </p>
         <div className="inline-flex items-center gap-1 bg-ink-100 rounded-lg p-1" role="tablist" aria-label="Trier le classement">
@@ -126,7 +126,7 @@ export default function AnalyseClassement({ data, loading = false, dimensionLabe
                   title={`${l.label} : ${fmt(l.actifs)} actifs sur ${fmt(l.total)} (${t} %)`}
                 >
                   <span
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-extrabold ${
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold ${
                       i === 0 ? 'bg-primary-500 text-white shadow-glow' : 'bg-ink-100 text-ink-600'
                     }`}
                   >
@@ -160,8 +160,8 @@ export default function AnalyseClassement({ data, loading = false, dimensionLabe
                   </div>
 
                   <div className="text-right leading-none w-[64px]">
-                    <p className="font-display text-[15px] font-extrabold text-ink-950 num">{fmt(l.total)}</p>
-                    <p className="text-[11px] font-extrabold mt-1 num" style={{ color: couleurTaux(t) }}>
+                    <p className="font-display text-[15px] font-bold text-ink-950 num">{fmt(l.total)}</p>
+                    <p className="text-[11px] font-bold mt-1 num" style={{ color: couleurTaux(t) }}>
                       {t} %
                     </p>
                   </div>
@@ -192,7 +192,7 @@ export default function AnalyseClassement({ data, loading = false, dimensionLabe
 
         {/* ---------- Synthèse ---------- */}
         <aside className="rounded-2xl bg-ink-50 ring-1 ring-ink-200 p-5 flex flex-col">
-          <p className="text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-ink-500">Synthèse globale</p>
+          <p className="text-[10.5px] font-bold uppercase tracking-[0.12em] text-ink-500">Synthèse globale</p>
 
           <div className="relative h-44 mt-1">
             <ResponsiveContainer width="100%" height="100%">
@@ -216,7 +216,7 @@ export default function AnalyseClassement({ data, loading = false, dimensionLabe
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <p className="font-display text-[2rem] font-extrabold text-ink-950 leading-none num">
+              <p className="font-display text-[2rem] font-bold text-ink-950 leading-none num">
                 <CountUp value={synthese.taux} />
                 <span className="text-lg">%</span>
               </p>
@@ -226,23 +226,23 @@ export default function AnalyseClassement({ data, loading = false, dimensionLabe
 
           <dl className="grid grid-cols-3 gap-2 mt-2 text-center">
             <div className="rounded-lg bg-white ring-1 ring-ink-200 py-2">
-              <dt className="text-[10px] font-extrabold uppercase tracking-wide text-ink-500">Total</dt>
-              <dd className="font-display text-[15px] font-extrabold text-ink-950 num">{fmt(synthese.total)}</dd>
+              <dt className="text-[10px] font-bold uppercase tracking-wide text-ink-500">Total</dt>
+              <dd className="font-display text-[15px] font-bold text-ink-950 num">{fmt(synthese.total)}</dd>
             </div>
             <div className="rounded-lg bg-white ring-1 ring-success-200 py-2">
-              <dt className="text-[10px] font-extrabold uppercase tracking-wide text-success-700">Actifs</dt>
-              <dd className="font-display text-[15px] font-extrabold text-success-700 num">{fmt(synthese.actifs)}</dd>
+              <dt className="text-[10px] font-bold uppercase tracking-wide text-success-700">Actifs</dt>
+              <dd className="font-display text-[15px] font-bold text-success-700 num">{fmt(synthese.actifs)}</dd>
             </div>
             <div className="rounded-lg bg-white ring-1 ring-ink-200 py-2">
-              <dt className="text-[10px] font-extrabold uppercase tracking-wide text-ink-500">Inactifs</dt>
-              <dd className="font-display text-[15px] font-extrabold text-ink-700 num">{fmt(synthese.inactifs)}</dd>
+              <dt className="text-[10px] font-bold uppercase tracking-wide text-ink-500">Inactifs</dt>
+              <dd className="font-display text-[15px] font-bold text-ink-700 num">{fmt(synthese.inactifs)}</dd>
             </div>
           </dl>
 
           <div className="mt-3 flex items-start gap-2 rounded-lg bg-primary-50 ring-1 ring-primary-200 px-3 py-2.5">
             <TrendingUp className="w-4 h-4 text-primary-600 shrink-0 mt-0.5" />
             <p className="text-[11.5px] font-semibold text-ink-700 leading-snug">
-              <span className="font-extrabold text-ink-950">{lignes[0]?.label}</span> arrive en tête
+              <span className="font-bold text-ink-950">{lignes[0]?.label}</span> arrive en tête
               {tri === 'taux' ? ` avec ${taux(lignes[0])} % d'activité` : tri === 'actifs' ? ` avec ${fmt(lignes[0].actifs)} PDV actifs` : ` avec ${fmt(lignes[0].total)} PDV`}.
             </p>
           </div>

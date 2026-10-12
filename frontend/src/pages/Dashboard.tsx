@@ -291,8 +291,8 @@ const Dashboard = () => {
               <Icon className={`w-5 h-5 ${iconColor}`} />
             </div>
             <div className="min-w-0 leading-none">
-              <p className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-ink-500 truncate">{label}</p>
-              <p className="font-display text-[1.75rem] font-extrabold text-ink-950 tracking-tight mt-1.5 num">
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-500 truncate">{label}</p>
+              <p className="font-display text-[1.75rem] font-bold text-ink-950 tracking-tight mt-1.5 num">
                 <CountUp value={values[key]} />
               </p>
             </div>

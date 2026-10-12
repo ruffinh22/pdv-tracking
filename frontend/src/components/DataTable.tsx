@@ -58,8 +58,8 @@ interface DataTableProps<T> {
 const ALIGN = { left: 'text-left', center: 'text-center', right: 'text-right' } as const;
 
 function SortIcon({ state }: { state: false | 'asc' | 'desc' }) {
-  if (state === 'asc') return <ArrowUp className="w-3.5 h-3.5 text-primary-400" aria-hidden />;
-  if (state === 'desc') return <ArrowDown className="w-3.5 h-3.5 text-primary-400" aria-hidden />;
+  if (state === 'asc') return <ArrowUp className="w-3.5 h-3.5 text-primary-500" aria-hidden />;
+  if (state === 'desc') return <ArrowDown className="w-3.5 h-3.5 text-primary-500" aria-hidden />;
   return <ChevronsUpDown className="w-3.5 h-3.5 opacity-40 group-hover/th:opacity-90" aria-hidden />;
 }
 
@@ -99,7 +99,7 @@ export default function DataTable<T>({
 
   const empty = (
     <div className="flex flex-col items-center justify-center gap-2 py-14 text-center px-4" role="status">
-      <div className="w-14 h-14 rounded-[4px] bg-success-50 ring-1 ring-ink-200 flex items-center justify-center text-success-600">
+      <div className="w-14 h-14 rounded-2xl bg-mist-100 flex items-center justify-center text-success-600">
         {emptyIcon ?? <Inbox className="w-6 h-6" aria-hidden />}
       </div>
       <p className="font-bold text-ink-800">{emptyMessage}</p>
@@ -139,7 +139,7 @@ export default function DataTable<T>({
                         <button
                           type="button"
                           onClick={header.column.getToggleSortingHandler()}
-                          className={`group/th inline-flex items-center gap-1.5 uppercase tracking-[0.08em] font-extrabold hover:text-white transition-colors ${
+                          className={`group/th inline-flex items-center gap-1.5 uppercase tracking-[0.06em] font-semibold hover:text-success-700 transition-colors ${
                             meta?.align === 'right' ? 'flex-row-reverse' : ''
                           }`}
                         >
@@ -228,7 +228,7 @@ export default function DataTable<T>({
                   <li
                     key={row.id}
                     onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                    className={`dt-card ${onRowClick ? 'cursor-pointer active:bg-primary-50' : ''} ${rowClassName?.(row.original) ?? ''}`}
+                    className={`dt-card ${onRowClick ? 'cursor-pointer active:bg-mist-100' : ''} ${rowClassName?.(row.original) ?? ''}`}
                   >
                     <div className="font-bold text-ink-950 min-w-0">
                       {flexRender(title.column.columnDef.cell, title.getContext())}
@@ -239,7 +239,7 @@ export default function DataTable<T>({
                         const label = cell.column.columnDef.meta?.label ?? (typeof h === 'string' ? h : '');
                         return (
                           <div key={cell.id} className="contents">
-                            <dt className="text-[11px] font-extrabold uppercase tracking-wider text-ink-500 pt-0.5">{label}</dt>
+                            <dt className="text-[11px] font-semibold uppercase tracking-wider text-ink-500 pt-0.5">{label}</dt>
                             <dd className="font-medium text-ink-800 min-w-0 break-words">
                               {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </dd>

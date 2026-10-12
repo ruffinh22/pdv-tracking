@@ -281,7 +281,7 @@ const PDVDetail = () => {
   const champLibelle = (code: string, defaut: string) =>
     champsFixesParCode.get(code)?.libelle || defaut;
   const etoile = (code: string) =>
-    champObligatoire(code) ? <span className="text-danger-500 font-extrabold ml-0.5" title="Champ obligatoire">*</span> : null;
+    champObligatoire(code) ? <span className="text-danger-500 font-bold ml-0.5" title="Champ obligatoire">*</span> : null;
 
   // Fenêtre de suivi demandée. Calculée une fois par changement de période pour
   // que la clé de requête reste stable — sinon `new Date()` à chaque rendu
@@ -877,7 +877,7 @@ const PDVDetail = () => {
                     className={actif ? 'choice choice--active' : 'choice'}
                     aria-pressed={actif}
                   >
-                    {actif ? <Check className="w-4 h-4" aria-hidden /> : <span className="w-4 h-4 rounded-[4px] border border-ink-400 bg-white" aria-hidden />}
+                    {actif ? <Check className="w-4 h-4" aria-hidden /> : <span className="w-4 h-4 rounded-[10px] border border-ink-400 bg-white" aria-hidden />}
                     {p.nom_produit}
                   </button>
                 );

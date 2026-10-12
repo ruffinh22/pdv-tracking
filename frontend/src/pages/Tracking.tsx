@@ -507,7 +507,7 @@ const Tracking = () => {
       <div className="bg-success-600 text-white px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3" style={{ position: 'relative', zIndex: 100 }}>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <div className="flex items-center gap-3">
-            <span className="flex items-center justify-center w-9 h-9 rounded-[4px] bg-white/15 border border-white/25">
+            <span className="flex items-center justify-center w-9 h-9 rounded-[10px] bg-white/15 border border-white/25">
               <Radio className="w-[18px] h-[18px]" />
             </span>
             <div className="leading-tight">
@@ -517,12 +517,12 @@ const Tracking = () => {
           </div>
 
           <div className="flex items-stretch gap-2">
-            <div className="px-3.5 py-1.5 rounded-[4px] bg-white/10 border border-white/20 leading-tight">
+            <div className="px-3.5 py-1.5 rounded-[10px] bg-white/10 border border-white/20 leading-tight">
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80">PDV en ligne (&lt; 2 min)</p>
               <p className="text-[20px] font-bold tabular-nums">{compteurs.en_ligne}<span className="text-[13px] font-semibold text-white/70"> / {allPdvs.length}</span></p>
             </div>
             <div
-              className="px-3.5 py-1.5 rounded-[4px] bg-white text-ink-800 flex items-center gap-2.5 leading-tight"
+              className="px-3.5 py-1.5 rounded-[10px] bg-white text-ink-800 flex items-center gap-2.5 leading-tight"
               title={isConnected ? 'Connexion temps réel active' : 'Connexion temps réel indisponible : le PDV suivi est actualisé toutes les 10 s'}
             >
               <span className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-success-600' : 'bg-danger-500'}`} />
@@ -539,7 +539,7 @@ const Tracking = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsTracking(!isTracking)}
-            className="inline-flex items-center gap-2 h-10 px-3.5 rounded-[4px] bg-white/15 border border-white/25 hover:bg-white/25 text-sm font-semibold transition-colors"
+            className="inline-flex items-center gap-2 h-10 px-3.5 rounded-[10px] bg-white/15 border border-white/25 hover:bg-white/25 text-sm font-semibold transition-colors"
             title={isTracking ? 'Mettre en pause' : 'Reprendre'}
           >
             {isTracking ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -547,14 +547,14 @@ const Tracking = () => {
           </button>
           <button
             onClick={refreshMap}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-[4px] bg-white/15 border border-white/25 hover:bg-white/25 transition-colors"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-white/15 border border-white/25 hover:bg-white/25 transition-colors"
             title="Rafraîchir la carte"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
             onClick={toggleFullscreen}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-[4px] bg-white/15 border border-white/25 hover:bg-white/25 transition-colors"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-white/15 border border-white/25 hover:bg-white/25 transition-colors"
             title="Plein écran"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -562,7 +562,7 @@ const Tracking = () => {
           {selectedPDV && (
             <button
               onClick={() => setSelectedPDV(null)}
-              className="inline-flex items-center gap-2 h-10 px-4 rounded-[4px] bg-danger-500 hover:bg-danger-600 border border-danger-600 text-white text-sm font-semibold transition-colors"
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-[10px] bg-danger-500 hover:bg-danger-600 border border-danger-600 text-white text-sm font-semibold transition-colors"
             >
               <X className="w-4 h-4" />
               Arrêter le suivi
@@ -597,7 +597,7 @@ const Tracking = () => {
         </div>
 
         {(statutFilter !== 'all' || zoneFilter !== 'all') && (
-          <span className="text-xs font-semibold text-success-700 bg-success-50 border border-success-200 px-2.5 py-1 rounded-[4px]">
+          <span className="text-xs font-semibold text-success-700 bg-success-50 border border-success-200 px-2.5 py-1 rounded-[10px]">
             {pdvs.length} / {allPdvs.length} PDV affiché(s)
           </span>
         )}
@@ -605,7 +605,7 @@ const Tracking = () => {
         <button
           type="button"
           onClick={() => setPanneauOuvert((v) => !v)}
-          className={`inline-flex items-center gap-2 h-9 px-3 rounded-[4px] border text-[13px] font-semibold transition-colors ${
+          className={`inline-flex items-center gap-2 h-9 px-3 rounded-[10px] border text-[13px] font-semibold transition-colors ${
             aIntervenir.length ? 'bg-danger-50 border-danger-200 text-danger-700 hover:bg-danger-100' : 'bg-ink-50 border-ink-200 text-ink-600'
           }`}
         >
@@ -616,7 +616,7 @@ const Tracking = () => {
 
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           <PDVStatusLegend compteurs={compteurs} selection={statutFilter} onSelect={setStatutFilter} />
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-ink-50 border border-ink-200 text-xs font-semibold text-ink-700">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] bg-ink-50 border border-ink-200 text-xs font-semibold text-ink-700">
             <span className="w-4 h-0 border-t-2 border-dashed border-primary-500" />Trajectoire
           </span>
         </div>
@@ -626,7 +626,7 @@ const Tracking = () => {
       <div className="flex-1 relative z-0">
         <div ref={mapContainerRef} className="absolute inset-0 bg-ink-100" />
         {panneauOuvert && (
-          <aside className="absolute top-3 right-3 bottom-3 w-80 max-w-[85vw] z-[500] flex flex-col bg-white border border-ink-300 rounded-[4px] shadow-popover">
+          <aside className="absolute top-3 right-3 bottom-3 w-80 max-w-[85vw] z-[500] flex flex-col bg-white border border-ink-300 rounded-[10px] shadow-popover">
             <header className="flex items-center justify-between px-3.5 py-2.5 border-b border-ink-200">
               <div className="leading-tight">
                 <p className="text-[13px] font-bold text-ink-900">Terminaux à intervenir</p>
@@ -638,7 +638,7 @@ const Tracking = () => {
             </header>
             {aIntervenir.length > 0 && (
               <div className="px-3.5 py-2 border-b border-ink-200">
-                <button onClick={reveillerTous} className="w-full h-8 rounded-[4px] bg-primary-600 hover:bg-primary-700 text-white text-[12.5px] font-semibold">
+                <button onClick={reveillerTous} className="w-full h-8 rounded-[10px] bg-primary-600 hover:bg-primary-700 text-white text-[12.5px] font-semibold">
                   Réveiller tous les terminaux ({aIntervenir.length})
                 </button>
               </div>
@@ -670,7 +670,7 @@ const Tracking = () => {
           </aside>
         )}
         {selectedPDV && (
-          <div className="absolute top-3 left-14 z-[500] flex items-center gap-3 bg-white border border-ink-300 rounded-[4px] shadow-popover px-3.5 py-2">
+          <div className="absolute top-3 left-14 z-[500] flex items-center gap-3 bg-white border border-ink-300 rounded-[10px] shadow-popover px-3.5 py-2">
             <span className="w-2.5 h-2.5 rounded-full bg-success-600 animate-pulse" />
             <div className="leading-tight">
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-500">Suivi en cours</p>
@@ -680,7 +680,7 @@ const Tracking = () => {
             </div>
             <button
               onClick={() => setSelectedPDV(null)}
-              className="ml-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-danger-500 hover:bg-danger-600 text-white text-xs font-semibold transition-colors"
+              className="ml-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-[10px] bg-danger-500 hover:bg-danger-600 text-white text-xs font-semibold transition-colors"
             >
               <X className="w-3.5 h-3.5" />
               Arrêter

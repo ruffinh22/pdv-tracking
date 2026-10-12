@@ -1,6 +1,6 @@
 /** Bloc de chargement animé (squelette). */
 export function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`animate-pulse rounded-md bg-ink-100 ${className}`} aria-hidden="true" />;
+  return <div className={`animate-pulse rounded-lg bg-mist-100 ${className}`} aria-hidden="true" />;
 }
 
 export function SkeletonKpi() {
@@ -17,7 +17,7 @@ export function SkeletonKpi() {
 
 export function SkeletonChart({ height = 'h-64' }: { height?: string }) {
   return (
-    <div className="rounded-xl border border-ink-200 bg-white p-5 space-y-4">
+    <div className="rounded-2xl border bg-white p-5 space-y-4" style={{ borderColor: 'var(--border)' }}>
       <Skeleton className="h-4 w-40" />
       <Skeleton className={`w-full ${height}`} />
     </div>
@@ -28,7 +28,7 @@ export function SkeletonChart({ height = 'h-64' }: { height?: string }) {
 export function DashboardSkeleton() {
   return (
     <div className="space-y-6" role="status" aria-busy="true" aria-label="Chargement du tableau de bord">
-      <div className="flex items-center justify-between gap-4 pb-4 border-b border-ink-200">
+      <div className="flex items-center justify-between gap-4 pb-4">
         <div className="space-y-2">
           <Skeleton className="h-4 w-56" />
           <Skeleton className="h-3 w-40" />

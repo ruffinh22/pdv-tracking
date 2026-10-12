@@ -28,14 +28,14 @@ export const CHART_SERIES = [
 ];
 
 export const CHART = {
-  grid: '#E4E7E5',
-  axis: '#BCC1BE',
+  grid: '#E1EBE4',
+  axis: '#BCCAC1',
   tick: '#4A504D',
 } as const;
 
 /** Props communes aux axes Recharts pour un rendu homogène. */
 export const axisProps = {
-  tick: { fontSize: 12, fill: CHART.tick, fontWeight: 600 },
+  tick: { fontSize: 12, fill: CHART.tick, fontWeight: 500 },
   axisLine: { stroke: CHART.axis },
   tickLine: { stroke: CHART.axis },
 } as const;
@@ -43,15 +43,15 @@ export const axisProps = {
 /** Info-bulle Recharts aux couleurs de la marque. */
 export const tooltipProps = {
   contentStyle: {
-    borderRadius: 12,
-    border: '1px solid #DCDFDD',
-    boxShadow: '0 16px 40px -8px rgba(10,12,11,.24)',
+    borderRadius: 14,
+    border: '1px solid #D6E5DA',
+    boxShadow: '0 12px 40px rgba(6,35,22,.20)',
     padding: '10px 14px',
     fontSize: 13,
-    fontWeight: 600,
+    fontWeight: 500,
   },
-  labelStyle: { fontWeight: 800, color: '#141716', marginBottom: 4 },
-  cursor: { fill: 'rgba(255,130,0,.08)' },
+  labelStyle: { fontWeight: 700, color: '#062316', marginBottom: 4 },
+  cursor: { fill: 'rgba(0,136,64,.07)' },
 } as const;
 
 /** Couleur d'un statut de PDV (marqueurs de carte). */

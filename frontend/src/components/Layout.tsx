@@ -3,20 +3,20 @@ import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import DocumentTitle from './DocumentTitle';
 import InstitutionFooter from './InstitutionFooter';
+import BrandBadge from './BrandBadge';
 import { INSTITUTION } from '../config/institution';
 import {
   LayoutDashboard,
   MapPin,
   AlertTriangle,
   Users,
-  LogOut,
   Menu,
+  X,
   Activity,
   FileText,
   Package,
   Settings,
   ChevronDown,
-  ChevronRight,
   Search,
   Building2,
 } from 'lucide-react';
@@ -57,16 +57,22 @@ const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  // Ouvert par défaut sur grand écran ; sur mobile/tablette le menu est un tiroir fermé.
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() =>
-    typeof window === 'undefined' ? true : window.innerWidth >= 1024
-  );
+  const [isNavOpen, setIsNavOpen] = useState(false); // menu repliable (mobile / tablette)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (window.innerWidth < 1024) setIsSidebarOpen(false);
+    setIsNavOpen(false);
+    setIsSettingsOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) setIsSettingsOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
 
   // --- Recherche globale (header) ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -139,8 +145,10 @@ const Layout = () => {
     };
   }, [user?.role]);
 
-  const isActive = (path: string) => location.pathname === path;
-  const isSettingsActive = () => settingsItems.some((item) => item.to === location.pathname);
+  const isActive = (path: string) =>
+    path === '/' ? location.pathname === '/' : location.pathname === path || location.pathname.startsWith(path + '/');
+  const isSettingsActive = () => settingsItems.some((item) => isActive(item.to));
+  const activeSetting = settingsItems.find((item) => isActive(item.to));
 
   const currentPageMeta = useMemo(() => {
     const relativePath = location.pathname.replace(/^\/+/, '').split('/')[0];
@@ -159,280 +167,192 @@ const Layout = () => {
 
   const initials = `${user?.prenom?.[0] ?? ''}${user?.nom?.[0] ?? ''}`.toUpperCase() || 'U';
 
-  const navLinkClasses = (active: boolean) =>
-    `group relative flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-[4px] text-[14px] font-semibold transition-colors duration-150 ${
-      active
-        ? 'bg-success-50 text-success-800 ring-1 ring-inset ring-success-100 shadow-sm'
-        : 'text-ink-700 hover:bg-white/70 hover:text-ink-950'
-    }`;
+  const SearchResults = () => (
+    <div className="absolute right-0 mt-2 w-[26rem] max-w-[90vw] max-h-96 overflow-y-auto bg-white rounded-2xl border border-mist-200 shadow-popover py-2 z-[2000] text-ink-800">
+      {isSearching ? (
+        <div className="px-4 py-6 text-center text-sm text-ink-400">Recherche…</div>
+      ) : !hasResults ? (
+        <div className="px-4 py-6 text-center text-sm text-ink-400">Aucun résultat pour « {debouncedQuery} »</div>
+      ) : (
+        <>
+          {searchResults!.pdv.length > 0 && (
+            <div className="mb-1">
+              <p className="px-4 py-1 font-display text-[12px] font-semibold uppercase tracking-[0.14em] text-success-700">Points de vente</p>
+              {searchResults!.pdv.map((pdv: any) => (
+                <button
+                  key={`pdv-${pdv.id}`}
+                  onClick={() => goToResult(`/pdv/${pdv.id}`)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-mist-100 flex items-center gap-2.5"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-success-600 shrink-0" />
+                  <span className="truncate">{pdv.nom_pdv}</span>
+                  <span className="text-xs text-ink-400 ml-auto shrink-0">{pdv.msisdn_responsable}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {searchResults!.produits.length > 0 && (
+            <div className="mb-1">
+              <p className="px-4 py-1 font-display text-[12px] font-semibold uppercase tracking-[0.14em] text-success-700">Produits</p>
+              {searchResults!.produits.map((p: any) => (
+                <button
+                  key={`produit-${p.id}`}
+                  onClick={() => goToResult('/produits')}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-mist-100 flex items-center gap-2.5"
+                >
+                  <Package className="w-3.5 h-3.5 text-success-600 shrink-0" />
+                  <span className="truncate">{p.nom_produit}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {searchResults!.agences.length > 0 && (
+            <div>
+              <p className="px-4 py-1 font-display text-[12px] font-semibold uppercase tracking-[0.14em] text-success-700">Agences</p>
+              {searchResults!.agences.map((a: any) => (
+                <button
+                  key={`agence-${a.id}`}
+                  onClick={() => goToResult('/agences')}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-mist-100 flex items-center gap-2.5"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-success-600 shrink-0" />
+                  <span className="truncate">{a.nom_agence}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#f4f6f4]">
-      {/* Voile derrière le tiroir (mobile / tablette) */}
-      {isSidebarOpen && (
-        <div
-          className="lg:hidden fixed inset-0 z-[15] bg-ink-950/55 backdrop-blur-[2px]"
-          onClick={() => setIsSidebarOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed left-0 top-0 h-full z-20 transition-all duration-200 overflow-hidden bg-[color:var(--sidebar-bg)] border-l-[3px] border-l-success-700 border-r border-ink-300 shadow-[4px_0_18px_rgba(20,38,28,0.08)] ${
-          isSidebarOpen ? 'w-56' : 'w-0'
-        }`}
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
+      <a
+        href="#main"
+        className="absolute left-[-999px] top-2 z-[100] rounded-full bg-success-600 px-3 py-2 text-white focus:left-2"
       >
-        <div className={`relative w-56 h-full flex flex-col transition-opacity duration-150 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
-          {/* Liseré tricolore */}
-          <div className="flag-stripe shrink-0"><span /><span /><span /></div>
+        Aller au contenu
+      </a>
 
-          {/* Brand */}
-          <div className="relative flex flex-col items-center justify-center gap-2 h-[116px] px-3 border-b border-ink-300/80 shrink-0">
-            <div className="bg-white border border-ink-200 rounded-[4px] px-3 py-2 flex items-center justify-center shadow-sm">
-              <img src="/assets/lonaci-logo.png" alt="LONACI" className="h-8 w-auto max-w-[124px] object-contain" />
-            </div>
-            <div className="text-center leading-tight min-w-0">
-              <p className="font-display text-[14px] font-bold text-ink-900 truncate">Tracking PDV</p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-500 truncate">{roleLabel(user?.role)}</p>
-            </div>
-          </div>
+      {/* ---------- En-tête de navigation ---------- */}
+      <header className="top-bar">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 flex flex-wrap xl:flex-nowrap items-center gap-x-3 min-h-16">
+          <Link to="/" className="flex items-center gap-3 text-white shrink-0 h-16" aria-label="Tracking PDV, accueil">
+            <BrandBadge size={46} />
+            <span className="w-px h-[26px] bg-white/25" />
+            <span className="flex flex-col leading-[1.05]">
+              <span className="font-display font-semibold text-[19px] uppercase tracking-[0.1em]">Tracking PDV</span>
+              <span className="hidden min-[1400px]:block text-[9.5px] font-normal uppercase tracking-[0.14em] text-white/65 mt-0.5">
+                {INSTITUTION.sigle} · Suivi des points de vente
+              </span>
+            </span>
+          </Link>
 
-          {/* Nav */}
-          <nav className="flex-1 overflow-y-auto px-3 py-4">
-            <p className="px-3 pb-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-ink-500">Menu</p>
-            <ul className="space-y-0.5">
+          <button
+            className="xl:hidden ml-auto inline-flex items-center justify-center w-[38px] h-[34px] rounded-[10px] border border-white/40 text-white"
+            aria-expanded={isNavOpen}
+            aria-label="Menu"
+            onClick={() => setIsNavOpen(!isNavOpen)}
+          >
+            {isNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+
+          <div
+            className={`${isNavOpen ? 'flex' : 'hidden'} xl:flex basis-full xl:basis-auto xl:flex-1 flex-col xl:flex-row items-stretch xl:items-center gap-3 pb-3 xl:pb-0 min-w-0`}
+          >
+            <nav className="flex flex-wrap xl:flex-nowrap items-center gap-1 xl:ml-4" aria-label="Navigation principale">
               {navItems.map(({ to, label, icon: Icon }) => (
-                <li key={to}>
-                  <Link to={to} className={navLinkClasses(isActive(to))}>
-                    {isActive(to) && (
-                      <span className="absolute -left-3 top-1 bottom-1 w-[3px] rounded-r bg-success-700" />
-                    )}
-                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive(to) ? 'text-success-700' : 'text-ink-500 group-hover:text-ink-800'}`} />
-                    {label}
-                  </Link>
-                </li>
+                <Link key={to} to={to} className={`nav-tab ${isActive(to) ? 'on' : ''}`} aria-current={isActive(to) ? 'page' : undefined}>
+                  <Icon className="w-[15px] h-[15px]" />
+                  {label}
+                </Link>
               ))}
 
               {settingsItems.length > 0 && (
-                <li className="pt-3">
-                  <p className="px-3 pb-2 text-[10.5px] font-bold uppercase tracking-[0.14em] text-ink-500">Configuration</p>
+                <div className="relative" ref={settingsRef}>
                   <button
+                    className={`nav-tab ${isSettingsActive() ? 'on' : ''}`}
+                    aria-haspopup="menu"
+                    aria-expanded={isSettingsOpen}
                     onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                    className={`flex items-center justify-between w-full pl-3 pr-3 py-2.5 rounded-[4px] text-[14px] font-medium transition-colors ${
-                      isSettingsActive() ? 'bg-success-50 text-success-800 ring-1 ring-inset ring-success-100 shadow-sm' : 'text-ink-700 hover:bg-white/70 hover:text-ink-950'
-                    }`}
                   >
-                    <span className="flex items-center gap-3">
-                      <Settings className={`w-[18px] h-[18px] ${isSettingsActive() ? 'text-success-700' : 'text-ink-500'}`} />
-                      Paramètres
-                    </span>
-                    {isSettingsOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    <Settings className="w-[15px] h-[15px]" />
+                    {activeSetting?.label ?? 'Paramètres'}
+                    <ChevronDown className={`w-[11px] h-[11px] opacity-70 transition-transform ${isSettingsOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {isSettingsOpen && (
-                    <ul className="mt-1 ml-4 pl-4 space-y-1 border-l border-ink-300">
+                    <ul className="nav-menu xl:left-0 xl:right-auto max-xl:static max-xl:mt-1.5" role="menu">
+                      <li className="px-4 pt-1.5 pb-1 font-display text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
+                        Configuration
+                      </li>
                       {settingsItems.map(({ to, label, icon: Icon }) => (
-                        <li key={to}>
-                          <Link
-                            to={to}
-                            className={`flex items-center gap-2.5 px-3 py-2 rounded-[4px] text-[13px] transition-colors ${
-                              isActive(to)
-                                ? 'bg-success-50 text-success-800 font-semibold ring-1 ring-inset ring-success-100 shadow-sm'
-                                : 'text-ink-600 hover:bg-white/70 hover:text-ink-950'
-                            }`}
-                          >
-                            <Icon className="w-4 h-4" />
+                        <li key={to} role="none">
+                          <Link to={to} className={`nav-item ${isActive(to) ? 'on' : ''}`} role="menuitem">
+                            <Icon className="w-[15px] h-[15px] opacity-85" />
                             {label}
                           </Link>
                         </li>
                       ))}
                     </ul>
                   )}
-                </li>
-              )}
-            </ul>
-          </nav>
-
-          {/* User footer */}
-          <div className="p-3 border-t border-ink-300 shrink-0">
-            <div className="flex items-center gap-3 px-2 py-2 rounded-md bg-white/70 border border-white/80 shadow-sm">
-              <div className="w-9 h-9 rounded-[4px] bg-success-700 text-white flex items-center justify-center text-[13px] font-bold shrink-0 shadow-sm">
-                {initials}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-semibold text-ink-900 truncate">{user?.prenom} {user?.nom}</p>
-                <p className="text-[11px] font-medium text-ink-500 truncate">{roleLabel(user?.role)}</p>
-              </div>
-              <button
-                onClick={logout}
-                title="Déconnexion"
-                aria-label="Se déconnecter"
-                className="inline-flex items-center justify-center w-8 h-8 rounded-[4px] text-ink-500 hover:bg-white hover:text-danger-600 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <DocumentTitle title={currentPage.title} />
-
-      {/* Topbar */}
-      <header
-        className={`fixed top-0 right-0 z-10 transition-all duration-200 left-0 bg-white shadow-[0_1px_3px_rgba(10,30,20,0.12)] ${
-          isSidebarOpen ? 'lg:left-56' : 'lg:left-0'
-        }`}
-      >
-        <div className="flag-stripe"><span /><span /><span /></div>
-        <div className="flex items-center justify-between h-[64px] px-3 sm:px-6 gap-3 sm:gap-4 bg-white border-b border-ink-300">
-          <div className="flex items-center gap-4 min-w-0">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="inline-flex items-center justify-center w-9 h-9 rounded-[4px] border border-ink-200 text-ink-600 hover:bg-ink-50 hover:text-ink-900 transition-colors"
-              title="Basculer le menu"
-              aria-label="Basculer le menu"
-              aria-expanded={isSidebarOpen}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <div className="min-w-0 leading-tight">
-              <p className="font-display text-[14px] font-bold text-success-600 truncate">{INSTITUTION.nom}</p>
-              <p className="hidden sm:block text-[11px] font-semibold text-ink-500 truncate">{INSTITUTION.systeme}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="relative hidden md:block" ref={searchBoxRef}>
-              <Search className="w-4 h-4 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setIsSearchOpen(true);
-                }}
-                onFocus={() => setIsSearchOpen(true)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    setIsSearchOpen(false);
-                    (e.target as HTMLInputElement).blur();
-                  }
-                }}
-                placeholder="Rechercher un PDV, produit, agence..."
-                className="w-56 lg:w-80 pl-10 pr-3 py-2 text-sm font-medium bg-white border border-ink-300 rounded-[4px] text-ink-900 placeholder:text-ink-500
-                           focus:outline-none focus:shadow-ring focus:border-success-600 transition-all"
-              />
-
-              {isSearchOpen && debouncedQuery.length >= 2 && (
-                <div className="absolute right-0 mt-2 w-96 max-h-96 overflow-y-auto bg-white rounded-xl border border-ink-200 shadow-popover py-2 z-[2000]">
-                  {isSearching ? (
-                    <div className="px-4 py-6 text-center text-sm text-ink-400">Recherche...</div>
-                  ) : !hasResults ? (
-                    <div className="px-4 py-6 text-center text-sm text-ink-400">
-                      Aucun résultat pour « {debouncedQuery} »
-                    </div>
-                  ) : (
-                    <>
-                      {searchResults!.pdv.length > 0 && (
-                        <div className="mb-1">
-                          <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400">
-                            Points de vente
-                          </p>
-                          {searchResults!.pdv.map((pdv: any) => (
-                            <button
-                              key={`pdv-${pdv.id}`}
-                              onClick={() => goToResult(`/pdv/${pdv.id}`)}
-                              className="w-full text-left px-4 py-2 text-sm text-ink-700 hover:bg-primary-50 flex items-center gap-2"
-                            >
-                              <MapPin className="w-3.5 h-3.5 text-ink-400 shrink-0" />
-                              <span className="truncate">{pdv.nom_pdv}</span>
-                              <span className="text-xs text-ink-400 ml-auto shrink-0">{pdv.msisdn_responsable}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {searchResults!.produits.length > 0 && (
-                        <div className="mb-1">
-                          <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400">
-                            Produits
-                          </p>
-                          {searchResults!.produits.map((p: any) => (
-                            <button
-                              key={`produit-${p.id}`}
-                              onClick={() => goToResult('/produits')}
-                              className="w-full text-left px-4 py-2 text-sm text-ink-700 hover:bg-primary-50 flex items-center gap-2"
-                            >
-                              <Package className="w-3.5 h-3.5 text-ink-400 shrink-0" />
-                              <span className="truncate">{p.nom_produit}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {searchResults!.agences.length > 0 && (
-                        <div>
-                          <p className="px-4 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400">
-                            Agences
-                          </p>
-                          {searchResults!.agences.map((a: any) => (
-                            <button
-                              key={`agence-${a.id}`}
-                              onClick={() => goToResult('/agences')}
-                              className="w-full text-left px-4 py-2 text-sm text-ink-700 hover:bg-primary-50 flex items-center gap-2"
-                            >
-                              <Building2 className="w-3.5 h-3.5 text-ink-400 shrink-0" />
-                              <span className="truncate">{a.nom_agence}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
                 </div>
               )}
-            </div>
+            </nav>
 
+            <div className="xl:ml-auto flex flex-wrap xl:flex-nowrap items-center gap-2.5 xl:pl-3 xl:border-l xl:border-white/15 shrink-0">
+              {/* Recherche globale */}
+              <div className="relative w-full sm:w-auto" ref={searchBoxRef}>
+                <Search className="w-4 h-4 text-white/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setIsSearchOpen(true);
+                  }}
+                  onFocus={() => setIsSearchOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setIsSearchOpen(false);
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  placeholder="Rechercher…"
+                  aria-label="Recherche globale"
+                  className="w-full sm:w-44 xl:w-32 min-[1400px]:w-48 2xl:w-60 h-[34px] pl-10 pr-3 text-[13px] rounded-full bg-white/10 border border-white/20 text-white placeholder:text-white/60
+                             focus:outline-none focus:bg-white focus:text-ink-900 focus:placeholder:text-ink-400 focus:border-white transition-all"
+                />
+                {isSearchOpen && debouncedQuery.length >= 2 && <SearchResults />}
+              </div>
 
-            <div className="h-8 w-px bg-ink-200 hidden sm:block" />
-
-            <div className="relative">
-              <button
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-2.5 pl-1.5 pr-2 py-1.5 rounded-[4px] hover:bg-ink-50 transition-colors"
-              >
-                <div className="w-9 h-9 rounded-[4px] bg-success-600 text-white flex items-center justify-center text-[13px] font-semibold">
+              <div className="flex items-center gap-2.5 text-white">
+                <span className="hidden 2xl:flex flex-col leading-tight text-right">
+                  <b className="text-[12px] font-semibold">{user?.prenom} {user?.nom}</b>
+                  <small className="text-[10px] opacity-75">{roleLabel(user?.role)}</small>
+                </span>
+                <span
+                  className="w-[34px] h-[34px] rounded-full bg-white/15 border border-white/25 flex items-center justify-center text-[12px] font-semibold 2xl:hidden"
+                  title={`${user?.prenom ?? ''} ${user?.nom ?? ''} · ${roleLabel(user?.role)}`}
+                >
                   {initials}
-                </div>
-                <div className="text-left hidden sm:block leading-tight">
-                  <p className="text-[13px] font-semibold text-ink-900">{user?.prenom} {user?.nom}</p>
-                  <p className="text-[11px] font-medium text-ink-500">{roleLabel(user?.role)}</p>
-                </div>
-                <ChevronDown className="w-4 h-4 text-ink-400" />
-              </button>
-
-              {isUserMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsUserMenuOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl border border-ink-200 shadow-popover py-1.5 z-20">
-                    <button
-                      onClick={logout}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-ink-700 hover:bg-ink-50 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Déconnexion
-                    </button>
-                  </div>
-                </>
-              )}
+                </span>
+                <button
+                  onClick={logout}
+                  className="px-3 py-[.3rem] rounded-full bg-transparent text-white border border-white/55 text-[12.5px] font-medium whitespace-nowrap transition-colors hover:bg-white hover:text-success-700 hover:border-white"
+                >
+                  Déconnexion
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main content */}
-      <main
-        className={`pt-[76px] min-h-screen flex flex-col transition-all duration-200 ${isSidebarOpen ? 'lg:pl-56' : 'lg:pl-0'}`}
-      >
+      <DocumentTitle title={currentPage.title} />
+
+      {/* ---------- Contenu ---------- */}
+      <main id="main" className="flex-1 flex flex-col">
         {location.pathname === '/tracking' ? (
           <Outlet />
         ) : (
@@ -441,13 +361,13 @@ const Layout = () => {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="flex-1 w-full p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto"
+            className="flex-1 w-full px-4 sm:px-6 py-6 lg:py-7 max-w-[1600px] mx-auto"
           >
             <Outlet />
           </motion.div>
         )}
-        {location.pathname !== '/tracking' && <InstitutionFooter />}
       </main>
+      {location.pathname !== '/tracking' && <InstitutionFooter />}
     </div>
   );
 };

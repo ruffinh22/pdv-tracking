@@ -16,7 +16,7 @@ interface PageHeaderProps {
 
 /**
  * En-tête de page institutionnel : fil d'Ariane, titre, sous-titre,
- * actions, filet tricolore. Utilisé par toutes les pages pour un rendu homogène.
+ * actions, filet orange. Utilisé par toutes les pages pour un rendu homogène.
  */
 export default function PageHeader({ title, subtitle, actions, crumb, leading }: PageHeaderProps) {
   const { pathname } = useLocation();
@@ -27,8 +27,8 @@ export default function PageHeader({ title, subtitle, actions, crumb, leading }:
 
   return (
     <header className="page-header">
-      <nav aria-label="Fil d'Ariane" className="flex flex-wrap items-center gap-1.5 text-[11.5px] font-semibold text-ink-500 mb-2.5">
-        <Link to="/" className="inline-flex items-center gap-1 hover:text-primary-700 transition-colors">
+      <nav aria-label="Fil d'Ariane" className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium text-ink-500 mb-2">
+        <Link to="/" className="inline-flex items-center gap-1 hover:text-success-700 transition-colors">
           <Home className="w-3.5 h-3.5" aria-hidden />
           Accueil
         </Link>
@@ -41,7 +41,7 @@ export default function PageHeader({ title, subtitle, actions, crumb, leading }:
         {estDetail && (
           <>
             <ChevronRight className="w-3.5 h-3.5 text-ink-300" aria-hidden />
-            <Link to={base} className="hover:text-primary-700 transition-colors">
+            <Link to={base} className="hover:text-success-700 transition-colors">
               {RUBRIQUE_LABEL[base] ?? 'Liste'}
             </Link>
           </>
@@ -49,7 +49,7 @@ export default function PageHeader({ title, subtitle, actions, crumb, leading }:
         {dernier && (
           <>
             <ChevronRight className="w-3.5 h-3.5 text-ink-300" aria-hidden />
-            <span className="text-ink-900 font-bold" aria-current="page">
+            <span className="text-success-700 font-semibold" aria-current="page">
               {dernier}
             </span>
           </>
@@ -61,6 +61,7 @@ export default function PageHeader({ title, subtitle, actions, crumb, leading }:
           {leading}
           <div className="min-w-0">
             <h1 className="page-title">{title}</h1>
+            <span className="mt-2 block h-[3px] w-10 rounded-full bg-primary-500" aria-hidden />
             {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
           </div>
         </div>
