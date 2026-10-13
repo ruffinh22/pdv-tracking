@@ -481,7 +481,7 @@ const PDVList = () => {
       <PageHeader
         title={'Points de Vente'}
         subtitle={<>{pagination.total} point{pagination.total > 1 ? 's' : ''} de vente tagué{pagination.total > 1 ? 's' : ''}</>}
-        actions={<><div className="flex gap-2">
+        actions={<><div className="flex flex-wrap gap-2">
           <div className="flex rounded-lg border border-ink-200 overflow-hidden">
             <button
               onClick={() => handleExport('complet')}

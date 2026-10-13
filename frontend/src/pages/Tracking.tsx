@@ -502,7 +502,7 @@ const Tracking = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] w-full bg-white flex flex-col">
+    <div className="h-[calc(100dvh-var(--header-h,4rem))] w-full bg-white flex flex-col">
       {/* Barre de contrôle principale : vert du logo, texte blanc */}
       <div className="bg-success-600 text-white px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3" style={{ position: 'relative', zIndex: 100 }}>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">

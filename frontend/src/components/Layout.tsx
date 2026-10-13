@@ -10,8 +10,7 @@ import {
   MapPin,
   AlertTriangle,
   Users,
-  Menu,
-  X,
+  LogOut,
   Activity,
   FileText,
   Package,
@@ -21,7 +20,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { useAuthStore } from '../contexts/authContext';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { pdvService } from '../services/pdvService';
 import { produitService } from '../services/produitService';
 import { agenceService } from '../services/agenceService';
@@ -57,22 +56,44 @@ const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const [isNavOpen, setIsNavOpen] = useState(false); // menu repliable (mobile / tablette)
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const settingsRef = useRef<HTMLDivElement>(null);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [mobileSearch, setMobileSearch] = useState(false);
+  const [menuAlignLeft, setMenuAlignLeft] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(Number.MAX_SAFE_INTEGER);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const closeTimer = useRef<number>();
+  const pointerType = useRef<string>('mouse');
 
   useEffect(() => {
-    setIsNavOpen(false);
-    setIsSettingsOpen(false);
+    setIsMoreOpen(false);
+    setMobileSearch(false);
   }, [location.pathname]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) setIsSettingsOpen(false);
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setIsMoreOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setIsMoreOpen(false);
     document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
   }, []);
+
+  // Ouverture au survol (souris) avec une courte tolérance de sortie ; au toucher : tap pour ouvrir/fermer.
+  const openMore = () => {
+    window.clearTimeout(closeTimer.current);
+    setIsMoreOpen(true);
+  };
+  const scheduleCloseMore = () => {
+    window.clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => setIsMoreOpen(false), 220);
+  };
 
   // --- Recherche globale (header) ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -147,8 +168,61 @@ const Layout = () => {
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname === path || location.pathname.startsWith(path + '/');
-  const isSettingsActive = () => settingsItems.some((item) => isActive(item.to));
-  const activeSetting = settingsItems.find((item) => isActive(item.to));
+  const hasSettings = settingsItems.length > 0;
+
+  // Les onglets qui ne tiennent pas dans la largeur disponible passent dans le menu déroulant.
+  const recomputeOverflow = useCallback(() => {
+    const nav = navRef.current;
+    const meas = measureRef.current;
+    if (!nav || !meas) return;
+    const GAP = 4;
+    const kids = Array.from(meas.children) as HTMLElement[];
+    const widths = kids.slice(0, navItems.length).map((k) => k.offsetWidth);
+    const moreW = kids[navItems.length]?.offsetWidth ?? 120;
+    const avail = nav.clientWidth - 8; // marge de sécurité (onglet actif en gras)
+    const rowWidth = (k: number) => widths.slice(0, k).reduce((sum, w) => sum + w + GAP, 0);
+    let count = navItems.length;
+    const allFit = rowWidth(navItems.length) + (hasSettings ? moreW : 0) <= avail;
+    if (!allFit) {
+      count = navItems.length;
+      while (count > 0 && rowWidth(count) + moreW > avail) count -= 1;
+      // Si la place ne permet qu'un onglet + le bouton (2 emplacements) : on ne garde que le hamburger, qui contient tout.
+      if (count === 1) count = 0;
+    }
+    setVisibleCount((prev) => (prev === count ? prev : count));
+  }, [navItems, hasSettings]);
+
+  useLayoutEffect(() => {
+    recomputeOverflow();
+    const ro = new ResizeObserver(recomputeOverflow);
+    if (navRef.current) ro.observe(navRef.current);
+    document.fonts?.ready.then(recomputeOverflow).catch(() => undefined);
+    return () => ro.disconnect();
+  }, [recomputeOverflow]);
+
+  // Hauteur réelle de l'en-tête exposée en variable CSS (la carte Tracking s'y cale).
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const apply = () => document.documentElement.style.setProperty('--header-h', `${el.offsetHeight}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Si le bouton est trop près du bord gauche, le menu s'aligne à gauche au lieu de sortir de l'écran.
+  useLayoutEffect(() => {
+    if (!isMoreOpen || !moreRef.current) return;
+    const r = moreRef.current.getBoundingClientRect();
+    setMenuAlignLeft(r.right - 248 < 8);
+  }, [isMoreOpen, visibleCount]);
+
+  const shownItems = navItems.slice(0, visibleCount);
+  const hiddenItems = navItems.slice(visibleCount);
+  const showMore = hiddenItems.length > 0 || hasSettings;
+  const moreActive = hiddenItems.some((i) => isActive(i.to)) || settingsItems.some((i) => isActive(i.to));
+  const isBurger = hiddenItems.length > 0;
 
   const currentPageMeta = useMemo(() => {
     const relativePath = location.pathname.replace(/^\/+/, '').split('/')[0];
@@ -236,115 +310,170 @@ const Layout = () => {
       </a>
 
       {/* ---------- En-tête de navigation ---------- */}
-      <header className="top-bar">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 flex flex-wrap xl:flex-nowrap items-center gap-x-3 min-h-16">
-          <Link to="/" className="flex items-center gap-3 text-white shrink-0 h-16" aria-label="Tracking PDV, accueil">
-            <BrandBadge size={46} />
-            <span className="w-px h-[26px] bg-white/25" />
+      <header className="top-bar" ref={headerRef}>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 flex flex-wrap xl:flex-nowrap items-center gap-x-3">
+          {/* Marque */}
+          <Link to="/" className="order-1 flex items-center gap-3 text-white shrink-0 h-14 xl:h-16" aria-label="Tracking PDV, accueil">
+            <BrandBadge size={44} />
+            <span className="w-px h-[26px] bg-white/25 max-[359px]:hidden" />
             <span className="flex flex-col leading-[1.05]">
-              <span className="font-display font-semibold text-[19px] uppercase tracking-[0.1em]">Tracking PDV</span>
-              <span className="hidden min-[1400px]:block text-[9.5px] font-normal uppercase tracking-[0.14em] text-white/65 mt-0.5">
+              <span className="font-display font-semibold text-[19px] max-[359px]:text-[16px] uppercase tracking-[0.1em] max-[359px]:tracking-[0.05em]">Tracking PDV</span>
+              <span className="hidden 2xl:block text-[9.5px] font-normal uppercase tracking-[0.14em] text-white/65 mt-0.5">
                 {INSTITUTION.sigle} · Suivi des points de vente
               </span>
             </span>
           </Link>
 
-          <button
-            className="xl:hidden ml-auto inline-flex items-center justify-center w-[38px] h-[34px] rounded-[10px] border border-white/40 text-white"
-            aria-expanded={isNavOpen}
-            aria-label="Menu"
-            onClick={() => setIsNavOpen(!isNavOpen)}
+          {/* Navigation : onglets visibles + menu déroulant des éléments qui manquent de place */}
+          <nav
+            ref={navRef}
+            className="order-4 xl:order-2 basis-full xl:basis-auto xl:flex-1 min-w-0 relative flex items-center gap-1 pb-2.5 pt-1.5 xl:py-0 xl:ml-4 border-t border-white/10 xl:border-0"
+            aria-label="Navigation principale"
           >
-            {isNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-
-          <div
-            className={`${isNavOpen ? 'flex' : 'hidden'} xl:flex basis-full xl:basis-auto xl:flex-1 flex-col xl:flex-row items-stretch xl:items-center gap-3 pb-3 xl:pb-0 min-w-0`}
-          >
-            <nav className="flex flex-wrap xl:flex-nowrap items-center gap-1 xl:ml-4" aria-label="Navigation principale">
+            {/* Couche de mesure invisible : largeur réelle de chaque onglet */}
+            <div ref={measureRef} aria-hidden="true" className="fixed top-0 -left-[9999px] flex gap-1 invisible pointer-events-none whitespace-nowrap">
               {navItems.map(({ to, label, icon: Icon }) => (
-                <Link key={to} to={to} className={`nav-tab ${isActive(to) ? 'on' : ''}`} aria-current={isActive(to) ? 'page' : undefined}>
+                <span key={to} className="nav-tab">
                   <Icon className="w-[15px] h-[15px]" />
                   {label}
-                </Link>
+                </span>
               ))}
-
-              {settingsItems.length > 0 && (
-                <div className="relative" ref={settingsRef}>
-                  <button
-                    className={`nav-tab ${isSettingsActive() ? 'on' : ''}`}
-                    aria-haspopup="menu"
-                    aria-expanded={isSettingsOpen}
-                    onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                  >
-                    <Settings className="w-[15px] h-[15px]" />
-                    {activeSetting?.label ?? 'Paramètres'}
-                    <ChevronDown className={`w-[11px] h-[11px] opacity-70 transition-transform ${isSettingsOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {isSettingsOpen && (
-                    <ul className="nav-menu xl:left-0 xl:right-auto max-xl:static max-xl:mt-1.5" role="menu">
-                      <li className="px-4 pt-1.5 pb-1 font-display text-[11px] font-semibold uppercase tracking-[0.16em] text-white/45">
-                        Configuration
-                      </li>
-                      {settingsItems.map(({ to, label, icon: Icon }) => (
-                        <li key={to} role="none">
-                          <Link to={to} className={`nav-item ${isActive(to) ? 'on' : ''}`} role="menuitem">
-                            <Icon className="w-[15px] h-[15px] opacity-85" />
-                            {label}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </nav>
-
-            <div className="xl:ml-auto flex flex-wrap xl:flex-nowrap items-center gap-2.5 xl:pl-3 xl:border-l xl:border-white/15 shrink-0">
-              {/* Recherche globale */}
-              <div className="relative w-full sm:w-auto" ref={searchBoxRef}>
-                <Search className="w-4 h-4 text-white/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setIsSearchOpen(true);
-                  }}
-                  onFocus={() => setIsSearchOpen(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      setIsSearchOpen(false);
-                      (e.target as HTMLInputElement).blur();
-                    }
-                  }}
-                  placeholder="Rechercher…"
-                  aria-label="Recherche globale"
-                  className="w-full sm:w-44 xl:w-32 min-[1400px]:w-48 2xl:w-60 h-[34px] pl-10 pr-3 text-[13px] rounded-full bg-white/10 border border-white/20 text-white placeholder:text-white/60
-                             focus:outline-none focus:bg-white focus:text-ink-900 focus:placeholder:text-ink-400 focus:border-white transition-all"
-                />
-                {isSearchOpen && debouncedQuery.length >= 2 && <SearchResults />}
-              </div>
-
-              <div className="flex items-center gap-2.5 text-white">
-                <span className="hidden 2xl:flex flex-col leading-tight text-right">
-                  <b className="text-[12px] font-semibold">{user?.prenom} {user?.nom}</b>
-                  <small className="text-[10px] opacity-75">{roleLabel(user?.role)}</small>
-                </span>
-                <span
-                  className="w-[34px] h-[34px] rounded-full bg-white/15 border border-white/25 flex items-center justify-center text-[12px] font-semibold 2xl:hidden"
-                  title={`${user?.prenom ?? ''} ${user?.nom ?? ''} · ${roleLabel(user?.role)}`}
-                >
-                  {initials}
-                </span>
-                <button
-                  onClick={logout}
-                  className="px-3 py-[.3rem] rounded-full bg-transparent text-white border border-white/55 text-[12.5px] font-medium whitespace-nowrap transition-colors hover:bg-white hover:text-success-700 hover:border-white"
-                >
-                  Déconnexion
-                </button>
-              </div>
+              <span className="nav-tab">
+                <span className="hamb"><i /><i /><i /></span>
+                <span className="hidden sm:inline">Paramètres</span>
+                <ChevronDown className="w-[11px] h-[11px]" />
+              </span>
             </div>
+
+            {shownItems.map(({ to, label, icon: Icon }) => (
+              <Link key={to} to={to} className={`nav-tab ${isActive(to) ? 'on' : ''}`} aria-current={isActive(to) ? 'page' : undefined}>
+                <Icon className="w-[15px] h-[15px]" />
+                {label}
+              </Link>
+            ))}
+
+            {showMore && (
+              <div
+                className="relative"
+                ref={moreRef}
+                onPointerEnter={(e) => {
+                  pointerType.current = e.pointerType;
+                  if (e.pointerType === 'mouse') openMore();
+                }}
+                onPointerLeave={(e) => e.pointerType === 'mouse' && scheduleCloseMore()}
+              >
+                <button
+                  className={`nav-tab ${moreActive ? 'on' : ''}`}
+                  aria-haspopup="menu"
+                  aria-expanded={isMoreOpen}
+                  aria-label={isBurger ? 'Menu' : 'Paramètres'}
+                  onPointerDown={(e) => (pointerType.current = e.pointerType)}
+                  onClick={() => (pointerType.current === 'mouse' ? openMore() : setIsMoreOpen((o) => !o))}
+                >
+                  {isBurger ? (
+                    <span className="hamb" data-open={isMoreOpen} aria-hidden="true"><i /><i /><i /></span>
+                  ) : (
+                    <Settings className="w-[15px] h-[15px]" />
+                  )}
+                  <span className="hidden sm:inline">{isBurger ? 'Menu' : 'Paramètres'}</span>
+                  <ChevronDown className={`w-[11px] h-[11px] opacity-70 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isMoreOpen && (
+                  <div className={`nav-drop ${menuAlignLeft ? 'nav-drop--left' : ''}`}>
+                    <ul className="nav-menu" role="menu">
+                      {hiddenItems.length > 0 && (
+                        <>
+                          <li className="nav-heading">Navigation</li>
+                          {hiddenItems.map(({ to, label, icon: Icon }, i) => (
+                            <li key={to} role="none">
+                              <Link to={to} className={`nav-item ${isActive(to) ? 'on' : ''}`} role="menuitem" style={{ animationDelay: `${i * 28}ms` }}>
+                                <Icon className="w-[15px] h-[15px] opacity-85" />
+                                {label}
+                              </Link>
+                            </li>
+                          ))}
+                        </>
+                      )}
+                      {hasSettings && (
+                        <>
+                          <li className={`nav-heading ${hiddenItems.length > 0 ? 'nav-heading--sep' : ''}`}>Configuration</li>
+                          {settingsItems.map(({ to, label, icon: Icon }, i) => (
+                            <li key={to} role="none">
+                              <Link to={to} className={`nav-item ${isActive(to) ? 'on' : ''}`} role="menuitem" style={{ animationDelay: `${(hiddenItems.length + i) * 28}ms` }}>
+                                <Icon className="w-[15px] h-[15px] opacity-85" />
+                                {label}
+                              </Link>
+                            </li>
+                          ))}
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </nav>
+
+          {/* Recherche globale : champ sur grand écran, icône qui déploie le champ sur petit écran */}
+          <div
+            className={`relative ${mobileSearch ? 'order-5 basis-full pb-3' : 'hidden'} xl:block xl:order-3 xl:basis-auto xl:pb-0`}
+            ref={searchBoxRef}
+          >
+            <Search className={`w-4 h-4 text-white/70 absolute left-3.5 ${mobileSearch ? 'top-[calc(50%-6px)]' : 'top-1/2'} xl:top-1/2 -translate-y-1/2 pointer-events-none`} />
+            <input
+              type="text"
+              value={searchQuery}
+              autoFocus={mobileSearch}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearchOpen(true);
+              }}
+              onFocus={() => setIsSearchOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setIsSearchOpen(false);
+                  setMobileSearch(false);
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              placeholder="Rechercher…"
+              aria-label="Recherche globale"
+              className="w-full xl:w-32 min-[1400px]:w-48 2xl:w-60 h-[34px] pl-10 pr-3 text-[13px] rounded-full bg-white/10 border border-white/20 text-white placeholder:text-white/60
+                         focus:outline-none focus:bg-white focus:text-ink-900 focus:placeholder:text-ink-400 focus:border-white transition-all"
+            />
+            {isSearchOpen && debouncedQuery.length >= 2 && <SearchResults />}
+          </div>
+
+          {/* Compte */}
+          <div className="order-2 xl:order-4 ml-auto xl:ml-0 h-14 xl:h-auto flex items-center gap-2 text-white xl:pl-3 xl:border-l xl:border-white/15 shrink-0">
+            <button
+              className="nav-round xl:hidden"
+              aria-label="Rechercher"
+              aria-expanded={mobileSearch}
+              onClick={() => setMobileSearch((v) => !v)}
+            >
+              <Search className="w-4 h-4" />
+            </button>
+            <span className="hidden 2xl:flex flex-col leading-tight text-right">
+              <b className="text-[12px] font-semibold">{user?.prenom} {user?.nom}</b>
+              <small className="text-[10px] opacity-75">{roleLabel(user?.role)}</small>
+            </span>
+            <span
+              className="w-[34px] h-[34px] rounded-full bg-white/15 border border-white/25 flex items-center justify-center text-[12px] font-semibold 2xl:hidden max-[359px]:hidden"
+              title={`${user?.prenom ?? ''} ${user?.nom ?? ''} · ${roleLabel(user?.role)}`}
+            >
+              {initials}
+            </span>
+            <button onClick={logout} className="nav-round sm:hidden" aria-label="Déconnexion" title="Déconnexion">
+              <LogOut className="w-4 h-4" />
+            </button>
+            <button
+              onClick={logout}
+              className="hidden sm:inline-block px-3 py-[.3rem] rounded-full bg-transparent text-white border border-white/55 text-[12.5px] font-medium whitespace-nowrap transition-colors hover:bg-white hover:text-success-700 hover:border-white"
+            >
+              Déconnexion
+            </button>
           </div>
         </div>
       </header>

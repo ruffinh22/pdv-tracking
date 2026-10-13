@@ -65,7 +65,7 @@ export default function PageHeader({ title, subtitle, actions, crumb, leading }:
             {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
           </div>
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div> : null}
+        {actions ? <div className="flex flex-wrap items-center gap-2 max-w-full">{actions}</div> : null}
       </div>
     </header>
   );
