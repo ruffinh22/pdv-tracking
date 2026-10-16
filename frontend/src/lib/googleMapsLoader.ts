@@ -36,6 +36,14 @@ export function chargerGoogleMaps(): Promise<typeof google> {
       resolve((window as any).google);
     };
 
+    // Si le navigateur bloque le script (politique de sécurité du serveur), on le détecte
+    // pour afficher une cause précise au lieu d'accuser la clé ou le réseau.
+    let bloqueParCsp = false;
+    const surViolation = (e: SecurityPolicyViolationEvent) => {
+      if (e.blockedURI.includes('maps.googleapis.com')) bloqueParCsp = true;
+    };
+    document.addEventListener('securitypolicyviolation', surViolation);
+
     const script = document.createElement('script');
     script.src =
       `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}` +
@@ -44,7 +52,14 @@ export function chargerGoogleMaps(): Promise<typeof google> {
     script.defer = true;
     script.onerror = () => {
       chargementPromise = null;
-      reject(new Error("Échec du chargement du script Google Maps (clé invalide, quota, ou réseau)."));
+      document.removeEventListener('securitypolicyviolation', surViolation);
+      reject(
+        new Error(
+          bloqueParCsp
+            ? 'Google Maps est bloqué par la politique de sécurité (CSP) du serveur : autorisez https://maps.googleapis.com dans script-src, connect-src et img-src.'
+            : 'Échec du chargement du script Google Maps (clé invalide, quota, ou réseau).'
+        )
+      );
     };
     document.head.appendChild(script);
   });
