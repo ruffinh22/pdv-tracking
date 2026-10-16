@@ -82,6 +82,15 @@ const Login = () => {
     setIsLoading(true);
     try {
       await login(email, password);
+      // Mémorise les connexions sur cet appareil (affichées dans le menu du compte).
+      const u = useAuthStore.getState().user;
+      if (u) {
+        try {
+          const ancienne = localStorage.getItem(`login:last:${u.id}`);
+          if (ancienne) localStorage.setItem(`login:prev:${u.id}`, ancienne);
+          localStorage.setItem(`login:last:${u.id}`, new Date().toISOString());
+        } catch { /* stockage indisponible */ }
+      }
       toast.success('Connexion réussie');
       navigate('/');
     } catch (err) {

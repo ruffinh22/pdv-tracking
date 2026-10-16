@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SkeletonDetail } from '../components/Skeleton';
 import PageHeader from '../components/PageHeader';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -385,7 +386,7 @@ const PDVDetail = () => {
       }
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.error || 'Erreur lors de l\'enregistrement');
+      toast.error(error?.response?.data?.error || 'Erreur lors de l’enregistrement');
     },
   });
 
@@ -415,7 +416,7 @@ const PDVDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="card text-center py-16 text-ink-400">Chargement du dossier…</div>
+      <SkeletonDetail />
     );
   }
 
@@ -424,8 +425,8 @@ const PDVDetail = () => {
       <div className="card text-center py-16">
         <p className="text-base font-semibold text-ink-900">Dossier hors de votre périmètre</p>
         <p className="text-sm text-ink-500 mt-2 max-w-md mx-auto">
-          Ce point de vente n'est pas rattaché à votre compte. Demandez à votre superviseur de vous
-          l'assigner si vous devez le compléter.
+          Ce point de vente n’est pas rattaché à votre compte. Demandez à votre superviseur de vous
+          l’assigner si vous devez le compléter.
         </p>
         <button type="button" onClick={() => navigate('/pdv')} className="btn btn-secondary mt-5 mx-auto">
           Retour à la liste
@@ -439,7 +440,7 @@ const PDVDetail = () => {
       <div className="card text-center py-16">
         <p className="text-base font-semibold text-ink-900">Ce dossier est introuvable</p>
         <p className="text-sm text-ink-500 mt-2">
-          Il a peut-être été supprimé, ou l'adresse est incorrecte.
+          Il a peut-être été supprimé, ou l’adresse est incorrecte.
         </p>
         <button type="button" onClick={() => navigate('/pdv')} className="btn btn-secondary mt-5 mx-auto">
           Retour à la liste
@@ -469,8 +470,8 @@ const PDVDetail = () => {
         }
       />
 
-      {/* Ce que le terminal a remonté du terrain : non modifiable ici, c'est la
-          trace de l'enrôlement. */}
+      {/* Ce que le terminal a remonté du terrain : non modifiable ici, c’est la
+          trace de l’enrôlement. */}
       <div className="card">
         <h2 className="form-section">
           Relevé du terrain
@@ -601,7 +602,7 @@ const PDVDetail = () => {
         {trajet && trajet.points === 0 ? (
           <p className="text-xs text-ink-400 mt-3">
             Aucune position remontée sur cette période. Le terminal est peut-être éteint, hors
-            réseau, ou le suivi en arrière-plan n'a pas été autorisé sur l'appareil.
+            réseau, ou le suivi en arrière-plan n’a pas été autorisé sur l’appareil.
           </p>
         ) : null}
       </div>
@@ -809,10 +810,10 @@ const PDVDetail = () => {
                     className="input"
                     value={fiche.type_terminal}
                     onChange={(e) => setFiche({ ...fiche, type_terminal: e.target.value })}
-                    placeholder="Détecté automatiquement à l'enrôlement"
+                    placeholder="Détecté automatiquement à l’enrôlement"
                   />
                   <p className="text-xs text-ink-400 mt-1">
-                    Pré-rempli depuis le téléphone de l'agent ; à corriger si votre agence utilise sa
+                    Pré-rempli depuis le téléphone de l’agent ; à corriger si votre agence utilise sa
                     propre nomenclature de terminaux.
                   </p>
                 </div>
@@ -856,7 +857,7 @@ const PDVDetail = () => {
             </h3>
             <p className="form-hint !mt-0 mb-3">
               {champObligatoire('produits')
-                ? "Au moins un produit est requis : c'est la colonne « Produit_vendu » du mapping standard. Seule la gamme est demandée ici, jamais les prix."
+                ? "Au moins un produit est requis : c’est la colonne « Produit_vendu » du mapping standard. Seule la gamme est demandée ici, jamais les prix."
                 : "Seule la gamme est demandée ici, jamais les prix."}
             </p>
             <div className="flex flex-wrap gap-2">
@@ -887,7 +888,7 @@ const PDVDetail = () => {
           )}
         </div>
 
-        {/* Champs pilotés par l'admin depuis Paramètres > Attributs PDV */}
+        {/* Champs pilotés par l’admin depuis Paramètres > Attributs PDV */}
         {groupes.map(([groupe, champs]) => (
           <div className="card" key={groupe}>
             <h3 className="form-section">
@@ -916,8 +917,8 @@ const PDVDetail = () => {
 
         <div className="flex items-center justify-end gap-3">
           <p className="text-xs text-ink-400 mr-auto">
-            Les champs marqués d'une étoile sont obligatoires (réglable dans Paramètres &gt; Champs PDV). Un dossier incomplet
-            s'enregistre quand même et reste en brouillon : rien n'est perdu.
+            Les champs marqués d’une étoile sont obligatoires (réglable dans Paramètres &gt; Champs PDV). Un dossier incomplet
+            s’enregistre quand même et reste en brouillon : rien n’est perdu.
           </p>
           <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
             Annuler

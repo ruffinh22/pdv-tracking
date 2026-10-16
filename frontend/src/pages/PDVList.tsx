@@ -10,6 +10,7 @@ import { userService } from '../services/userService';
 import { produitService } from '../services/produitService';
 import { pdvChampFixeService, PdvChampFixe } from '../services/pdvChampFixeService';
 import { useEffect, useMemo, useState } from 'react';
+import { usePersistedState } from '../hooks/usePersistedState';
 import toast from 'react-hot-toast';
 import Pagination from '../components/Pagination';
 import { useAuthStore } from '../contexts/authContext';
@@ -76,22 +77,22 @@ const PDVList = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingPDV, setEditingPDV] = useState<PDV | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = usePersistedState('pdv:perPage', 10);
   const [searchTerm, setSearchTerm] = useState('');
   // Recherche débattue : la clé de requête ne doit pas changer à chaque
   // frappe, sinon on déclenche un appel réseau (et un re-rendu de la table)
   // par caractère saisi.
   const [rechercheDebattue, setRechercheDebattue] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'actif' | 'inactif' | 'suspendu'>('all');
+  const [statusFilter, setStatusFilter] = usePersistedState<'all' | 'actif' | 'inactif' | 'suspendu'>('pdv:statut', 'all');
   // File de travail de l'agent commercial : les dossiers enrôlés depuis le
   // mobile qui attendent d'être complétés.
-  const [dossierFilter, setDossierFilter] = useState<'all' | 'brouillon' | 'complet'>('all');
+  const [dossierFilter, setDossierFilter] = usePersistedState<'all' | 'brouillon' | 'complet'>('pdv:dossier', 'all');
   const [exportEnCours, setExportEnCours] = useState(false);
-  const [agenceFilter, setAgenceFilter] = useState<number | ''>('');
-  const [commercialFilter, setCommercialFilter] = useState<number | ''>('');
-  const [superviseurFilter, setSuperviseurFilter] = useState<number | ''>('');
-  const [chefZoneFilter, setChefZoneFilter] = useState<number | ''>('');
-  const [produitFilter, setProduitFilter] = useState<number | ''>('');
+  const [agenceFilter, setAgenceFilter] = usePersistedState<number | ''>('pdv:agence', '');
+  const [commercialFilter, setCommercialFilter] = usePersistedState<number | ''>('pdv:commercial', '');
+  const [superviseurFilter, setSuperviseurFilter] = usePersistedState<number | ''>('pdv:superviseur', '');
+  const [chefZoneFilter, setChefZoneFilter] = usePersistedState<number | ''>('pdv:chefzone', '');
+  const [produitFilter, setProduitFilter] = usePersistedState<number | ''>('pdv:produit', '');
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [formData, setFormData] = useState<FormState>(EMPTY_FORM);
   const [maintenant, setMaintenant] = useState(Date.now());
@@ -321,7 +322,7 @@ const PDVList = () => {
           toast.success('Position GPS obtenue');
         },
         () => {
-          toast.error('Impossible d\'obtenir la position GPS');
+          toast.error('Impossible d’obtenir la position GPS');
         }
       );
     } else {
@@ -349,7 +350,7 @@ const PDVList = () => {
     try {
       await pdvService.exportMapping({ statut_dossier });
     } catch {
-      toast.error('Erreur lors de l\'export');
+      toast.error('Erreur lors de l’export');
     } finally {
       setExportEnCours(false);
     }
@@ -479,7 +480,7 @@ const PDVList = () => {
   return (
     <div className="space-y-5">
       <PageHeader
-        title={'Points de Vente'}
+        title={'Points de vente'}
         subtitle={<>{pagination.total} point{pagination.total > 1 ? 's' : ''} de vente tagué{pagination.total > 1 ? 's' : ''}</>}
         actions={<><div className="flex flex-wrap gap-2">
           <div className="flex rounded-lg border border-ink-200 overflow-hidden">
@@ -521,13 +522,13 @@ const PDVList = () => {
             <Search className="w-4 h-4 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Rechercher un PDV, un numéro, un ID terminal..."
+              placeholder="Rechercher un PDV, un numéro, un ID terminal…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="input pl-9"
             />
           </div>
-          <select
+          <select aria-label="Filtrer par statut"
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value as any); setCurrentPage(1); }}
             className="toolbar-select"
@@ -537,8 +538,8 @@ const PDVList = () => {
             <option value="inactif">Inactif</option>
             <option value="suspendu">Suspendu</option>
           </select>
-          {/* Bascule rapide sur la file des dossiers à compléter : c'est le
-              point d'entrée quotidien après une tournée d'installation. */}
+          {/* Bascule rapide sur la file des dossiers à compléter : c’est le
+              point d’entrée quotidien après une tournée d’installation. */}
           <div className="flex rounded-lg border border-ink-200 overflow-hidden">
             {([
               { cle: 'all', libelle: 'Tous' },
@@ -578,7 +579,7 @@ const PDVList = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 px-5 py-4 border-b border-ink-100 bg-ink-50/50">
             <div>
               <label className="label !mb-1 !text-xs">Agence</label>
-              <select
+              <select aria-label="Filtrer par agence"
                 value={agenceFilter}
                 onChange={(e) => { setAgenceFilter(e.target.value ? Number(e.target.value) : ''); setCurrentPage(1); }}
                 className="input !py-2 text-sm"
@@ -589,7 +590,7 @@ const PDVList = () => {
             </div>
             <div>
               <label className="label !mb-1 !text-xs">Commercial</label>
-              <select
+              <select aria-label="Filtrer par commercial"
                 value={commercialFilter}
                 onChange={(e) => { setCommercialFilter(e.target.value ? Number(e.target.value) : ''); setCurrentPage(1); }}
                 className="input !py-2 text-sm"
@@ -600,7 +601,7 @@ const PDVList = () => {
             </div>
             <div>
               <label className="label !mb-1 !text-xs">Superviseur</label>
-              <select
+              <select aria-label="Filtrer par superviseur"
                 value={superviseurFilter}
                 onChange={(e) => { setSuperviseurFilter(e.target.value ? Number(e.target.value) : ''); setCurrentPage(1); }}
                 className="input !py-2 text-sm"
@@ -611,7 +612,7 @@ const PDVList = () => {
             </div>
             <div>
               <label className="label !mb-1 !text-xs">Chef de zone</label>
-              <select
+              <select aria-label="Filtrer par chef de zone"
                 value={chefZoneFilter}
                 onChange={(e) => { setChefZoneFilter(e.target.value ? Number(e.target.value) : ''); setCurrentPage(1); }}
                 className="input !py-2 text-sm"
@@ -622,7 +623,7 @@ const PDVList = () => {
             </div>
             <div>
               <label className="label !mb-1 !text-xs">Type de produit</label>
-              <select
+              <select aria-label="Filtrer par produit"
                 value={produitFilter}
                 onChange={(e) => { setProduitFilter(e.target.value ? Number(e.target.value) : ''); setCurrentPage(1); }}
                 className="input !py-2 text-sm"
@@ -672,7 +673,7 @@ const PDVList = () => {
               <h2>
                 {editingPDV ? 'Modifier le PDV' : 'Nouveau PDV'}
               </h2>
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="btn-icon">
+              <button aria-label="Fermer" onClick={() => { setShowModal(false); resetForm(); }} className="btn-icon">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -818,7 +819,7 @@ const PDVList = () => {
                     {champVisible('agence_id') && (
                       <div>
                       <label className="label">{champLibelle('agence_id', 'Agence')}{etoile('agence_id')}</label>
-                      <select
+                      <select aria-label="Agence"
                         value={formData.agence_id}
                         onChange={(e) => setFormData({ ...formData, agence_id: e.target.value ? Number(e.target.value) : '' })}
                         className="input"
@@ -842,7 +843,7 @@ const PDVList = () => {
                           title="Un commercial ne peut taguer que ses propres PDV"
                         />
                       ) : (
-                        <select
+                        <select aria-label="Commercial"
                           value={formData.commercial_id}
                           onChange={(e) => setFormData({ ...formData, commercial_id: e.target.value ? Number(e.target.value) : '' })}
                           className="input"
@@ -855,7 +856,7 @@ const PDVList = () => {
                     {champVisible('superviseur_id') && (
                       <div>
                       <label className="label">{champLibelle('superviseur_id', 'Superviseur')}{etoile('superviseur_id')}</label>
-                      <select
+                      <select aria-label="Superviseur"
                         value={formData.superviseur_id}
                         onChange={(e) => setFormData({ ...formData, superviseur_id: e.target.value ? Number(e.target.value) : '' })}
                         className="input"
@@ -868,7 +869,7 @@ const PDVList = () => {
                     {champVisible('chef_zone_id') && (
                       <div>
                       <label className="label">{champLibelle('chef_zone_id', 'Chef de zone')}{etoile('chef_zone_id')}</label>
-                      <select
+                      <select aria-label="Chef de zone"
                         value={formData.chef_zone_id}
                         onChange={(e) => setFormData({ ...formData, chef_zone_id: e.target.value ? Number(e.target.value) : '' })}
                         className="input"
@@ -967,7 +968,7 @@ const PDVList = () => {
                     Obtenir ma position GPS
                   </button>
                   <p className="text-xs text-ink-400 mt-2">
-                    Cette position sert de référence pour la détection d'activité suspecte (sortie du rayon de 500m).
+                    Cette position sert de référence pour la détection d’activité suspecte (sortie du rayon de 500m).
                   </p>
                 </div>
               </div>

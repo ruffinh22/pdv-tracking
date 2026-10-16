@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import EmptyState from './EmptyState';
 import { motion } from 'framer-motion';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { Crown, Inbox, TrendingUp } from 'lucide-react';
@@ -72,12 +73,7 @@ export default function AnalyseClassement({ data, loading = false, dimensionLabe
 
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-ink-100 ring-1 ring-ink-200 flex items-center justify-center text-ink-500">
-          <Inbox className="w-6 h-6" />
-        </div>
-        <p className="font-bold text-ink-800">Aucune donnée pour cette dimension</p>
-      </div>
+      <EmptyState icon={Inbox} message="Aucune donnée pour cette dimension" />
     );
   }
 
@@ -140,7 +136,7 @@ export default function AnalyseClassement({ data, loading = false, dimensionLabe
                         {fmt(l.actifs)} actifs · {fmt(l.inactifs)} inactifs
                       </span>
                     </div>
-                    {/* Piste proportionnelle au plus gros total ; remplissage vert = part d'actifs */}
+                    {/* Piste proportionnelle au plus gros total ; remplissage vert = part d’actifs */}
                     <div className="h-2.5 rounded-full bg-ink-100 overflow-hidden">
                       <motion.div
                         className="h-full rounded-full bg-ink-300/80 overflow-hidden"
@@ -220,7 +216,7 @@ export default function AnalyseClassement({ data, loading = false, dimensionLabe
                 <CountUp value={synthese.taux} />
                 <span className="text-lg">%</span>
               </p>
-              <p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-500 mt-1">d'activité</p>
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-500 mt-1">d’activité</p>
             </div>
           </div>
 

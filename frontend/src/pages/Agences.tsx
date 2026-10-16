@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePersistedState } from '../hooks/usePersistedState';
 import PageHeader from '../components/PageHeader';
 import type { ColumnDef } from '@tanstack/react-table';
 import DataTable from '../components/DataTable';
@@ -13,7 +14,7 @@ const Agences = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingAgence, setEditingAgence] = useState<Agence | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = usePersistedState('agences:perPage', 10);
   const [formData, setFormData] = useState({ nom_agence: '', ville: '', statut: 'actif' as 'actif' | 'inactif' });
 
   const queryClient = useQueryClient();
@@ -38,7 +39,7 @@ const Agences = () => {
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['agences'] });
     },
-    onError: () => toast.error('Erreur lors de la création de l\'agence')
+    onError: () => toast.error('Erreur lors de la création de l’agence')
   });
 
   const updateMutation = useMutation({
@@ -50,7 +51,7 @@ const Agences = () => {
       setEditingAgence(null);
       queryClient.invalidateQueries({ queryKey: ['agences'] });
     },
-    onError: () => toast.error('Erreur lors de la mise à jour de l\'agence')
+    onError: () => toast.error('Erreur lors de la mise à jour de l’agence')
   });
 
   const deleteMutation = useMutation({
@@ -59,7 +60,7 @@ const Agences = () => {
       toast.success('Agence désactivée avec succès');
       queryClient.invalidateQueries({ queryKey: ['agences'] });
     },
-    onError: () => toast.error('Erreur lors de la désactivation de l\'agence')
+    onError: () => toast.error('Erreur lors de la désactivation de l’agence')
   });
 
   const filteredAgences = agences.filter((a: Agence) =>
@@ -93,7 +94,7 @@ const Agences = () => {
   const columns: ColumnDef<Agence>[] = [
     {
       id: 'nom',
-      header: "Nom de l'agence",
+      header: "Nom de l’agence",
       accessorFn: (a) => a.nom_agence,
       meta: { mobileTitle: true },
       cell: ({ row }) => (
@@ -154,7 +155,7 @@ const Agences = () => {
             <Search className="w-4 h-4 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Rechercher une agence, une ville..."
+              placeholder="Rechercher une agence, une ville…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="input pl-9"
@@ -190,15 +191,15 @@ const Agences = () => {
           <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2>
-                {editingAgence ? 'Modifier l\'agence' : 'Nouvelle agence'}
+                {editingAgence ? 'Modifier l’agence' : 'Nouvelle agence'}
               </h2>
-              <button onClick={() => { setShowModal(false); resetForm(); setEditingAgence(null); }} className="btn-icon">
+              <button aria-label="Fermer" onClick={() => { setShowModal(false); resetForm(); setEditingAgence(null); }} className="btn-icon">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="label">Nom de l'agence *</label>
+                <label className="label">Nom de l’agence *</label>
                 <input
                   type="text"
                   value={formData.nom_agence}

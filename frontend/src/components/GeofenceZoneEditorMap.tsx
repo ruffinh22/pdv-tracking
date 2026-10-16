@@ -211,11 +211,11 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
               : 'Cliquez sur la carte pour placer le centre'
             : points.length < 3
             ? `Cliquez pour ajouter des sommets (${points.length}/3 min.)`
-            : `${points.length} sommets — cliquez pour en ajouter d'autres`}
+            : `${points.length} sommets — cliquez pour en ajouter d’autres`}
         </span>
         {type === 'polygone' && points.length > 0 && (
           <div className="flex gap-1 shrink-0">
-            <button
+            <button aria-label="Annuler la dernière action"
               type="button"
               onClick={handleUndo}
               className="btn-icon w-7 h-7 hover:text-primary-600 hover:bg-primary-50"
@@ -223,7 +223,7 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
             >
               <Undo2 className="w-3.5 h-3.5" />
             </button>
-            <button
+            <button aria-label="Supprimer"
               type="button"
               onClick={handleClear}
               className="btn-icon w-7 h-7 hover:text-danger-600 hover:bg-danger-50"

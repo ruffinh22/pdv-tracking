@@ -19,7 +19,7 @@ export default {
         /* Orange du drapeau — actions, éléments actifs */
         primary: {
           50: '#fff6ec', 100: '#ffe8cf', 200: '#ffd0a0', 300: '#ffb066', 400: '#ff9533',
-          500: '#ff8200', 600: '#ee7000', 700: '#c85d00', 800: '#9a4700', 900: '#6e3300',
+          500: '#ff8200', 600: '#ee7000', 700: '#b45300', 800: '#9a4700', 900: '#6e3300',
         },
         /* Vert du logo LONACI (#008840) — succès, croissance, identité */
         success: {
@@ -37,7 +37,7 @@ export default {
         },
         /* Neutres — gris très légèrement chauds */
         ink: {
-          50: '#f6f7f6', 100: '#eceeed', 200: '#dcdfdd', 300: '#bcc1be', 400: '#8d9490',
+          50: '#f6f7f6', 100: '#eceeed', 200: '#dcdfdd', 300: '#bcc1be', 400: '#667069',
           500: '#646b67', 600: '#4a504d', 700: '#363b38', 800: '#232725', 900: '#141716', 950: '#0a0c0b',
         },
         /* Noir du logo avec une pointe de vert : surfaces sombres (menu, en-têtes de tableau) */

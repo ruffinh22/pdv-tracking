@@ -24,7 +24,7 @@ interface Props {
 
 const COULEUR_ANCRAGE = BRAND.orange;
 const COULEUR_TRACE = BRAND.green;
-const COULEUR_HORS_ZONE = BRAND.red; // anneau d'alerte, distinct de la couleur du statut
+const COULEUR_HORS_ZONE = BRAND.red; // anneau d’alerte, distinct de la couleur du statut
 
 /** Distance en mètres entre deux points (Haversine), pour colorer le marqueur
  *  courant selon qu'il est dans la géofence ou non. */
@@ -129,7 +129,7 @@ const PDVTrackingMap = ({
         zIndex: 10,
       });
       markerAncrage.addListener('click', () => {
-        infoWindowRef.current?.setContent('<strong>Point de vente</strong><br/>Position relevée à l\'installation');
+        infoWindowRef.current?.setContent('<strong>Point de vente</strong><br/>Position relevée à l’installation');
         infoWindowRef.current?.open({ map: carte, anchor: markerAncrage });
       });
       calquesRef.current.push(markerAncrage);

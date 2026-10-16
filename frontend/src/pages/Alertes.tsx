@@ -3,14 +3,18 @@ import PageHeader from '../components/PageHeader';
 import { CheckCircle, AlertTriangle, MapPin, Calendar, Filter } from 'lucide-react';
 import { alerteService, Alerte } from '../services/alerteService';
 import { useState } from 'react';
+import { SkeletonList } from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
+import { libelleTypeAlerte } from '../lib/labels';
+import { usePersistedState } from '../hooks/usePersistedState';
 import toast from 'react-hot-toast';
 import Pagination from '../components/Pagination';
 
 const Alertes = () => {
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<'all' | 'non_traitee' | 'traitee'>('all');
+  const [filter, setFilter] = usePersistedState<'all' | 'non_traitee' | 'traitee'>('alertes:statut', 'all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = usePersistedState('alertes:perPage', 10);
 
   const { data: alertesResponse, isLoading } = useQuery({
     queryKey: ['alertes', filter, currentPage, itemsPerPage],
@@ -35,7 +39,7 @@ const Alertes = () => {
       toast.success('Alerte traitée avec succès');
     },
     onError: () => {
-      toast.error('Erreur lors du traitement de l\'alerte');
+      toast.error('Erreur lors du traitement de l’alerte');
     }
   });
 
@@ -63,7 +67,7 @@ const Alertes = () => {
               : 'Toutes les alertes sont traitées'}</>}
         actions={<><div className="flex items-center gap-2 bg-white border border-[color:var(--field-border)] rounded-[10px] px-3 py-2">
           <Filter className="w-4 h-4 text-ink-400" />
-          <select
+          <select aria-label="Filtrer les alertes"
             value={filter}
             onChange={(e) => setFilter(e.target.value as any)}
             className="text-sm text-ink-700 bg-transparent focus:outline-none"
@@ -77,7 +81,7 @@ const Alertes = () => {
 
       <div className="space-y-3">
         {isLoading ? (
-          <div className="card text-center py-10 text-ink-400">Chargement...</div>
+          <SkeletonList rows={4} label="Chargement des alertes" />
         ) : (
           <>
             {alertes?.map((alerte: Alerte) => (
@@ -93,9 +97,9 @@ const Alertes = () => {
                       }`}>
                         <AlertTriangle className="w-4 h-4" />
                       </span>
-                      <h3 className="font-semibold text-ink-900">{alerte.type_alerte}</h3>
+                      <h3 className="font-semibold text-ink-900">{libelleTypeAlerte(alerte.type_alerte)}</h3>
                       <span className={alerte.statut === 'non_traitee' ? 'badge badge-danger' : 'badge badge-success'}>
-                        {alerte.statut === 'non_traitee' ? 'Non traitée' : 'Traité'}
+                        {alerte.statut === 'non_traitee' ? 'Non traitée' : 'Traitée'}
                       </span>
                     </div>
 
@@ -129,12 +133,7 @@ const Alertes = () => {
             ))}
 
             {alertes?.length === 0 && (
-              <div className="card text-center py-12">
-                <div className="w-12 h-12 rounded-full bg-ink-100 flex items-center justify-center mx-auto mb-3">
-                  <AlertTriangle className="w-6 h-6 text-ink-300" />
-                </div>
-                <p className="text-ink-500">Aucune alerte trouvée</p>
-              </div>
+              <div className="card"><EmptyState icon={AlertTriangle} message="Aucune alerte trouvée" hint="Modifiez le filtre pour afficher d’autres alertes." /></div>
             )}
 
             {alertes?.length > 0 && (

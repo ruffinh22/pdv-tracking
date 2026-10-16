@@ -83,7 +83,7 @@ const FiltresOrganisation = ({ role, valeurs, onChange, className = '' }: Props)
       </div>
 
       {autorise('agence') && (
-        <select
+        <select aria-label="Filtrer par agence"
           value={valeurs.agence_id ?? ''}
           onChange={(e) => majChamp('agence_id', e.target.value)}
           className="toolbar-select !py-1.5"
@@ -96,7 +96,7 @@ const FiltresOrganisation = ({ role, valeurs, onChange, className = '' }: Props)
       )}
 
       {autorise('chef_zone') && (
-        <select
+        <select aria-label="Filtrer par chef de zone"
           value={valeurs.chef_zone_id ?? ''}
           onChange={(e) => majChamp('chef_zone_id', e.target.value)}
           className="toolbar-select !py-1.5"
@@ -109,7 +109,7 @@ const FiltresOrganisation = ({ role, valeurs, onChange, className = '' }: Props)
       )}
 
       {autorise('superviseur') && (
-        <select
+        <select aria-label="Filtrer par superviseur"
           value={valeurs.superviseur_id ?? ''}
           onChange={(e) => majChamp('superviseur_id', e.target.value)}
           className="toolbar-select !py-1.5"
@@ -122,7 +122,7 @@ const FiltresOrganisation = ({ role, valeurs, onChange, className = '' }: Props)
       )}
 
       {autorise('commercial') && (
-        <select
+        <select aria-label="Filtrer par commercial"
           value={valeurs.commercial_id ?? ''}
           onChange={(e) => majChamp('commercial_id', e.target.value)}
           className="toolbar-select !py-1.5"

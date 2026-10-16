@@ -30,7 +30,7 @@ export const pdvChampFixeService = {
         return [];
       }
       if (err?.response?.status === 429) {
-        console.warn('Trop de requêtes reçues pour /pdv-champs-fixes (HTTP 429) — renvoi d\'un tableau vide');
+        console.warn('Trop de requêtes reçues pour /pdv-champs-fixes (HTTP 429) — renvoi d’un tableau vide');
         return [];
       }
       throw err;

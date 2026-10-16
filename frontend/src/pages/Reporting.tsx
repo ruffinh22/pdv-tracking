@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { SkeletonReporting } from '../components/Skeleton';
+import { usePersistedState } from '../hooks/usePersistedState';
 import PageHeader from '../components/PageHeader';
 import type { ColumnDef } from '@tanstack/react-table';
 import DataTable from '../components/DataTable';
@@ -222,17 +224,17 @@ const Reporting = () => {
   const { user } = useAuthStore();
   const role = (user?.role as Role) ?? 'commercial';
 
-  const [periode, setPeriode] = useState<Periode | 'custom'>('mois');
-  const [intervalle, setIntervalle] = useState({ debut: '', fin: '' });
-  const [onglet, setOnglet] = useState<Onglet>('enrolement');
-  const [dimension, setDimension] = useState<CleRepartition>('ville');
-  const [filtreDetail, setFiltreDetail] = useState<'tous' | 'brouillon' | 'muet' | 'instru'>('tous');
+  const [periode, setPeriode] = usePersistedState<Periode | 'custom'>('reporting:periode', 'mois');
+  const [intervalle, setIntervalle] = usePersistedState('reporting:intervalle', { debut: '', fin: '' });
+  const [onglet, setOnglet] = usePersistedState<Onglet>('reporting:onglet', 'enrolement');
+  const [dimension, setDimension] = usePersistedState<CleRepartition>('reporting:dimension', 'ville');
+  const [filtreDetail, setFiltreDetail] = usePersistedState<'tous' | 'brouillon' | 'muet' | 'instru'>('reporting:detail', 'tous');
   const [exportEnCours, setExportEnCours] = useState(false);
 
   // Filtres transverses (par agent commercial, chef de zone, superviseur,
   // agence) : appliqués à la synthèse ci-dessous, et repris tels quels par
   // l'export Excel.
-  const [filtresOrg, setFiltresOrg] = useState<ValeursFiltresOrganisation>({});
+  const [filtresOrg, setFiltresOrg] = usePersistedState<ValeursFiltresOrganisation>('reporting:org', {});
 
   // Dimensions de répartition restreintes au périmètre du rôle : un commercial
   // n'a rien à ventiler "par commercial", il n'y en a qu'un — lui.
@@ -274,7 +276,7 @@ const Reporting = () => {
       telechargerBlob(blob, `reporting_tracking_pdv_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success('Export Excel généré');
     } catch {
-      toast.error("L'export Excel a échoué");
+      toast.error("L’export Excel a échoué");
     } finally {
       setExportEnCours(false);
     }
@@ -325,7 +327,7 @@ const Reporting = () => {
   if (isError) {
     return (
       <div className="card text-center py-12">
-        <p className="text-sm text-ink-600">Le reporting n'a pas pu être chargé.</p>
+        <p className="text-sm text-ink-600">Le reporting n’a pas pu être chargé.</p>
         <button type="button" onClick={() => refetch()} className="btn btn-secondary mt-4 mx-auto">
           Réessayer
         </button>
@@ -335,15 +337,6 @@ const Reporting = () => {
 
   return (
     <div className="space-y-5">
-      {/* En-tête d'impression (visible uniquement à l'impression / export PDF) */}
-      <div className="print-only print-header">
-        <img src="/assets/lonaci-logo.png" alt="LONACI" />
-        <div>
-          <strong>LONACI — Loterie Nationale de Côte d'Ivoire</strong>
-          <span>Reporting national · Tracking PDV</span>
-          <span>Édité le {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-        </div>
-      </div>
       {/* En-tête */}
       <PageHeader
         title={'Reporting'}
@@ -399,7 +392,7 @@ const Reporting = () => {
 
           {/* Indicateur discret de rafraîchissement : les chiffres précédents
               restent affichés pendant le chargement, il faut juste signaler
-              qu'ils sont en cours de mise à jour. */}
+              qu’ils sont en cours de mise à jour. */}
           {isFetching && !isLoading ? (
             <span className="text-xs text-ink-400 ml-auto">Mise à jour…</span>
           ) : null}
@@ -415,7 +408,7 @@ const Reporting = () => {
       </div>
 
       {isLoading || !data ? (
-        <div className="card text-center py-16 text-ink-400 text-sm">Chargement du reporting…</div>
+        <SkeletonReporting />
       ) : (
         <>
           {/* Indicateurs de tête — la lecture en 5 secondes */}
@@ -424,7 +417,7 @@ const Reporting = () => {
               icone={MapPin}
               label="PDV tagués sur la période"
               valeur={data.enrolement.tagues_periode}
-              aide={`${data.enrolement.part_de_la_base}% d'une base de ${data.enrolement.base_totale}`}
+              aide={`${data.enrolement.part_de_la_base}% d’une base de ${data.enrolement.base_totale}`}
             />
             <Indicateur
               icone={CheckCircle2}
@@ -451,7 +444,7 @@ const Reporting = () => {
             />
           </div>
 
-          {/* Onglets d'analyse */}
+          {/* Onglets d’analyse */}
           <div className="flex gap-1.5 bg-ink-50 p-1 rounded-lg w-fit flex-wrap">
             {ONGLETS.map((o) => (
               <button
@@ -562,8 +555,8 @@ const Reporting = () => {
                   </div>
                 </div>
                 <p className="text-[11px] text-ink-400 mt-4 leading-relaxed">
-                  Un dossier reste en brouillon tant qu'il n'a été complété que par l'application mobile
-                  (terminal + position GPS). C'est le back-office qui renseigne ensuite l'identité, la
+                  Un dossier reste en brouillon tant qu’il n’a été complété que par l’application mobile
+                  (terminal + position GPS). C’est le back-office qui renseigne ensuite l’identité, la
                   hiérarchie commerciale et la localisation administrative.
                 </p>
               </div>
@@ -607,10 +600,10 @@ const Reporting = () => {
                 <h3 className="text-sm font-semibold text-ink-800 mb-1">Comment lire ces chiffres</h3>
                 <p className="text-xs text-ink-500 leading-relaxed">
                   La couverture terrain est le rapport entre les terminaux qui remontent encore des
-                  positions et l'ensemble de la cohorte taguée. Un taux qui baisse sans que la base
-                  diminue signale des terminaux éteints ou l'app désinstallée, pas une baisse
-                  d'activité commerciale. Les « jamais localisés » sont à traiter en priorité : ils
-                  indiquent un enrôlement qui n'a jamais réellement démarré.
+                  positions et l’ensemble de la cohorte taguée. Un taux qui baisse sans que la base
+                  diminue signale des terminaux éteints ou l’app désinstallée, pas une baisse
+                  d’activité commerciale. Les « jamais localisés » sont à traiter en priorité : ils
+                  indiquent un enrôlement qui n’a jamais réellement démarré.
                 </p>
               </div>
 
@@ -807,7 +800,7 @@ const Reporting = () => {
 
             {(data.detail_tronque || detail.length > 200) && (
               <p className="px-6 py-3 text-xs text-ink-400 border-t border-ink-100">
-                Aperçu limité aux 200 premières lignes. L'export Excel contient la totalité de la période.
+                Aperçu limité aux 200 premières lignes. L’export Excel contient la totalité de la période.
               </p>
             )}
           </div>

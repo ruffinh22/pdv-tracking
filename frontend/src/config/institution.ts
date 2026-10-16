@@ -11,6 +11,12 @@ export const INSTITUTION = {
   devise: 'Union · Discipline · Travail',
   mention: 'Accès réservé au personnel autorisé. Les données affichées sont confidentielles.',
   version: 'v1.0',
+  /** Coordonnées du support, affichées sur la page Aide. Laissez vide ('') pour masquer une ligne. */
+  support: {
+    email: '' as string,
+    telephone: '' as string,
+    horaires: '' as string,
+  },
 } as const;
 
 /** Rubrique affichée dans le fil d'Ariane, selon la route. */
@@ -24,4 +30,5 @@ export const RUBRIQUES: Record<string, string> = {
   '/agences': 'Administration',
   '/produits': 'Administration',
   '/pdv-attributs': 'Administration',
+  '/aide': 'Assistance',
 };

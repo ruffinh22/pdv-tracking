@@ -8,11 +8,54 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#008840" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('theme');
+          if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.dataset.theme = t;
+          document.documentElement.style.colorScheme = t;
+        } catch (e) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LONACI · Tracking PDV</title>
+    <meta name="description" content="Tracking PDV — système de suivi des points de vente de la Loterie Nationale de Côte d’Ivoire (LONACI)." />
+    <meta name="application-name" content="Tracking PDV" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LONACI · Tracking PDV" />
+    <meta property="og:locale" content="fr_CI" />
+    <meta property="og:title" content="LONACI · Tracking PDV" />
+    <meta property="og:description" content="Système de suivi des points de vente de la Loterie Nationale de Côte d’Ivoire." />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LONACI · Tracking PDV" />
+    <meta name="twitter:description" content="Système de suivi des points de vente de la Loterie Nationale de Côte d’Ivoire." />
+    <meta name="twitter:image" content="/og-image.png" />
+    <style>
+      /* Écran de démarrage : visible avant le chargement de l'application */
+      html,body{margin:0}html[data-theme='light'] body{background:#062316}
+      #splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;background:#062316;color:#fff;font-family:Roboto,system-ui,sans-serif}
+      #splash .b{position:relative;width:84px;height:84px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 28px rgba(0,0,0,.5)}
+      #splash .b img{width:62%}
+      #splash svg{position:absolute;inset:0;width:100%;height:100%;animation:sp 1.6s linear infinite}
+      #splash circle{fill:none;stroke:#ff8200;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:38 110}
+      #splash p{margin:0;font:600 18px/1 "Barlow Condensed",Roboto,sans-serif;letter-spacing:.2em;text-transform:uppercase}
+      #splash small{display:block;margin-top:8px;font:400 11px/1 Roboto,sans-serif;letter-spacing:.16em;color:rgba(255,255,255,.55)}
+      #splash i{position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#ff8200 33.3%,#fff 33.3% 66.6%,#008840 66.6%)}
+      @keyframes sp{to{transform:rotate(360deg)}}
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="splash" role="status" aria-label="Chargement">
+        <i></i>
+        <div class="b"><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="23.5"/></svg><img src="/assets/lonaci-mark.png" alt="" /></div>
+        <div style="text-align:center"><p>Tracking PDV</p><small>LONACI · CHARGEMENT…</small></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

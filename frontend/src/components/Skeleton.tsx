@@ -45,3 +45,50 @@ export function DashboardSkeleton() {
     </div>
   );
 }
+
+/** Liste de cartes en cours de chargement (alertes, zones…). */
+export function SkeletonList({ rows = 4, label = 'Chargement' }: { rows?: number; label?: string }) {
+  return (
+    <div className="space-y-3" role="status" aria-busy="true" aria-label={label}>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="card !p-5 flex items-start gap-4">
+          <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+          <div className="flex-1 space-y-2.5">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-3 w-full max-w-md" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+          <Skeleton className="h-8 w-24 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Fiche détaillée (dossier PDV) en cours de chargement. */
+export function SkeletonDetail({ label = 'Chargement du dossier' }: { label?: string }) {
+  return (
+    <div className="space-y-5" role="status" aria-busy="true" aria-label={label}>
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-40" />
+        <Skeleton className="h-8 w-72" />
+        <Skeleton className="h-3 w-56" />
+      </div>
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-5"><SkeletonChart height="h-40" /><SkeletonChart height="h-56" /></div>
+        <div className="space-y-5"><SkeletonChart height="h-32" /><SkeletonChart height="h-40" /></div>
+      </div>
+    </div>
+  );
+}
+
+/** Page de reporting en cours de chargement. */
+export function SkeletonReporting() {
+  return (
+    <div className="space-y-5" role="status" aria-busy="true" aria-label="Chargement du reporting">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">{Array.from({ length: 4 }, (_, i) => <SkeletonKpi key={i} />)}</div>
+      <div className="grid gap-5 lg:grid-cols-2"><SkeletonChart /><SkeletonChart /></div>
+      <SkeletonChart height="h-48" />
+    </div>
+  );
+}

@@ -5,6 +5,7 @@ import DataTable from '../components/DataTable';
 import { Plus, Edit, Trash2, Mail, Phone, Search, ToggleLeft, ToggleRight, X } from 'lucide-react';
 import { userService, User, UserRole } from '../services/userService';
 import { useMemo, useState } from 'react';
+import { usePersistedState } from '../hooks/usePersistedState';
 import toast from 'react-hot-toast';
 import Pagination from '../components/Pagination';
 
@@ -27,9 +28,9 @@ const UsersPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = usePersistedState('users:perPage', 10);
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'superviseur' | 'commercial' | 'chef_zone'>('all');
+  const [roleFilter, setRoleFilter] = usePersistedState<'all' | 'admin' | 'superviseur' | 'commercial' | 'chef_zone'>('users:role', 'all');
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
@@ -75,7 +76,7 @@ const UsersPage = () => {
       resetForm();
     },
     onError: () => {
-      toast.error('Erreur lors de la création de l\'utilisateur');
+      toast.error('Erreur lors de la création de l’utilisateur');
     }
   });
 
@@ -89,7 +90,7 @@ const UsersPage = () => {
       resetForm();
     },
     onError: () => {
-      toast.error('Erreur lors de la mise à jour de l\'utilisateur');
+      toast.error('Erreur lors de la mise à jour de l’utilisateur');
     }
   });
 
@@ -100,7 +101,7 @@ const UsersPage = () => {
       toast.success('Utilisateur supprimé avec succès');
     },
     onError: () => {
-      toast.error('Erreur lors de la suppression de l\'utilisateur');
+      toast.error('Erreur lors de la suppression de l’utilisateur');
     }
   });
 
@@ -288,13 +289,13 @@ const UsersPage = () => {
             <Search className="w-4 h-4 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Rechercher un utilisateur..."
+              placeholder="Rechercher un utilisateur…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="input pl-9"
             />
           </div>
-          <select
+          <select aria-label="Filtrer par rôle"
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value as any)}
             className="toolbar-select"
@@ -335,9 +336,9 @@ const UsersPage = () => {
           <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2>
-                {editingUser ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}
+                {editingUser ? 'Modifier l’utilisateur' : 'Nouvel utilisateur'}
               </h2>
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="btn-icon">
+              <button aria-label="Fermer" onClick={() => { setShowModal(false); resetForm(); }} className="btn-icon">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -408,7 +409,7 @@ const UsersPage = () => {
                     placeholder="Ex : AG00412"
                   />
                   <p className="text-xs text-ink-400 mt-1">
-                    C'est ce numéro que l'agent saisit sur l'application mobile pour enrôler un
+                    C’est ce numéro que l’agent saisit sur l’application mobile pour enrôler un
                     point de vente. Sans matricule, le compte ne peut pas être utilisé sur le
                     terrain.
                   </p>

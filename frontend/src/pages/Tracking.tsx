@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePersistedState } from '../hooks/usePersistedState';
 import { BRAND } from '../lib/theme';
 import { STATUTS, StatutReel, ORDRE_STATUTS, calculerStatutReel, compterStatuts, dernierSignal, ageLisible, badgeStatutHtml, echapperHtml as echapper } from '../lib/pdvStatus';
 import PDVStatusLegend from '../components/PDVStatusLegend';
@@ -116,7 +117,7 @@ const Tracking = () => {
   const [isTracking, setIsTracking] = useState(true);
   const [selectedPDV, setSelectedPDV] = useState<number | null>(null);
   const [livePositions, setLivePositions] = useState<Map<number, Position>>(new Map());
-  const [statutFilter, setStatutFilter] = useState<string>('all');
+  const [statutFilter, setStatutFilter] = usePersistedState<string>('tracking:statut', 'all');
   const [zoneFilter, setZoneFilter] = useState<string>('all');
   const [panneauOuvert, setPanneauOuvert] = useState(false);
   const [reveils, setReveils] = useState<Record<number, 'envoi' | 'ok' | 'erreur'>>({});
@@ -396,7 +397,7 @@ const Tracking = () => {
       let marker = markersRef.current.get(pdv.id) as (L.Marker & { __cle?: string; __html?: string }) | undefined;
 
       if (!marker) {
-        marker = L.marker([pos.lat, pos.lng], { icon: createIcon(etat, selectedPDV === pdv.id) }) as L.Marker & { __cle?: string; __html?: string };
+        marker = L.marker([pos.lat, pos.lng], { icon: createIcon(etat, selectedPDV === pdv.id), title: pdv.nom_pdv, alt: pdv.nom_pdv }) as L.Marker & { __cle?: string; __html?: string };
         marker.__cle = cle;
         marker.addTo(map);
         marker.__html = popupHtml(pdv, pos, selectedPDV === pdv.id, etat, signal);
@@ -512,14 +513,14 @@ const Tracking = () => {
             </span>
             <div className="leading-tight">
               <h1 className="text-[17px] font-bold tracking-tight text-white">Suivi en temps réel</h1>
-              <p className="text-[11.5px] font-medium text-white/80">Position des points de vente</p>
+              <p className="text-[11.5px] font-medium text-white">Position des points de vente</p>
             </div>
           </div>
 
           <div className="flex items-stretch gap-2">
-            <div className="px-3.5 py-1.5 rounded-[10px] bg-white/10 border border-white/20 leading-tight">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/80">PDV en ligne (&lt; 2 min)</p>
-              <p className="text-[20px] font-bold tabular-nums">{compteurs.en_ligne}<span className="text-[13px] font-semibold text-white/70"> / {allPdvs.length}</span></p>
+            <div className="px-3.5 py-1.5 rounded-[10px] bg-black/15 border border-white/20 leading-tight">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/95">PDV en ligne (&lt; 2 min)</p>
+              <p className="text-[20px] font-bold tabular-nums">{compteurs.en_ligne}<span className="text-[13px] font-semibold text-white/90"> / {allPdvs.length}</span></p>
             </div>
             <div
               className="px-3.5 py-1.5 rounded-[10px] bg-white text-ink-800 flex items-center gap-2.5 leading-tight"
@@ -539,7 +540,7 @@ const Tracking = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsTracking(!isTracking)}
-            className="inline-flex items-center gap-2 h-10 px-3.5 rounded-[10px] bg-white/15 border border-white/25 hover:bg-white/25 text-sm font-semibold transition-colors"
+            className="inline-flex items-center gap-2 h-10 px-3.5 rounded-[10px] bg-black/15 border border-white/25 hover:bg-black/25 text-sm font-semibold transition-colors"
             title={isTracking ? 'Mettre en pause' : 'Reprendre'}
           >
             {isTracking ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -547,14 +548,14 @@ const Tracking = () => {
           </button>
           <button
             onClick={refreshMap}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-white/15 border border-white/25 hover:bg-white/25 transition-colors"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-black/15 border border-white/25 hover:bg-black/25 transition-colors"
             title="Rafraîchir la carte"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
             onClick={toggleFullscreen}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-white/15 border border-white/25 hover:bg-white/25 transition-colors"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] bg-black/15 border border-white/25 hover:bg-black/25 transition-colors"
             title="Plein écran"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -580,7 +581,7 @@ const Tracking = () => {
 
         <div className="flex items-center gap-2">
           <label className="text-xs font-semibold text-ink-600">Statut</label>
-          <select value={statutFilter} className="toolbar-select !h-9 !w-44" onChange={(e) => setStatutFilter(e.target.value)}>
+          <select aria-label="Filtrer par statut" value={statutFilter} className="toolbar-select !h-9 !w-44" onChange={(e) => setStatutFilter(e.target.value)}>
             <option value="all">Tous les statuts</option>
             {ORDRE_STATUTS.map((st) => (
               <option key={st} value={st}>{STATUTS[st].libelle} ({compteurs[st]})</option>
@@ -590,7 +591,7 @@ const Tracking = () => {
 
         <div className="flex items-center gap-2">
           <label className="text-xs font-semibold text-ink-600">Zone</label>
-          <select value={zoneFilter} className="toolbar-select !h-9 !w-48" onChange={(e) => setZoneFilter(e.target.value)}>
+          <select aria-label="Filtrer par zone" value={zoneFilter} className="toolbar-select !h-9 !w-48" onChange={(e) => setZoneFilter(e.target.value)}>
             <option value="all">Toutes les zones</option>
             <option value="none">Sans zone</option>
           </select>

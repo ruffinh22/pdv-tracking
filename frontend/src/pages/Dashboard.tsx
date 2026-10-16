@@ -1,4 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { usePersistedState } from '../hooks/usePersistedState';
+import { useKpiTendances } from '../hooks/useKpiTendances';
+import Sparkline from '../components/Sparkline';
+import TrendBadge from '../components/TrendBadge';
 import PageHeader from '../components/PageHeader';
 import DataTable from '../components/DataTable';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -39,7 +43,7 @@ const KPI_CARDS = [
   },
   {
     key: 'pdv_tagues_aujourdhui',
-    label: "Tagués aujourd'hui",
+    label: "Tagués aujourd’hui",
     caption: 'Nouveaux PDV enrôlés',
     icon: Navigation,
     iconBg: 'bg-primary-50 ring-1 ring-primary-200',
@@ -67,7 +71,7 @@ const KPI_CARDS = [
 ];
 
 const PERIODE_LABEL: Record<Periode, string> = {
-  jour: "Aujourd'hui",
+  jour: "Aujourd’hui",
   semaine: '7 derniers jours',
   mois: '30 derniers jours',
   all: 'Depuis le début',
@@ -97,16 +101,16 @@ const Dashboard = () => {
     [role]
   );
 
-  const [periode, setPeriode] = useState<Periode>('jour');
-  const [produitsPeriode, setProduitsPeriode] = useState<Periode>('all');
-  const [dimension, setDimension] = useState<Dimension>('ville');
-  const [detailOuvert, setDetailOuvert] = useState(false);
-  const [instrusStatut, setInstrusStatut] = useState<string>('');
+  const [periode, setPeriode] = usePersistedState<Periode>('dash:periode', 'jour');
+  const [produitsPeriode, setProduitsPeriode] = usePersistedState<Periode>('dash:produitsPeriode', 'all');
+  const [dimension, setDimension] = usePersistedState<Dimension>('dash:dimension', 'ville');
+  const [detailOuvert, setDetailOuvert] = usePersistedState<boolean>('dash:detailOuvert', false);
+  const [instrusStatut, setInstrusStatut] = usePersistedState<string>('dash:instrusStatut', '');
 
   // Filtres transverses (par agent commercial, chef de zone, superviseur,
   // agence) : appliqués à tous les blocs du dashboard ci-dessous, et repris
   // tels quels par l'export Excel.
-  const [filtresOrg, setFiltresOrg] = useState<ValeursFiltresOrganisation>({});
+  const [filtresOrg, setFiltresOrg] = usePersistedState<ValeursFiltresOrganisation>('dash:org', {});
 
   const { data: kpis, isLoading } = useQuery({
     queryKey: ['kpis', filtresOrg],
@@ -170,9 +174,9 @@ const Dashboard = () => {
     try {
       const blob = await dashboardService.exportExcel(filtresOrg);
       telechargerBlob(blob, `tracking_pdv_export_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Export Excel réussi');
+      toast.success('Export Excel généré');
     } catch (error) {
-      toast.error('Erreur lors de l\'export Excel');
+      toast.error('Erreur lors de l’export Excel');
     }
   };
 
@@ -181,9 +185,9 @@ const Dashboard = () => {
     try {
       const blob = await dashboardService.exportInstrusExcel(instrusStatut || undefined, filtresOrg);
       telechargerBlob(blob, `intrus_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Export des intrus réussi');
+      toast.success('Export des intrus généré');
     } catch (error) {
-      toast.error('Erreur lors de l\'export des intrus');
+      toast.error('Erreur lors de l’export des intrus');
     }
   };
 
@@ -193,6 +197,9 @@ const Dashboard = () => {
     alertes_actives: kpis?.alertes_actives || 0,
     pdv_muets: kpis?.pdv_muets || 0,
   };
+  const { fenetre, setFenetre, tendances } = useKpiTendances(values, filtresOrg as any, !!kpis);
+  const filtresActifs = Object.values(filtresOrg).some(Boolean);
+
   const etatsGps = [
     { label: 'En ligne', value: kpis?.pdv_en_ligne ?? 0, classes: 'text-success-700 bg-success-50 border-success-200' },
     { label: 'Position en retard', value: kpis?.pdv_en_retard ?? 0, classes: 'text-warning-800 bg-warning-50 border-warning-200' },
@@ -283,22 +290,63 @@ const Dashboard = () => {
       {/* Filtres transverses : agent commercial, chef de zone, superviseur, agence */}
       <FiltresOrganisation role={role} valeurs={filtresOrg} onChange={setFiltresOrg} />
 
+      {/* Tendances : fenêtre de comparaison au choix */}
+      <div className="flex flex-wrap items-center justify-between gap-2 -mb-2">
+        {filtresActifs ? (
+          <p className="text-[12px] text-ink-500">
+            Filtres mémorisés pour votre prochaine visite ·{' '}
+            <button type="button" className="font-semibold text-success-700 hover:underline" onClick={() => setFiltresOrg({})}>
+              Réinitialiser les filtres
+            </button>
+          </p>
+        ) : (
+          <p className="text-[12px] text-ink-500">Évolution des indicateurs</p>
+        )}
+        <div role="group" aria-label="Fenêtre de comparaison des tendances" className="flex items-center gap-1 bg-ink-50 rounded-lg p-1">
+          {([7, 30] as const).map((n) => (
+            <button
+              key={n}
+              type="button"
+              aria-pressed={fenetre === n}
+              onClick={() => setFenetre(n)}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                fenetre === n ? 'bg-white text-primary-700 shadow-sm' : 'text-ink-500 hover:text-ink-800'
+              }`}
+            >
+              {n} j
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        {KPI_CARDS.map(({ key, label, caption, icon: Icon, iconBg, iconColor, tone }) => (
-          <div key={key} title={caption} className={`group kpi-card flex items-center gap-3.5 px-4 py-3.5 ${tone}`}>
-            <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
-              <Icon className={`w-5 h-5 ${iconColor}`} />
+        {KPI_CARDS.map(({ key, label, caption, icon: Icon, iconBg, iconColor, tone }) => {
+          const t = tendances[key];
+          const inverse = key === 'alertes_actives' || key === 'pdv_muets';
+          return (
+            <div key={key} title={caption} className={`group kpi-card flex items-center gap-3.5 px-4 py-3.5 ${tone}`}>
+              <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+                <Icon className={`w-5 h-5 ${iconColor}`} />
+              </div>
+              <div className="min-w-0 leading-none">
+                <p className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-500 truncate">{label}</p>
+                <p className="font-display text-[1.75rem] font-bold text-ink-950 tracking-tight mt-1.5 num">
+                  <CountUp value={values[key]} />
+                </p>
+              </div>
+              {t && (
+                <div className="ml-auto flex flex-col items-end gap-1.5 shrink-0" title={t.titre}>
+                  <span className={inverse ? 'text-danger-500' : tone}>
+                    <Sparkline data={t.serie} label={`Évolution : ${t.titre}`} />
+                  </span>
+                  <TrendBadge delta={t.delta} pct={t.pct} inverse={inverse} suffix={t.suffix} />
+                </div>
+              )}
+              <div className="absolute left-0 inset-y-0 w-1 bg-current" />
             </div>
-            <div className="min-w-0 leading-none">
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-500 truncate">{label}</p>
-              <p className="font-display text-[1.75rem] font-bold text-ink-950 tracking-tight mt-1.5 num">
-                <CountUp value={values[key]} />
-              </p>
-            </div>
-            <div className="absolute left-0 inset-y-0 w-1 bg-current" />
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <section className="panel-pro" aria-label="État GPS en direct">
@@ -387,12 +435,12 @@ const Dashboard = () => {
         <div className="panel-pro">
           <div className="panel-pro-head">
             <h2>PDV tagués par produit</h2>
-            <select
+            <select aria-label="Période"
               value={produitsPeriode}
               onChange={(e) => setProduitsPeriode(e.target.value as Periode)}
               className="toolbar-select !py-1.5"
             >
-              <option value="jour">Aujourd'hui</option>
+              <option value="jour">Aujourd’hui</option>
               <option value="semaine">7 derniers jours</option>
               <option value="mois">30 derniers jours</option>
               <option value="all">Tout</option>
@@ -468,7 +516,7 @@ const Dashboard = () => {
         <div className="panel-pro-head">
           <h2>Analyses par {DIMENSION_OPTIONS.find(d => d.value === dimension)?.label ?? DIMENSION_OPTIONS[0]?.label}</h2>
           {DIMENSION_OPTIONS.length > 1 && (
-            <select
+            <select aria-label="Dimension d’analyse"
               value={dimension}
               onChange={(e) => setDimension(e.target.value as Dimension)}
               className="toolbar-select !py-1.5"
@@ -514,7 +562,7 @@ const Dashboard = () => {
             <p className="text-xs text-ink-400 mt-0.5">PDV ayant quitté leur zone ou leur position initiale (&gt; 500m)</p>
           </div>
           <div className="flex items-center gap-2">
-            <select
+            <select aria-label="Filtrer par statut"
               value={instrusStatut}
               onChange={(e) => setInstrusStatut(e.target.value)}
               className="toolbar-select !py-1.5"
@@ -551,9 +599,7 @@ const Dashboard = () => {
           {allPDVs && allPDVs.length > 0 ? (
             <LeafletMap pdvs={allPDVs} />
           ) : (
-            <div className="h-full flex items-center justify-center">
-              <p className="text-ink-400 text-sm">Aucun PDV avec position GPS disponible</p>
-            </div>
+            <EmptyState icon={MapPin} message="Aucun PDV avec position GPS disponible" hint="Les points de vente apparaîtront ici dès qu’une position sera remontée." />
           )}
         </div>
       </div>
@@ -563,7 +609,7 @@ const Dashboard = () => {
         <div className="panel-pro-head">
           <h2>Alertes récentes</h2>
           {/* <Link> et non <a href> : un <a> déclenche une navigation
-              navigateur, donc un rechargement complet de l'application
+              navigateur, donc un rechargement complet de l’application
               (re-téléchargement du bundle, perte du cache React Query,
               re-login visuel). <Link> reste dans le routeur. */}
           {alertesActives && alertesActives.length > 0 && (

@@ -195,7 +195,7 @@ export const pdvService = {
         return { data: [] };
       }
       if (err?.response?.status === 429) {
-        console.warn('Trop de requêtes vers /pdv (HTTP 429) — renvoi d\'un tableau vide');
+        console.warn('Trop de requêtes vers /pdv (HTTP 429) — renvoi d’un tableau vide');
         return { data: [] };
       }
       throw err;

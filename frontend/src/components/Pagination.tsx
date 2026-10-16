@@ -23,7 +23,7 @@ const Pagination = ({
     <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 border-t border-ink-100 bg-white">
       <div className="flex items-center gap-2 text-sm text-ink-500">
         <span>Résultats par page</span>
-        <select
+        <select aria-label="Lignes par page"
           value={itemsPerPage}
           onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
           className="toolbar-select py-1.5"
@@ -40,7 +40,7 @@ const Pagination = ({
       </div>
 
       <div className="flex items-center gap-1">
-        <button
+        <button aria-label="Première page"
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
           className="btn-icon w-8 h-8 disabled:opacity-30 disabled:hover:bg-transparent"
@@ -48,7 +48,7 @@ const Pagination = ({
         >
           <ChevronsLeft className="w-4 h-4" />
         </button>
-        <button
+        <button aria-label="Page précédente"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
           className="btn-icon w-8 h-8 disabled:opacity-30 disabled:hover:bg-transparent"
@@ -61,7 +61,7 @@ const Pagination = ({
           Page <span className="font-semibold text-ink-900">{currentPage}</span> sur {safeTotalPages}
         </span>
 
-        <button
+        <button aria-label="Page suivante"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === safeTotalPages}
           className="btn-icon w-8 h-8 disabled:opacity-30 disabled:hover:bg-transparent"
@@ -69,7 +69,7 @@ const Pagination = ({
         >
           <ChevronRight className="w-4 h-4" />
         </button>
-        <button
+        <button aria-label="Dernière page"
           onClick={() => onPageChange(safeTotalPages)}
           disabled={currentPage === safeTotalPages}
           className="btn-icon w-8 h-8 disabled:opacity-30 disabled:hover:bg-transparent"

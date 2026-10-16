@@ -4,13 +4,16 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
-import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import PageLoader from './components/PageLoader';
+import ErrorBoundary from './components/ErrorBoundary';
+import ErrorPage from './pages/ErrorPage';
 import { enregistrerPurgeSession } from './contexts/authContext';
 
 // Chargement paresseux par route : chaque page (et ses dépendances lourdes comme
 // Leaflet ou Recharts) n'est téléchargée que lorsqu'on y navigue, au lieu d'alourdir
 // le bundle initial (utile en particulier pour /login, qui n'a besoin de rien de tout ça).
+const Layout = lazy(() => import('./components/Layout'));
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const PDVList = lazy(() => import('./pages/PDVList'));
@@ -23,13 +26,10 @@ const Reporting = lazy(() => import('./pages/Reporting'));
 const Produits = lazy(() => import('./pages/Produits'));
 const Agences = lazy(() => import('./pages/Agences'));
 const PdvAttributs = lazy(() => import('./pages/PdvAttributs'));
+const Help = lazy(() => import('./pages/Help'));
 
 function RouteFallback() {
-  return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-8 h-8 border-4 border-success-600 border-t-primary-500 rounded-full animate-spin" />
-    </div>
-  );
+  return <PageLoader />;
 }
 
 const queryClient = new QueryClient({
@@ -57,7 +57,7 @@ function App() {
   function AuthRedirectHandler() {
     const navigate = useNavigate();
     useEffect(() => {
-      const handler = () => navigate('/login');
+      const handler = () => navigate('/session-expiree', { replace: true });
       window.addEventListener('api:unauthorized', handler as EventListener);
       return () => window.removeEventListener('api:unauthorized', handler as EventListener);
     }, [navigate]);
@@ -65,6 +65,7 @@ function App() {
   }
 
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthRedirectHandler />
@@ -72,7 +73,7 @@ function App() {
           <Route
             path="/login"
             element={
-              <Suspense fallback={<RouteFallback />}>
+              <Suspense fallback={<PageLoader fullscreen />}>
                 <Login />
               </Suspense>
             }
@@ -81,7 +82,9 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <Layout />
+                <Suspense fallback={<PageLoader fullscreen />}>
+                  <Layout />
+                </Suspense>
               </ProtectedRoute>
             }
           >
@@ -166,6 +169,14 @@ function App() {
               }
             />
             <Route
+              path="aide"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <Help />
+                </Suspense>
+              }
+            />
+            <Route
               path="pdv-attributs"
               element={
                 <Suspense fallback={<RouteFallback />}>
@@ -174,18 +185,22 @@ function App() {
               }
             />
           </Route>
+          <Route path="/acces-refuse" element={<ErrorPage variant="refuse" />} />
+          <Route path="/session-expiree" element={<ErrorPage variant="session" />} />
+          <Route path="*" element={<ErrorPage variant="introuvable" />} />
         </Routes>
       </BrowserRouter>
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: { borderRadius: '14px', fontWeight: 700, fontSize: '0.95rem', padding: '14px 18px', boxShadow: '0 16px 40px -8px rgba(10,12,11,.28)' },
+          style: { borderRadius: '14px', fontWeight: 500, fontSize: '0.92rem', padding: '12px 16px', boxShadow: '0 12px 40px rgba(6,35,22,.22)', background: 'var(--surface)', color: 'var(--text)' },
           success: { iconTheme: { primary: BRAND.green, secondary: '#fff' }, style: { borderLeft: `6px solid ${BRAND.green}` } },
           error: { iconTheme: { primary: BRAND.red, secondary: '#fff' }, style: { borderLeft: `6px solid ${BRAND.red}` } },
         }}
       />
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

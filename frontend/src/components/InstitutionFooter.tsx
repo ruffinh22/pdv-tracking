@@ -13,7 +13,7 @@ export default function InstitutionFooter() {
           <span className="leading-tight min-w-0 truncate">
             {INSTITUTION.systeme}
             {INSTITUTION.republique ? (
-              <span className="hidden md:inline text-white/45"> · {INSTITUTION.republique} · {INSTITUTION.devise}</span>
+              <span className="hidden md:inline text-white/60"> · {INSTITUTION.republique} · {INSTITUTION.devise}</span>
             ) : null}
           </span>
         </div>
@@ -29,6 +29,7 @@ export default function InstitutionFooter() {
           </span>
         </div>
       </div>
+      <div className="flag-stripe !h-[3px]"><span /><span /><span /></div>
     </footer>
   );
 }

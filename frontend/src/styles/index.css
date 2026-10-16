@@ -17,6 +17,7 @@
     --accent: #ff8200;
     --deep: #062316;            /* vert-noir : pied de page, connexion, menus */
     --bg: #f2f6f3;
+    --text: #141716;
     --surface: #ffffff;
     --surface-2: #e8f1ea;
     --border: #d6e5da;
@@ -341,6 +342,7 @@
 @media print {
   @page { size: A4 landscape; margin: 12mm; }
 
+  html { color-scheme: light !important; }
   html, body { background: #fff !important; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
@@ -359,6 +361,25 @@
     margin-bottom: 16px;
     border-bottom: 3px solid #ff8200;
   }
+  .print-official { margin-bottom: 14px; }
+  .po-flag { display: flex; height: 5px; }
+  .po-flag span { flex: 1; }
+  .po-flag span:nth-child(1) { background: #ff8200; }
+  .po-flag span:nth-child(2) { background: #fff; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; }
+  .po-flag span:nth-child(3) { background: #008840; }
+  .po-row { display: flex !important; align-items: center; justify-content: space-between; gap: 18px; padding: 10px 0; }
+  .po-row img { height: 44px; width: auto; }
+  .po-row div { display: flex; flex-direction: column; font-size: 10.5px; color: #333; }
+  .po-center { text-align: center; align-items: center; }
+  .po-right { text-align: right; align-items: flex-end; }
+  .po-row strong { font-size: 12px; color: #0d1210; text-transform: uppercase; letter-spacing: .06em; }
+  .po-title { display: flex !important; justify-content: space-between; align-items: baseline; border-top: 2px solid #ff8200; border-bottom: 1px solid #ccc; padding: 8px 0; }
+  .po-title h1 { font-size: 20px !important; margin: 0; }
+  .po-title span { font-size: 10.5px; color: #555; }
+  .print-signature { display: flex !important; gap: 18px; margin-top: 28px; page-break-inside: avoid; }
+  .print-signature div { flex: 1; height: 70px; border: 1px solid #bbb; border-radius: 6px; padding: 6px 8px; }
+  .print-signature span { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: .08em; }
+  .official-band { display: none !important; }
   .print-header img { height: 40px; width: auto; }
   .print-header div { display: flex; flex-direction: column; font-size: 11px; color: #333; }
   .print-header strong { font-size: 14px; color: #0d1210; }
@@ -468,6 +489,9 @@
 .nav-drop--left { left: 0; right: auto; }
 .nav-drop--left .nav-menu { transform-origin: top left; }
 .nav-drop--left .nav-menu::before { right: auto; left: 22px; }
-@media (max-width: 359px) {
+@media (max-width: 479px) {
   .top-bar .brand-badge { --s: 38px !important; }
 }
+
+/* Lien d'attribution de la carte : souligné pour ne pas dépendre de la seule couleur */
+.leaflet-container .leaflet-control-attribution a { text-decoration: underline !important; color: #00588a !important; }

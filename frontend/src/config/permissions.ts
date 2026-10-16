@@ -25,11 +25,11 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 // Sous-titre du dashboard, adapté au périmètre de chaque espace.
 export const ROLE_DASHBOARD_SUBTITLE: Record<Role, string> = {
-  admin: "Vue d'ensemble de toute l'activité",
-  chef_zone: 'Vue d\'ensemble de votre zone',
-  superviseur: 'Vue d\'ensemble de votre équipe',
-  agence: 'Vue d\'ensemble de votre agence',
-  commercial: 'Vue d\'ensemble de votre activité',
+  admin: "Vue d’ensemble de toute l’activité",
+  chef_zone: 'Vue d’ensemble de votre zone',
+  superviseur: 'Vue d’ensemble de votre équipe',
+  agence: 'Vue d’ensemble de votre agence',
+  commercial: 'Vue d’ensemble de votre activité',
 };
 
 // Options de la dimension d'analyse transverse du dashboard, restreintes aux
@@ -58,8 +58,8 @@ export interface PageDef {
 // autorisés à y accéder. C'est la SEULE source de vérité : le menu (Layout)
 // et le garde-fou de route (RequireRole) sont tous deux dérivés de cette liste.
 export const PAGES: PageDef[] = [
-  { path: '', label: 'Dashboard', section: 'main', roles: ALL_ROLES },
-  { path: 'pdv', label: 'Points de Vente', section: 'main', roles: ALL_ROLES },
+  { path: '', label: 'Tableau de bord', section: 'main', roles: ALL_ROLES },
+  { path: 'pdv', label: 'Points de vente', section: 'main', roles: ALL_ROLES },
   { path: 'tracking', label: 'Tracking', section: 'main', roles: ['admin', 'chef_zone', 'superviseur', 'agence'] },
   { path: 'alertes', label: 'Alertes', section: 'main', roles: ['admin', 'chef_zone', 'superviseur', 'agence'] },
   { path: 'reporting', label: 'Reporting', section: 'main', roles: ['admin', 'chef_zone', 'superviseur', 'agence'] },
@@ -67,7 +67,7 @@ export const PAGES: PageDef[] = [
   { path: 'agences', label: 'Agences', section: 'settings', roles: ['admin'] },
   { path: 'produits', label: 'Produits', section: 'settings', roles: ['admin'] },
   { path: 'pdv-attributs', label: 'Attributs PDV', section: 'settings', roles: ['admin'] },
-  { path: 'geofence', label: 'Zones Geofence', section: 'settings', roles: ['admin'] },
+  { path: 'geofence', label: 'Zones géofence', section: 'settings', roles: ['admin'] },
 ];
 
 /** true si le rôle donné a le droit d'accéder à la page (chemin relatif, sans slash initial). */

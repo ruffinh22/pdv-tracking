@@ -4,6 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import DocumentTitle from './DocumentTitle';
 import InstitutionFooter from './InstitutionFooter';
 import BrandBadge from './BrandBadge';
+import OfficialBand from './OfficialBand';
+import A11yFixes from './A11yFixes';
+import NotificationBell from './NotificationBell';
+import UserMenu from './UserMenu';
+import InactivityGuard from './InactivityGuard';
+import CommandPalette, { type PaletteItem } from './CommandPalette';
+import { useThemeStore } from '../contexts/themeStore';
+import PrintHeader, { PrintSignature } from './PrintHeader';
 import { INSTITUTION } from '../config/institution';
 import {
   LayoutDashboard,
@@ -11,6 +19,10 @@ import {
   AlertTriangle,
   Users,
   LogOut,
+  HelpCircle,
+  Printer,
+  Moon,
+  Sun,
   Activity,
   FileText,
   Package,
@@ -24,7 +36,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { pdvService } from '../services/pdvService';
 import { produitService } from '../services/produitService';
 import { agenceService } from '../services/agenceService';
-import { PAGES, ROLE_DASHBOARD_SUBTITLE, roleLabel } from '../config/permissions';
+import { PAGES, ROLE_DASHBOARD_SUBTITLE, canAccess, roleLabel } from '../config/permissions';
 
 // Icônes et sous-titres associés à chaque page déclarée dans permissions.ts.
 // permissions.ts reste la seule source de vérité pour QUI a accès à QUOI ;
@@ -56,6 +68,8 @@ const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const { mode: themeMode, toggle: toggleTheme } = useThemeStore();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [mobileSearch, setMobileSearch] = useState(false);
   const [menuAlignLeft, setMenuAlignLeft] = useState(false);
@@ -178,14 +192,15 @@ const Layout = () => {
     const GAP = 4;
     const kids = Array.from(meas.children) as HTMLElement[];
     const widths = kids.slice(0, navItems.length).map((k) => k.offsetWidth);
-    const moreW = kids[navItems.length]?.offsetWidth ?? 120;
+    const settingsW = kids[navItems.length]?.offsetWidth ?? 120;
+    const burgerW = kids[navItems.length + 1]?.offsetWidth ?? 100;
     const avail = nav.clientWidth - 8; // marge de sécurité (onglet actif en gras)
     const rowWidth = (k: number) => widths.slice(0, k).reduce((sum, w) => sum + w + GAP, 0);
     let count = navItems.length;
-    const allFit = rowWidth(navItems.length) + (hasSettings ? moreW : 0) <= avail;
+    const allFit = rowWidth(navItems.length) + (hasSettings ? settingsW : 0) <= avail;
     if (!allFit) {
       count = navItems.length;
-      while (count > 0 && rowWidth(count) + moreW > avail) count -= 1;
+      while (count > 0 && rowWidth(count) + burgerW > avail) count -= 1;
       // Si la place ne permet qu'un onglet + le bouton (2 emplacements) : on ne garde que le hamburger, qui contient tout.
       if (count === 1) count = 0;
     }
@@ -224,10 +239,45 @@ const Layout = () => {
   const moreActive = hiddenItems.some((i) => isActive(i.to)) || settingsItems.some((i) => isActive(i.to));
   const isBurger = hiddenItems.length > 0;
 
+  // Palette de commandes (Ctrl/⌘ + K)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const handleExpire = useCallback(() => {
+    logout();
+    navigate('/session-expiree', { replace: true });
+  }, [logout, navigate]);
+
+  const paletteBase = useMemo<PaletteItem[]>(() => {
+    const pages: PaletteItem[] = [...navItems, ...settingsItems].map((it) => ({
+      id: `page-${it.to}`,
+      label: it.label,
+      icon: it.icon,
+      group: 'Pages',
+      run: () => navigate(it.to),
+    }));
+    pages.push({ id: 'page-aide', label: 'Aide et informations', icon: HelpCircle, group: 'Pages', run: () => navigate('/aide') });
+    const actions: PaletteItem[] = [
+      { id: 'act-theme', label: themeMode === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre', icon: themeMode === 'dark' ? Sun : Moon, group: 'Actions', run: toggleTheme },
+      { id: 'act-print', label: 'Imprimer cette page / Enregistrer en PDF', icon: Printer, group: 'Actions', run: () => setTimeout(() => window.print(), 150) },
+      { id: 'act-logout', label: 'Se déconnecter', icon: LogOut, group: 'Actions', run: logout },
+    ];
+    return [...pages, ...actions];
+  }, [navItems, settingsItems, navigate, themeMode, toggleTheme, logout]);
+
   const currentPageMeta = useMemo(() => {
     const relativePath = location.pathname.replace(/^\/+/, '').split('/')[0];
     const page = PAGES.find((p) => p.path === relativePath);
     const roleKey = (user?.role as keyof typeof ROLE_DASHBOARD_SUBTITLE | undefined) ?? 'commercial';
+    if (relativePath === 'aide') return { title: 'Aide et informations', subtitle: '' };
     if (relativePath === '') {
       return { title: 'Tableau de bord', subtitle: ROLE_DASHBOARD_SUBTITLE[roleKey] };
     }
@@ -309,16 +359,18 @@ const Layout = () => {
         Aller au contenu
       </a>
 
+      {location.pathname !== '/tracking' && <OfficialBand />}
+
       {/* ---------- En-tête de navigation ---------- */}
       <header className="top-bar" ref={headerRef}>
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 flex flex-wrap xl:flex-nowrap items-center gap-x-3">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 flex flex-nowrap items-center gap-x-3 h-14 xl:h-16">
           {/* Marque */}
-          <Link to="/" className="order-1 flex items-center gap-3 text-white shrink-0 h-14 xl:h-16" aria-label="Tracking PDV, accueil">
+          <Link to="/" className="flex items-center gap-3 text-white shrink-0 h-full" aria-label="Tracking PDV, accueil">
             <BrandBadge size={44} />
-            <span className="w-px h-[26px] bg-white/25 max-[359px]:hidden" />
-            <span className="flex flex-col leading-[1.05]">
+            <span className="hidden sm:block w-px h-[26px] bg-white/25" />
+            <span className="hidden sm:flex flex-col leading-[1.05]">
               <span className="font-display font-semibold text-[19px] max-[359px]:text-[16px] uppercase tracking-[0.1em] max-[359px]:tracking-[0.05em]">Tracking PDV</span>
-              <span className="hidden 2xl:block text-[9.5px] font-normal uppercase tracking-[0.14em] text-white/65 mt-0.5">
+              <span className="hidden min-[1800px]:block text-[9.5px] font-normal uppercase tracking-[0.14em] text-white/65 mt-0.5">
                 {INSTITUTION.sigle} · Suivi des points de vente
               </span>
             </span>
@@ -327,7 +379,7 @@ const Layout = () => {
           {/* Navigation : onglets visibles + menu déroulant des éléments qui manquent de place */}
           <nav
             ref={navRef}
-            className="order-4 xl:order-2 basis-full xl:basis-auto xl:flex-1 min-w-0 relative flex items-center gap-1 pb-2.5 pt-1.5 xl:py-0 xl:ml-4 border-t border-white/10 xl:border-0"
+            className="flex-1 min-w-0 relative flex items-center gap-1 ml-1 sm:ml-2 xl:ml-4"
             aria-label="Navigation principale"
           >
             {/* Couche de mesure invisible : largeur réelle de chaque onglet */}
@@ -341,6 +393,11 @@ const Layout = () => {
               <span className="nav-tab">
                 <span className="hamb"><i /><i /><i /></span>
                 <span className="hidden sm:inline">Paramètres</span>
+                <ChevronDown className="w-[11px] h-[11px]" />
+              </span>
+              <span className="nav-tab">
+                <span className="hamb"><i /><i /><i /></span>
+                <span className="hidden sm:inline">Menu</span>
                 <ChevronDown className="w-[11px] h-[11px]" />
               </span>
             </div>
@@ -366,7 +423,7 @@ const Layout = () => {
                   className={`nav-tab ${moreActive ? 'on' : ''}`}
                   aria-haspopup="menu"
                   aria-expanded={isMoreOpen}
-                  aria-label={isBurger ? 'Menu' : 'Paramètres'}
+                  aria-label={isBurger ? (visibleCount === 0 ? 'Menu' : 'Plus') : 'Paramètres'}
                   onPointerDown={(e) => (pointerType.current = e.pointerType)}
                   onClick={() => (pointerType.current === 'mouse' ? openMore() : setIsMoreOpen((o) => !o))}
                 >
@@ -375,7 +432,7 @@ const Layout = () => {
                   ) : (
                     <Settings className="w-[15px] h-[15px]" />
                   )}
-                  <span className="hidden sm:inline">{isBurger ? 'Menu' : 'Paramètres'}</span>
+                  <span className="hidden sm:inline">{isBurger ? (visibleCount === 0 ? 'Menu' : 'Plus') : 'Paramètres'}</span>
                   <ChevronDown className={`w-[11px] h-[11px] opacity-70 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -417,10 +474,10 @@ const Layout = () => {
 
           {/* Recherche globale : champ sur grand écran, icône qui déploie le champ sur petit écran */}
           <div
-            className={`relative ${mobileSearch ? 'order-5 basis-full pb-3' : 'hidden'} xl:block xl:order-3 xl:basis-auto xl:pb-0`}
+            className={`${mobileSearch ? 'absolute left-0 right-0 top-full px-4 sm:px-6 py-2.5 bg-[var(--brand)] shadow-nav border-t border-white/15' : 'hidden'} xl:block xl:relative xl:p-0 xl:bg-transparent xl:shadow-none xl:border-0 xl:left-auto xl:right-auto xl:top-auto`}
             ref={searchBoxRef}
           >
-            <Search className={`w-4 h-4 text-white/70 absolute left-3.5 ${mobileSearch ? 'top-[calc(50%-6px)]' : 'top-1/2'} xl:top-1/2 -translate-y-1/2 pointer-events-none`} />
+            <Search className={`w-4 h-4 text-white/70 absolute ${mobileSearch ? 'left-[1.9rem] sm:left-[2.4rem]' : 'left-3.5'} xl:left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-[1]`} />
             <input
               type="text"
               value={searchQuery}
@@ -439,14 +496,14 @@ const Layout = () => {
               }}
               placeholder="Rechercher…"
               aria-label="Recherche globale"
-              className="w-full xl:w-32 min-[1400px]:w-48 2xl:w-60 h-[34px] pl-10 pr-3 text-[13px] rounded-full bg-white/10 border border-white/20 text-white placeholder:text-white/60
+              className="w-full xl:w-32 min-[1400px]:w-48 h-[34px] pl-10 pr-3 text-[13px] rounded-full bg-white/10 border border-white/20 text-white placeholder:text-white/60
                          focus:outline-none focus:bg-white focus:text-ink-900 focus:placeholder:text-ink-400 focus:border-white transition-all"
             />
             {isSearchOpen && debouncedQuery.length >= 2 && <SearchResults />}
           </div>
 
           {/* Compte */}
-          <div className="order-2 xl:order-4 ml-auto xl:ml-0 h-14 xl:h-auto flex items-center gap-2 text-white xl:pl-3 xl:border-l xl:border-white/15 shrink-0">
+          <div className="flex items-center gap-2 text-white xl:pl-3 xl:border-l xl:border-white/15 shrink-0">
             <button
               className="nav-round xl:hidden"
               aria-label="Rechercher"
@@ -455,25 +512,14 @@ const Layout = () => {
             >
               <Search className="w-4 h-4" />
             </button>
-            <span className="hidden 2xl:flex flex-col leading-tight text-right">
-              <b className="text-[12px] font-semibold">{user?.prenom} {user?.nom}</b>
-              <small className="text-[10px] opacity-75">{roleLabel(user?.role)}</small>
-            </span>
-            <span
-              className="w-[34px] h-[34px] rounded-full bg-white/15 border border-white/25 flex items-center justify-center text-[12px] font-semibold 2xl:hidden max-[359px]:hidden"
-              title={`${user?.prenom ?? ''} ${user?.nom ?? ''} · ${roleLabel(user?.role)}`}
-            >
-              {initials}
-            </span>
-            <button onClick={logout} className="nav-round sm:hidden" aria-label="Déconnexion" title="Déconnexion">
-              <LogOut className="w-4 h-4" />
-            </button>
-            <button
-              onClick={logout}
-              className="hidden sm:inline-block px-3 py-[.3rem] rounded-full bg-transparent text-white border border-white/55 text-[12.5px] font-medium whitespace-nowrap transition-colors hover:bg-white hover:text-success-700 hover:border-white"
-            >
-              Déconnexion
-            </button>
+            {canAccess(user?.role, 'alertes') && <NotificationBell />}
+            <UserMenu
+              nom={`${user?.prenom ?? ''} ${user?.nom ?? ''}`.trim()}
+              role={roleLabel(user?.role)}
+              initiales={initials}
+              onLogout={logout}
+              onOpenPalette={() => setPaletteOpen(true)}
+            />
           </div>
         </div>
       </header>
@@ -482,6 +528,7 @@ const Layout = () => {
 
       {/* ---------- Contenu ---------- */}
       <main id="main" className="flex-1 flex flex-col">
+        <PrintHeader titre={currentPage.title} auteur={`${user?.prenom ?? ''} ${user?.nom ?? ''}`.trim()} />
         {location.pathname === '/tracking' ? (
           <Outlet />
         ) : (
@@ -496,6 +543,10 @@ const Layout = () => {
           </motion.div>
         )}
       </main>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} base={paletteBase} />
+      <InactivityGuard actif={location.pathname !== '/tracking'} onExpire={handleExpire} />
+      <A11yFixes />
+      <PrintSignature />
       {location.pathname !== '/tracking' && <InstitutionFooter />}
     </div>
   );

@@ -27,7 +27,7 @@ export default function PageHeader({ title, subtitle, actions, crumb, leading }:
 
   return (
     <header className="page-header">
-      <nav aria-label="Fil d'Ariane" className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium text-ink-500 mb-2">
+      <nav aria-label="Fil d’Ariane" className="flex flex-wrap items-center gap-1.5 text-[12px] font-medium text-ink-500 mb-2">
         <Link to="/" className="inline-flex items-center gap-1 hover:text-success-700 transition-colors">
           <Home className="w-3.5 h-3.5" aria-hidden />
           Accueil

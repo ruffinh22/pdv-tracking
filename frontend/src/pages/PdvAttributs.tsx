@@ -94,7 +94,7 @@ const PdvAttributs = () => {
     onSuccess: () => {
       invalider();
       fermer();
-      toast.success('Attribut créé');
+      toast.success('Attribut créé avec succès');
     },
     onError: (e: any) => toast.error(e?.response?.data?.error || 'Erreur lors de la création'),
   });
@@ -105,7 +105,7 @@ const PdvAttributs = () => {
     onSuccess: () => {
       invalider();
       fermer();
-      toast.success('Attribut mis à jour');
+      toast.success('Attribut mis à jour avec succès');
     },
     onError: (e: any) => toast.error(e?.response?.data?.error || 'Erreur lors de la mise à jour'),
   });
@@ -383,7 +383,7 @@ const PdvAttributs = () => {
     <div className="space-y-5">
       <PageHeader
         title={'Attributs PDV'}
-        subtitle={<>Champs du formulaire de complétion d'un dossier point de vente</>}
+        subtitle={<>Champs du formulaire de complétion d’un dossier point de vente</>}
         actions={<><button onClick={ouvrirCreation} className="btn btn-primary">
           <Plus className="w-4 h-4 mr-1.5" />
           Nouvel attribut
@@ -407,11 +407,11 @@ const PdvAttributs = () => {
             <p className="text-xs text-ink-700 leading-relaxed">
               <strong>Plusieurs de ces champs alimentent l'export CSV du mapping standard</strong>{' '}
               envoyé au partenaire (Vendeur, Contact, Pays, Ville, Agence, Superviseur, Chef de
-              zone, Sous-zone, ID Distributeur, Produits vendus). L'export s'adapte maintenant
-              automatiquement : masquer l'un de ces champs retire directement sa colonne du fichier
-              (plutôt que de la laisser vide) ; le rendre facultatif ne change rien à l'export tant
-              qu'il reste visible. C'est un choix assumé, pas une erreur, mais mieux vaut le savoir
-              avant de cliquer — le partenaire peut ne pas s'attendre à recevoir un fichier avec
+              zone, Sous-zone, ID Distributeur, Produits vendus). L’export s’adapte maintenant
+              automatiquement : masquer l’un de ces champs retire directement sa colonne du fichier
+              (plutôt que de la laisser vide) ; le rendre facultatif ne change rien à l’export tant
+              qu’il reste visible. C’est un choix assumé, pas une erreur, mais mieux vaut le savoir
+              avant de cliquer — le partenaire peut ne pas s’attendre à recevoir un fichier avec
               moins de colonnes.
             </p>
           </div>
@@ -432,7 +432,7 @@ const PdvAttributs = () => {
       <div>
         <h2 className="text-lg font-bold text-ink-900 mb-1">Attributs personnalisés</h2>
         <p className="text-sm text-ink-500 mb-3">
-          Champs ajoutés par l'administrateur, en plus des champs standards ci-dessus.
+          Champs ajoutés par l’administrateur, en plus des champs standards ci-dessus.
         </p>
       </div>
 
@@ -442,7 +442,7 @@ const PdvAttributs = () => {
           <p className="text-xs text-ink-600 leading-relaxed">
             Chaque attribut défini ici apparaît automatiquement dans la fiche de tous les points de
             vente, sans redéploiement. Un attribut marqué <strong>obligatoire</strong> empêche un
-            dossier de passer de « brouillon » à « complet » tant qu'il n'est pas renseigné.
+            dossier de passer de « brouillon » à « complet » tant qu’il n’est pas renseigné.
           </p>
         </div>
       </div>
@@ -457,7 +457,7 @@ const PdvAttributs = () => {
           rowClassName={(a: any) => (a.actif ? '' : 'opacity-50')}
           minWidth={900}
           emptyMessage="Aucun attribut personnalisé"
-          emptyHint="La fiche PDV n'affiche que les champs standards."
+          emptyHint="La fiche PDV n’affiche que les champs standards."
           emptyIcon={<ListChecks className="w-6 h-6" />}
         />
       </div>
@@ -469,7 +469,7 @@ const PdvAttributs = () => {
               <h2>
                 {editing ? "Modifier l'attribut" : 'Nouvel attribut'}
               </h2>
-              <button onClick={fermer} className="btn-icon">
+              <button aria-label="Fermer" onClick={fermer} className="btn-icon">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -487,7 +487,7 @@ const PdvAttributs = () => {
                 />
                 {editing ? (
                   <p className="text-xs text-ink-400 mt-1">
-                    Code technique : <code>{editing.code}</code> — non modifiable, c'est la clé à
+                    Code technique : <code>{editing.code}</code> — non modifiable, c’est la clé à
                     laquelle les valeurs déjà saisies sont rattachées.
                   </p>
                 ) : null}
@@ -534,13 +534,13 @@ const PdvAttributs = () => {
               )}
 
               <div>
-                <label className="label">Texte d'aide (optionnel)</label>
+                <label className="label">Texte d’aide (optionnel)</label>
                 <input
                   type="text"
                   className="input"
                   value={form.aide}
                   onChange={(e) => setForm({ ...form, aide: e.target.value })}
-                  placeholder="Affiché sous le champ pour guider l'agent"
+                  placeholder="Affiché sous le champ pour guider l’agent"
                 />
               </div>
 

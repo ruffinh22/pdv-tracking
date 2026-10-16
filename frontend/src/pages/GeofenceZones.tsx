@@ -4,6 +4,8 @@ import { Plus, Edit, Trash2, MapPin, Layers, UserPlus, UserMinus, X } from 'luci
 import { geofenceService, GeofenceZone } from '../services/geofenceService';
 import { pdvService, PDV } from '../services/pdvService';
 import { useEffect, useState } from 'react';
+import { SkeletonList } from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
 import toast from 'react-hot-toast';
 import GeofenceZonesMap from '../components/GeofenceZonesMap';
 import GeofenceZoneEditorMap from '../components/GeofenceZoneEditorMap';
@@ -92,7 +94,7 @@ const GeofenceZones = () => {
       setSelectedZoneForAssign(null);
     },
     onError: () => {
-      toast.error('Erreur lors de l\'assignation du PDV');
+      toast.error('Erreur lors de l’assignation du PDV');
     }
   });
 
@@ -185,13 +187,13 @@ const GeofenceZones = () => {
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64 text-ink-400">Chargement...</div>;
+    return <SkeletonList rows={3} label="Chargement des zones" />;
   }
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title={'Zones Geofence'}
+        title={'Zones géofence'}
         subtitle={'Gestion des zones géographiques et assignation des PDV'}
         actions={<><button
           onClick={() => {
@@ -231,13 +233,13 @@ const GeofenceZones = () => {
                 </div>
               </div>
               <div className="flex gap-1 shrink-0">
-                <button
+                <button aria-label="Modifier"
                   onClick={(e) => { e.stopPropagation(); handleEdit(zone); }}
                   className="btn-icon hover:text-primary-600 hover:bg-primary-50"
                 >
                   <Edit className="w-4 h-4" />
                 </button>
-                <button
+                <button aria-label="Supprimer"
                   onClick={(e) => { e.stopPropagation(); handleDelete(zone.id); }}
                   className="btn-icon hover:text-danger-600 hover:bg-danger-50"
                 >
@@ -263,6 +265,7 @@ const GeofenceZones = () => {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-ink-700">PDV dans cette zone</span>
                 <button
+                  aria-label="Affecter des points de vente"
                   onClick={(e) => { e.stopPropagation(); handleAssignPDV(zone); }}
                   className="btn-icon w-8 h-8 hover:text-primary-600 hover:bg-primary-50"
                   title="Assigner un PDV"
@@ -299,12 +302,7 @@ const GeofenceZones = () => {
         ))}
 
         {zones?.length === 0 && (
-          <div className="card col-span-full text-center py-12">
-            <div className="w-12 h-12 rounded-full bg-ink-100 flex items-center justify-center mx-auto mb-3">
-              <Layers className="w-6 h-6 text-ink-300" />
-            </div>
-            <p className="text-ink-500">Aucune zone géofence créée</p>
-          </div>
+          <div className="card col-span-full"><EmptyState icon={Layers} message="Aucune zone géofence créée" hint="Créez une première zone pour surveiller les sorties de périmètre." /></div>
         )}
       </div>
 
@@ -316,7 +314,7 @@ const GeofenceZones = () => {
               <h2>
                 {editingZone ? 'Modifier la zone' : 'Nouvelle zone'}
               </h2>
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="btn-icon">
+              <button aria-label="Fermer" onClick={() => { setShowModal(false); resetForm(); }} className="btn-icon">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -391,7 +389,7 @@ const GeofenceZones = () => {
         </div>
       )}
 
-      {/* Modal d'assignation de PDV */}
+      {/* Modal d’assignation de PDV */}
       {showAssignModal && selectedZoneForAssign && (
         <div className="fixed inset-0 bg-ink-950/50 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
           <div className="bg-white rounded-2xl shadow-popover p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
@@ -399,7 +397,7 @@ const GeofenceZones = () => {
               <h2>
                 Assigner un PDV à {selectedZoneForAssign.nom_zone}
               </h2>
-              <button
+              <button aria-label="Fermer"
                 onClick={() => { setShowAssignModal(false); setSelectedZoneForAssign(null); }}
                 className="btn-icon"
               >

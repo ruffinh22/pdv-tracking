@@ -46,7 +46,7 @@ export const produitService = {
         return [];
       }
       if (err?.response?.status === 429) {
-        console.warn('Trop de requêtes reçues pour /produits (HTTP 429) — renvoi d\'un tableau vide');
+        console.warn('Trop de requêtes reçues pour /produits (HTTP 429) — renvoi d’un tableau vide');
         return [];
       }
       throw err;

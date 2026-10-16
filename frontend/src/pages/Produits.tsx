@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePersistedState } from '../hooks/usePersistedState';
 import PageHeader from '../components/PageHeader';
 import type { ColumnDef } from '@tanstack/react-table';
 import DataTable from '../components/DataTable';
@@ -13,7 +14,7 @@ const Produits = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingProduit, setEditingProduit] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = usePersistedState('produits:perPage', 10);
   const [formData, setFormData] = useState({
     nom_produit: '',
     description: '',
@@ -120,7 +121,7 @@ const Produits = () => {
   };
 
   const handleDelete = (id: number) => {
-    if (window.confirm('Êtes-vous sûr de vouloir désactiver ce produit?')) {
+    if (window.confirm('Êtes-vous sûr de vouloir désactiver ce produit ?')) {
       deleteMutation.mutate(id);
     }
   };
@@ -198,7 +199,7 @@ const Produits = () => {
             <Search className="w-4 h-4 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Rechercher un produit, une catégorie..."
+              placeholder="Rechercher un produit, une catégorie…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="input pl-9"
@@ -238,7 +239,7 @@ const Produits = () => {
               <h2>
                 {editingProduit ? 'Modifier le Produit' : 'Nouveau Produit'}
               </h2>
-              <button
+              <button aria-label="Fermer"
                 onClick={() => { setShowModal(false); resetForm(); setEditingProduit(null); }}
                 className="btn-icon"
               >
