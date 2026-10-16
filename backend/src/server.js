@@ -66,17 +66,29 @@ const io = socketIo(server, {
 
 // --- Sécurité ---------------------------------------------------------
 // CSP explicite plutôt que désactivée : on autorise précisément les domaines
-// nécessaires à la carte (tuiles OpenStreetMap + Nominatim) et au websocket Socket.IO
+// nécessaires aux cartes (tuiles OpenStreetMap/Esri + Nominatim pour Leaflet, Google Maps
+// pour le détail PDV et les zones géofence) et au websocket Socket.IO
 // (polices et CSS Leaflet sont auto-hébergés dans le bundle), sans ouvrir la politique en grand.
+//
+// Google Maps JavaScript API : le script vient de maps.googleapis.com, mais il charge ensuite
+// des tuiles/icônes (gstatic, googleapis, google), des polices (gstatic) et du CSS (googleapis).
+const GOOGLE_MAPS_SOURCES = [
+  'https://*.googleapis.com',
+  'https://*.gstatic.com',
+  'https://*.google.com',
+  'https://*.ggpht.com',
+  'https://*.googleusercontent.com',
+];
+
 app.use(
   helmet({
     contentSecurityPolicy: {
       useDefaults: true,
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        fontSrc: ["'self'", 'data:'],
+        scriptSrc: ["'self'", "'unsafe-inline'", ...GOOGLE_MAPS_SOURCES, 'blob:'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://*.googleapis.com'],
+        fontSrc: ["'self'", 'data:', 'https://*.gstatic.com'],
         imgSrc: [
           "'self'",
           'data:',
@@ -84,6 +96,7 @@ app.use(
           'https://*.tile.openstreetmap.org',
           'https://*.openstreetmap.org',
           'https://*.arcgisonline.com',
+          ...GOOGLE_MAPS_SOURCES,
         ],
         connectSrc: [
           "'self'",
@@ -91,7 +104,14 @@ app.use(
           'ws:',
           'wss:',
           ...FRONTEND_ORIGINS,
+          'https://*.googleapis.com',
+          'https://*.google.com',
+          'https://*.gstatic.com',
+          'data:',
+          'blob:',
         ],
+        frameSrc: ["'self'", 'https://*.google.com'],
+        workerSrc: ["'self'", 'blob:'],
       },
     },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
