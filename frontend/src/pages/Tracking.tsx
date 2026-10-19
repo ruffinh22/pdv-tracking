@@ -4,8 +4,10 @@ import { BRAND } from '../lib/theme';
 import { STATUTS, StatutReel, ORDRE_STATUTS, calculerStatutReel, compterStatuts, dernierSignal, ageLisible, badgeStatutHtml, echapperHtml as echapper } from '../lib/pdvStatus';
 import PDVStatusLegend from '../components/PDVStatusLegend';
 import { useQuery } from '@tanstack/react-query';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { chargerGoogleMaps } from '../lib/googleMapsLoader';
+import { stylesCarte } from '../config/googleMaps';
+import { useMapStyleSync } from '../hooks/useMapStyleSync';
+import MapStatusOverlay from '../components/MapStatusOverlay';
 import { io, Socket } from 'socket.io-client';
 import { pdvService } from '../services/pdvService';
 import { Maximize2, Minimize2, RefreshCw, Filter, Play, Pause, Radio, X, AlertTriangle } from 'lucide-react';
@@ -53,24 +55,26 @@ const normalizePosition = (raw: any): Position | null => {
   };
 };
 
-const createIcon = (etat: StatutReel, isSelected: boolean) => {
-  const color = STATUTS[etat].couleur;
-  const size = isSelected ? 40 : 32;
-  const borderSize = isSelected ? 4 : 3;
+type MarqueurPdv = google.maps.Marker & { __cle?: string; __html?: string };
+
+// Icône SVG d'un terminal : carré arrondi à la couleur du statut, bordure pleine si en ligne,
+// pointillée sinon ; le PDV suivi est plus grand, avec un contour orange.
+const iconePdv = (etat: StatutReel, isSelected: boolean): google.maps.Icon => {
+  const couleur = STATUTS[etat].couleur;
+  const taille = isSelected ? 44 : 36;
+  const bord = isSelected ? 4 : 3;
   const enLigne = etat === 'en_ligne';
-  return L.divIcon({
-    className: 'custom-marker',
-    html: `<div style="background-color: ${color}; width: ${size}px; height: ${size}px; border-radius: 8px;
-      border: ${borderSize}px ${enLigne ? 'solid' : 'dashed'} white; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-      display: flex; align-items: center; justify-content: center;
-      ${isSelected ? 'animation: pulse 2s infinite;' : ''}">
-      <svg xmlns="http://www.w3.org/2000/svg" width="${size * 0.55}" height="${size * 0.55}" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-      </svg>
-    </div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2]
-  });
+  const contour = isSelected ? BRAND.orange : 'white';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${taille}" height="${taille}" viewBox="0 0 ${taille} ${taille}">
+    <rect x="${bord / 2}" y="${bord / 2}" width="${taille - bord}" height="${taille - bord}" rx="9" fill="${couleur}" stroke="${contour}" stroke-width="${bord}" ${enLigne ? '' : 'stroke-dasharray="6 4"'}/>
+    <g transform="translate(${taille * 0.225} ${taille * 0.225}) scale(${(taille * 0.55) / 24})" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+    </g></svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new google.maps.Size(taille, taille),
+    anchor: new google.maps.Point(taille / 2, taille / 2),
+  };
 };
 
 // Au-delà de ce silence, un terminal de fiche active nécessite un passage terrain.
@@ -106,11 +110,16 @@ const popupHtml = (
   </div>`;
 
 const Tracking = () => {
-  const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<Map<number, L.Marker>>(new Map());
-  const accuracyCirclesRef = useRef<Map<number, L.Circle>>(new Map());
-  const polylinesRef = useRef<Map<number, L.Polyline>>(new Map());
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const infoPdvRef = useRef<number | null>(null);
+  const markersRef = useRef<Map<number, MarqueurPdv>>(new Map());
+  const accuracyCirclesRef = useRef<Map<number, google.maps.Circle>>(new Map());
+  const polylinesRef = useRef<Map<number, google.maps.Polyline>>(new Map());
+  const [mapPrete, setMapPrete] = useState(false);
+  const [erreurCarte, setErreurCarte] = useState<string | null>(null);
+  useMapStyleSync(mapRef, mapPrete);
   const socketRef = useRef<Socket | null>(null);
   
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -175,11 +184,23 @@ const Tracking = () => {
     [allPdvs, statuts, maintenant]
   );
 
+  const ouvrirInfo = (id: number) => {
+    const marker = markersRef.current.get(id);
+    const info = infoWindowRef.current;
+    if (!marker || !info || !mapRef.current) return;
+    info.setContent(marker.__html ?? '');
+    info.open({ map: mapRef.current, anchor: marker });
+    infoPdvRef.current = id;
+  };
+
   const localiser = (id: number) => {
     const marker = markersRef.current.get(id);
-    if (!marker || !mapRef.current) return;
-    mapRef.current.setView(marker.getLatLng(), Math.max(mapRef.current.getZoom(), 16));
-    marker.openPopup();
+    const map = mapRef.current;
+    const position = marker?.getPosition();
+    if (!marker || !map || !position) return;
+    map.setCenter(position);
+    map.setZoom(Math.max(map.getZoom() ?? 2, 16));
+    ouvrirInfo(id);
   };
 
   const reveiller = async (id: number) => {
@@ -208,32 +229,45 @@ const Tracking = () => {
     [allPdvs, statutFilter, zoneFilter, statuts]
   );
 
-  // Initialiser la carte
+  // Initialiser la carte Google Maps (chargée une seule fois pour toute l'application)
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    let annule = false;
 
-    if (!mapRef.current) {
-      mapRef.current = L.map(mapContainerRef.current, {
-        center: [0, 0],
-        zoom: 2,
-        zoomControl: true
+    chargerGoogleMaps()
+      .then((g) => {
+        if (annule || !mapContainerRef.current || mapRef.current) return;
+        mapRef.current = new g.maps.Map(mapContainerRef.current, {
+          center: { lat: 7.54, lng: -5.55 },
+          zoom: 7,
+          styles: stylesCarte(),
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: false,
+          clickableIcons: false,
+          gestureHandling: 'greedy',
+        });
+        infoWindowRef.current = new g.maps.InfoWindow();
+        infoWindowRef.current.addListener('closeclick', () => {
+          infoPdvRef.current = null;
+        });
+        setMapPrete(true);
+      })
+      .catch((err) => {
+        console.error('[Tracking] Google Maps indisponible:', err);
+        if (!annule) setErreurCarte(err?.message || 'Échec du chargement de Google Maps.');
       });
 
-      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; <a href="https://www.esri.com">Esri</a> — Esri, HERE, Garmin, \u00a9 OpenStreetMap contributors, GIS User Community',
-        maxZoom: 16
-      }).addTo(mapRef.current);
-    }
-
     return () => {
+      annule = true;
+      markersRef.current.forEach((marker) => marker.setMap(null));
       markersRef.current.clear();
-      accuracyCirclesRef.current.forEach((circle) => circle.remove());
+      accuracyCirclesRef.current.forEach((circle) => circle.setMap(null));
       accuracyCirclesRef.current.clear();
+      polylinesRef.current.forEach((pl) => pl.setMap(null));
       polylinesRef.current.clear();
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
+      infoWindowRef.current?.close();
+      infoWindowRef.current = null;
+      mapRef.current = null;
     };
   }, []);
 
@@ -345,18 +379,23 @@ const Tracking = () => {
   // la fenêtre d'information et réinitialisait la vue en permanence).
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    const g = (window as any).google as typeof google | undefined;
+    if (!map || !g || !mapPrete) return;
 
     const voulus = new Set(pdvs.filter((p) => positions.has(p.id)).map((p) => p.id));
     markersRef.current.forEach((marker, id) => {
       if (!voulus.has(id)) {
-        map.removeLayer(marker);
+        marker.setMap(null);
         markersRef.current.delete(id);
+        if (infoPdvRef.current === id) {
+          infoWindowRef.current?.close();
+          infoPdvRef.current = null;
+        }
       }
     });
     accuracyCirclesRef.current.forEach((circle, id) => {
       if (!voulus.has(id)) {
-        map.removeLayer(circle);
+        circle.setMap(null);
         accuracyCirclesRef.current.delete(id);
       }
     });
@@ -364,63 +403,71 @@ const Tracking = () => {
     pdvs.forEach((pdv) => {
       const pos = positions.get(pdv.id);
       if (!pos) return;
+      const centre = { lat: pos.lat, lng: pos.lng };
       const { etat, signal } = statuts.get(pdv.id) ?? { etat: 'jamais_connecte' as StatutReel, signal: null };
       const couleurEtat = STATUTS[etat].couleur;
-      const cle = `${etat}|${selectedPDV === pdv.id}`;
+      const suivi = selectedPDV === pdv.id;
+      const cle = `${etat}|${suivi}`;
+
+      // Cercle de précision GPS
       const accuracyCircle = accuracyCirclesRef.current.get(pdv.id);
       if (pos.precision !== null && pos.precision > 0) {
         if (accuracyCircle) {
-          accuracyCircle
-            .setLatLng([pos.lat, pos.lng])
-            .setRadius(pos.precision)
-            .setStyle({
-              color: couleurEtat,
-              fillColor: couleurEtat,
-            });
+          accuracyCircle.setOptions({ center: centre, radius: pos.precision, strokeColor: couleurEtat, fillColor: couleurEtat });
         } else {
           accuracyCirclesRef.current.set(
             pdv.id,
-            L.circle([pos.lat, pos.lng], {
+            new g.maps.Circle({
+              map,
+              center: centre,
               radius: pos.precision,
-              color: couleurEtat,
-              weight: 1,
+              strokeColor: couleurEtat,
+              strokeOpacity: 0.8,
+              strokeWeight: 1,
               fillColor: couleurEtat,
               fillOpacity: 0.12,
-              interactive: false,
-            }).addTo(map)
+              clickable: false,
+            })
           );
         }
       } else if (accuracyCircle) {
-        map.removeLayer(accuracyCircle);
+        accuracyCircle.setMap(null);
         accuracyCirclesRef.current.delete(pdv.id);
       }
-      let marker = markersRef.current.get(pdv.id) as (L.Marker & { __cle?: string; __html?: string }) | undefined;
 
+      // Marqueur
+      let marker = markersRef.current.get(pdv.id);
+      const html = popupHtml(pdv, pos, suivi, etat, signal);
       if (!marker) {
-        marker = L.marker([pos.lat, pos.lng], { icon: createIcon(etat, selectedPDV === pdv.id), title: pdv.nom_pdv, alt: pdv.nom_pdv }) as L.Marker & { __cle?: string; __html?: string };
+        marker = new g.maps.Marker({
+          position: centre,
+          map,
+          icon: iconePdv(etat, suivi),
+          title: pdv.nom_pdv,
+          zIndex: suivi ? 1000 : 1,
+        }) as MarqueurPdv;
         marker.__cle = cle;
-        marker.addTo(map);
-        marker.__html = popupHtml(pdv, pos, selectedPDV === pdv.id, etat, signal);
-        marker.bindPopup(marker.__html);
+        marker.__html = html;
+        marker.addListener('click', () => ouvrirInfo(pdv.id));
         markersRef.current.set(pdv.id, marker);
       } else {
-        marker.setLatLng([pos.lat, pos.lng]);
+        marker.setPosition(centre);
         if (marker.__cle !== cle) {
-          marker.setIcon(createIcon(etat, selectedPDV === pdv.id));
+          marker.setIcon(iconePdv(etat, suivi));
+          marker.setZIndex(suivi ? 1000 : 1);
           marker.__cle = cle;
         }
         // Le contenu n'est remplacé que s'il a changé : sinon le bouton serait
         // recréé sous le doigt de l'utilisateur et le clic perdu.
-        const html = popupHtml(pdv, pos, selectedPDV === pdv.id, etat, signal);
         if (marker.__html !== html) {
           marker.__html = html;
-          marker.setPopupContent(html);
+          if (infoPdvRef.current === pdv.id) infoWindowRef.current?.setContent(html);
         }
       }
     });
 
     // Trajectoire du PDV suivi (historique réel + position actuelle)
-    polylinesRef.current.forEach((pl) => map.removeLayer(pl));
+    polylinesRef.current.forEach((pl) => pl.setMap(null));
     polylinesRef.current.clear();
     if (selectedPDV && positions.has(selectedPDV)) {
       const pos = positions.get(selectedPDV)!;
@@ -430,11 +477,16 @@ const Tracking = () => {
       if (points.length > 1) {
         polylinesRef.current.set(
           selectedPDV,
-          L.polyline(points, { color: BRAND.orange, weight: 3, opacity: 0.8, dashArray: '10, 10' }).addTo(map)
+          new g.maps.Polyline({
+            map,
+            path: points.map(([lat, lng]) => ({ lat, lng })),
+            strokeOpacity: 0, // ligne pointillée dessinée par les icônes répétées
+            icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.85, strokeColor: BRAND.orange, scale: 3 }, offset: '0', repeat: '14px' }],
+          })
         );
       }
     }
-  }, [pdvs, positions, selectedPDV, historique, statuts]);
+  }, [pdvs, positions, selectedPDV, historique, statuts, mapPrete]);
 
   // Cadrage global : uniquement quand l'ensemble des PDV affichés change
   // (chargement, filtre) ou quand on arrête le suivi, jamais à chaque position.
@@ -445,28 +497,47 @@ const Tracking = () => {
   const aucunSuivi = selectedPDV === null;
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !aucunSuivi || markersRef.current.size === 0) return;
-    const groupe = L.featureGroup(Array.from(markersRef.current.values()));
-    map.fitBounds(groupe.getBounds().pad(0.1), { maxZoom: 15 });
-  }, [cleCadrage, aucunSuivi]);
+    const g = (window as any).google as typeof google | undefined;
+    if (!map || !g || !mapPrete || !aucunSuivi || markersRef.current.size === 0) return;
+    const limites = new g.maps.LatLngBounds();
+    markersRef.current.forEach((marker) => {
+      const p = marker.getPosition();
+      if (p) limites.extend(p);
+    });
+    if (markersRef.current.size === 1) {
+      const p = markersRef.current.values().next().value?.getPosition();
+      if (p) {
+        map.setCenter(p);
+        map.setZoom(15);
+      }
+      return;
+    }
+    map.fitBounds(limites, 56);
+    g.maps.event.addListenerOnce(map, 'idle', () => {
+      if ((map.getZoom() ?? 0) > 15) map.setZoom(15);
+    });
+  }, [cleCadrage, aucunSuivi, mapPrete]);
 
   // Suivi : zoom sur le PDV à la sélection, puis la carte le suit sans toucher au zoom.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !selectedPDV) return;
-    const marker = markersRef.current.get(selectedPDV);
-    if (marker) map.setView(marker.getLatLng(), Math.max(map.getZoom(), 15));
-  }, [selectedPDV]);
+    if (!map || !mapPrete || !selectedPDV) return;
+    const position = markersRef.current.get(selectedPDV)?.getPosition();
+    if (position) {
+      map.setCenter(position);
+      map.setZoom(Math.max(map.getZoom() ?? 2, 15));
+    }
+  }, [selectedPDV, mapPrete]);
 
   const posSuivie = selectedPDV ? positions.get(selectedPDV) : undefined;
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !posSuivie || !isTracking) return;
-    map.panTo([posSuivie.lat, posSuivie.lng], { animate: true });
-  }, [posSuivie?.lat, posSuivie?.lng, isTracking]);
+    if (!map || !mapPrete || !posSuivie || !isTracking) return;
+    map.panTo({ lat: posSuivie.lat, lng: posSuivie.lng });
+  }, [posSuivie?.lat, posSuivie?.lng, isTracking, mapPrete]);
 
-  // Boutons de la fenêtre d'information. Écoute en phase de capture sur la carte :
-  // Leaflet stoppe la propagation des clics à l'intérieur des popups.
+  // Boutons de la fenêtre d'information (contenu HTML injecté par Google dans le conteneur de la carte) :
+  // écoute en phase de capture pour ne dépendre d'aucun gestionnaire interne de la bibliothèque.
   useEffect(() => {
     const el = mapContainerRef.current;
     if (!el) return;
@@ -476,14 +547,27 @@ const Tracking = () => {
       if (cible.dataset.action === 'suivre') {
         setSelectedPDV(Number(cible.dataset.pdv));
         setIsTracking(true);
-        mapRef.current?.closePopup();
+        infoWindowRef.current?.close();
+        infoPdvRef.current = null;
       } else if (cible.dataset.action === 'arreter') {
         setSelectedPDV(null);
-        mapRef.current?.closePopup();
+        infoWindowRef.current?.close();
+        infoPdvRef.current = null;
       }
     };
     el.addEventListener('click', surClic, true);
     return () => el.removeEventListener('click', surClic, true);
+  }, []);
+
+  // Le plein écran change la taille du conteneur : la carte doit recalculer son rendu.
+  useEffect(() => {
+    const surChangement = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+      const g = (window as any).google as typeof google | undefined;
+      if (mapRef.current && g) g.maps.event.trigger(mapRef.current, 'resize');
+    };
+    document.addEventListener('fullscreenchange', surChangement);
+    return () => document.removeEventListener('fullscreenchange', surChangement);
   }, []);
 
   const toggleFullscreen = () => {
@@ -497,9 +581,8 @@ const Tracking = () => {
   };
 
   const refreshMap = () => {
-    if (mapRef.current) {
-      mapRef.current.invalidateSize();
-    }
+    const g = (window as any).google as typeof google | undefined;
+    if (mapRef.current && g) g.maps.event.trigger(mapRef.current, 'resize');
   };
 
   return (
@@ -626,6 +709,7 @@ const Tracking = () => {
       {/* Carte en plein écran */}
       <div className="flex-1 relative z-0">
         <div ref={mapContainerRef} className="absolute inset-0 bg-ink-100" />
+        {!mapPrete && <MapStatusOverlay erreur={erreurCarte} />}
         {panneauOuvert && (
           <aside className="absolute top-3 right-3 bottom-3 w-80 max-w-[85vw] z-[500] flex flex-col bg-white border border-ink-300 rounded-[10px] shadow-popover">
             <header className="flex items-center justify-between px-3.5 py-2.5 border-b border-ink-200">

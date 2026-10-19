@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { CHART_SERIES } from '../lib/theme';
 import { chargerGoogleMaps } from '../lib/googleMapsLoader';
-import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
+import { stylesCarte } from '../config/googleMaps';
+import { useMapStyleSync } from '../hooks/useMapStyleSync';
 import { GeofenceZone } from '../services/geofenceService';
 import MapStatusOverlay from './MapStatusOverlay';
 
@@ -27,6 +28,7 @@ const GeofenceZonesMap = ({ zones, selectedZoneId }: GeofenceZonesMapProps) => {
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [pret, setPret] = useState(false);
+  useMapStyleSync(mapRef, pret);
 
   useEffect(() => {
     let annule = false;
@@ -39,7 +41,7 @@ const GeofenceZonesMap = ({ zones, selectedZoneId }: GeofenceZonesMapProps) => {
           mapRef.current = new g.maps.Map(mapContainerRef.current, {
             center: { lat: 0, lng: 0 },
             zoom: 2,
-            styles: GOOGLE_MAP_STYLE,
+            styles: stylesCarte(),
             streetViewControl: false,
             mapTypeControl: false,
             fullscreenControl: false,

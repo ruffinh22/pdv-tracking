@@ -1,3 +1,4 @@
+import { useThemeStore } from '../contexts/themeStore';
 /**
  * Clé API Google Maps JavaScript (utilisée par toutes les cartes de
  * l'application : suivi temps réel, détail PDV, zones de géofencing).
@@ -37,3 +38,22 @@ export const GOOGLE_MAP_STYLE: google.maps.MapTypeStyle[] = [
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
 ];
+
+/** Variante sombre (vert-noir LONACI) du style de carte, pour le mode sombre de l'application. */
+export const GOOGLE_MAP_STYLE_DARK: google.maps.MapTypeStyle[] = [
+  { elementType: 'geometry', stylers: [{ color: '#0d241a' }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#8ea898' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#062316' }] },
+  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#2a5640' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1d3d2c' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#12301f' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2a5640' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#06150e' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+];
+
+/** Style de carte selon le thème courant (clair par défaut). */
+export const stylesCarte = (mode?: 'light' | 'dark'): google.maps.MapTypeStyle[] =>
+  (mode ?? useThemeStore.getState().mode) === 'dark' ? GOOGLE_MAP_STYLE_DARK : GOOGLE_MAP_STYLE;

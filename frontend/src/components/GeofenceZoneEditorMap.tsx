@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { BRAND } from '../lib/theme';
 import { chargerGoogleMaps } from '../lib/googleMapsLoader';
-import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
+import { stylesCarte } from '../config/googleMaps';
+import { useMapStyleSync } from '../hooks/useMapStyleSync';
 import { Undo2, Trash2 } from 'lucide-react';
 import MapStatusOverlay from './MapStatusOverlay';
 
@@ -30,6 +31,7 @@ const hasValidPolygon = (coordonnees: any) =>
 
 const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZoneEditorMapProps) => {
   const mapRef = useRef<google.maps.Map | null>(null);
+  useMapStyleSync(mapRef, true);
   const containerRef = useRef<HTMLDivElement>(null);
   const circleRef = useRef<google.maps.Circle | null>(null);
   const centerMarkerRef = useRef<google.maps.Marker | null>(null);
@@ -60,7 +62,7 @@ const GeofenceZoneEditorMap = ({ type, coordonnees, rayon, onChange }: GeofenceZ
         mapRef.current = new g.maps.Map(containerRef.current, {
           center: { lat: initialView[0], lng: initialView[1] },
           zoom: center || points.length ? 14 : 6,
-          styles: GOOGLE_MAP_STYLE,
+          styles: stylesCarte(),
           streetViewControl: false,
           mapTypeControl: false,
           fullscreenControl: false,

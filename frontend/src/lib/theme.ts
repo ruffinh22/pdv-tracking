@@ -1,6 +1,6 @@
 /**
  * Palette LONACI — source unique pour tout ce qui ne passe pas par Tailwind
- * (graphiques Recharts, marqueurs et tracés Leaflet, toasts).
+ * (graphiques Recharts, marqueurs et tracés de carte, toasts).
  * Logo : vert #008840 · rouge #C82828 · noir  |  Drapeau CI : orange #FF8200 · blanc · vert
  */
 export const BRAND = {

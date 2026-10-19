@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { BRAND } from '../lib/theme';
 import { chargerGoogleMaps } from '../lib/googleMapsLoader';
-import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
+import { stylesCarte } from '../config/googleMaps';
+import { useMapStyleSync } from '../hooks/useMapStyleSync';
 import { PositionPDV } from '../services/pdvService';
 import MapStatusOverlay from './MapStatusOverlay';
 import { STATUTS, ageLisible, badgeStatutHtml, calculerStatutReel, dernierSignal } from '../lib/pdvStatus';
@@ -74,6 +75,7 @@ const PDVTrackingMap = ({
   const calquesRef = useRef<Calque[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [pret, setPret] = useState(false);
+  useMapStyleSync(carteRef, pret);
 
   useEffect(() => {
     let annule = false;
@@ -86,7 +88,7 @@ const PDVTrackingMap = ({
           carteRef.current = new g.maps.Map(conteneurRef.current, {
             center: { lat: ancrage.latitude, lng: ancrage.longitude },
             zoom: 16,
-            styles: GOOGLE_MAP_STYLE,
+            styles: stylesCarte(),
             streetViewControl: false,
             mapTypeControl: false,
             fullscreenControl: false,

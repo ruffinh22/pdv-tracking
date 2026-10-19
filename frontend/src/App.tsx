@@ -11,7 +11,7 @@ import ErrorPage from './pages/ErrorPage';
 import { enregistrerPurgeSession } from './contexts/authContext';
 
 // Chargement paresseux par route : chaque page (et ses dépendances lourdes comme
-// Leaflet ou Recharts) n'est téléchargée que lorsqu'on y navigue, au lieu d'alourdir
+// Recharts) n'est téléchargée que lorsqu'on y navigue, au lieu d'alourdir
 // le bundle initial (utile en particulier pour /login, qui n'a besoin de rien de tout ça).
 const Layout = lazy(() => import('./components/Layout'));
 const Login = lazy(() => import('./pages/Login'));

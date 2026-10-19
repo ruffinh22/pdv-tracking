@@ -24,7 +24,7 @@ import {
 } from 'recharts';
 import { dashboardService, telechargerBlob, Periode, Dimension } from '../services/dashboardService';
 import { pdvService } from '../services/pdvService';
-import LeafletMap from '../components/LeafletMap';
+import PDVOverviewMap from '../components/PDVOverviewMap';
 import FiltresOrganisation, { ValeursFiltresOrganisation } from '../components/FiltresOrganisation';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../contexts/authContext';
@@ -597,7 +597,7 @@ const Dashboard = () => {
         </div>
         <div className="h-96 bg-ink-50">
           {allPDVs && allPDVs.length > 0 ? (
-            <LeafletMap pdvs={allPDVs} />
+            <PDVOverviewMap pdvs={allPDVs} />
           ) : (
             <EmptyState icon={MapPin} message="Aucun PDV avec position GPS disponible" hint="Les points de vente apparaîtront ici dès qu’une position sera remontée." />
           )}

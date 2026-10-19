@@ -90,11 +90,6 @@
 [data-theme='dark'] .recharts-tooltip-label { color: #eaf3ee !important; }
 [data-theme='dark'] .recharts-pie-sector path, [data-theme='dark'] .recharts-sector { stroke: #0d241a; }
 
-/* Cartes (Leaflet) : les fonds restent tels quels, les fenêtres suivent le thème */
-[data-theme='dark'] .leaflet-popup-content-wrapper, [data-theme='dark'] .leaflet-popup-tip { background: #0d241a; color: #e2ede6; border-color: #2a5640; }
-[data-theme='dark'] .leaflet-bar a { background: #0d241a; color: #e2ede6; border-color: #2a5640; }
-[data-theme='dark'] .leaflet-bar a:hover { background: #12301f; }
-[data-theme='dark'] .leaflet-container { background: #0a1d14; }
 
 /* Séparateurs <details>, mises en évidence diverses */
 [data-theme='dark'] kbd { color: #bfd3c6; }

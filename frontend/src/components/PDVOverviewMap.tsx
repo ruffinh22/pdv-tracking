@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { STATUTS, ageLisible, badgeStatutHtml, compterStatuts, dernierSignal, echapperHtml, iconeTabletteSvg, statutDuPdv } from '../lib/pdvStatus';
 import PDVStatusLegend from './PDVStatusLegend';
 import { chargerGoogleMaps } from '../lib/googleMapsLoader';
-import { GOOGLE_MAP_STYLE } from '../config/googleMaps';
+import { stylesCarte } from '../config/googleMaps';
+import { useMapStyleSync } from '../hooks/useMapStyleSync';
 import MapStatusOverlay from './MapStatusOverlay';
 
 interface PDV {
@@ -34,6 +35,7 @@ const PDVOverviewMap = ({ pdvs }: PDVOverviewMapProps) => {
   pdvsRef.current = pdvs;
   const [erreur, setErreur] = useState<string | null>(null);
   const [pret, setPret] = useState(false);
+  useMapStyleSync(mapRef, pret);
   const compteurs = useMemo(() => compterStatuts(pdvs.map((p) => statutDuPdv(p))), [pdvs]);
 
   useEffect(() => {
@@ -47,7 +49,7 @@ const PDVOverviewMap = ({ pdvs }: PDVOverviewMapProps) => {
           mapRef.current = new g.maps.Map(mapContainerRef.current, {
             center: { lat: 0, lng: 0 },
             zoom: 2,
-            styles: GOOGLE_MAP_STYLE,
+            styles: stylesCarte(),
             streetViewControl: false,
             mapTypeControl: false,
             fullscreenControl: false,

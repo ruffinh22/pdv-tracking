@@ -72,7 +72,7 @@ export const ageLisible = (signal: number | null, maintenant = Date.now()): stri
 export const echapperHtml = (t: unknown) =>
   String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
-/** Pastille de statut pour les fenêtres d'information (HTML brut Leaflet / Google). */
+/** Pastille de statut pour les fenêtres d'information (HTML brut Google Maps). */
 export const badgeStatutHtml = (statut: StatutReel) =>
   `<span style="display:inline-block;padding:2px 9px;border-radius:4px;background:${STATUTS[statut].couleur};color:#fff;font-weight:700;font-size:12px;">${STATUTS[statut].libelle}</span>`;
 
